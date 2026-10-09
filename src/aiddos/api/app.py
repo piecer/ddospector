@@ -12,6 +12,8 @@ from .errors import DraftError, error_response
 from .models import (
     AgentProfile,
     AgentProfileInput,
+    AISettingsInput,
+    AISettingsSnapshot,
     Campaign,
     CampaignInput,
     ContextPreview,
@@ -61,6 +63,14 @@ def create_app(*, state_path: str | Path | None = None) -> FastAPI:
     def health():
         return {"status": "ok", "version": "0.1.0-ui", "mode": "OFFLINE"}
 
+    @application.get("/api/v1/ai-settings", response_model=AISettingsSnapshot)
+    def ai_settings():
+        return store.ai_snapshot()
+
+    @application.put("/api/v1/ai-settings", response_model=AISettingsSnapshot)
+    def save_ai_settings(value: AISettingsInput):
+        return store.save_ai_settings(value)
+
     @application.get("/api/v1/workspace")
     def workspace():
         return store.snapshot()
@@ -88,6 +98,11 @@ def create_app(*, state_path: str | Path | None = None) -> FastAPI:
     @application.post("/api/v1/campaigns", status_code=201, response_model=Campaign)
     def create_campaign(value: CampaignInput):
         return store.create_campaign(value)
+
+    @application.post("/api/v1/ai-settings/test")
+    @application.post("/api/v1/ai-settings/models")
+    def deny_ai_connection():
+        return error_response("AI_CONNECTION_NOT_AVAILABLE")
 
     @application.post("/api/v1/runs")
     def deny_run():

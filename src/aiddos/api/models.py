@@ -5,6 +5,7 @@ from typing import Annotated, Literal
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
 
+from .ai_settings import AIBaseURL, AIIdentifier, AIModel, AIName, CredentialReference
 from .catalog import PROFILES_V1, SAFETY_RULES, SKILLS_V1
 from .validation import (
     Address,
@@ -102,7 +103,7 @@ class Campaign(CampaignInput):
     created_at: Timestamp
 
 
-class AuditEvent(ClosedModel):
+class LegacyAuditEvent(ClosedModel):
     id: Identifier
     action: Literal[
         "target.created",
@@ -114,6 +115,17 @@ class AuditEvent(ClosedModel):
     entity_id: str
     created_at: Timestamp
     origin: Literal["local_operator"] = "local_operator"
+
+
+class AuditEvent(LegacyAuditEvent):
+    action: Literal[
+        "target.created",
+        "mcp_server.created",
+        "skill.created",
+        "campaign.created",
+        "agent_profile.updated",
+        "ai_settings.updated",
+    ]
 
 
 class AgentProfileInput(ClosedModel):
@@ -140,7 +152,94 @@ class ContextPreview(ClosedModel):
     mcp_server_ids: Annotated[list[Identifier], Field(max_length=100), AfterValidator(unique_ids)]
 
 
-class DraftState(ClosedModel):
+class RetryRule(ClosedModel):
+    attempts: int = Field(ge=-1, le=20)
+    interval_ms: int = Field(ge=0, le=3600000)
+
+
+class AIRetry(ClosedModel):
+    connect: RetryRule
+    empty: RetryRule
+    stream: RetryRule
+
+
+class AIModelProfile(ClosedModel):
+    id: AIIdentifier
+    name: AIName
+    format: Literal["anthropic", "openai", "openai-responses"]
+    model: AIModel
+    base_url: AIBaseURL
+    credential_env: CredentialReference
+    rate_per_second: int = Field(ge=0, le=1000000)
+    rate_per_minute: int = Field(ge=0, le=1000000)
+    context_window_k: int = Field(ge=0, le=1000)
+    streaming: bool
+    max_tokens: int = Field(ge=0, le=1000000)
+    max_tokens_field: Literal["", "max_completion_tokens"]
+    thinking_type: Literal["", "disabled", "enabled"]
+    reasoning_effort: Literal["", "low", "medium", "high", "xhigh", "max"]
+    retry: AIRetry
+
+    @model_validator(mode="after")
+    def compatible_options(self):
+        if self.context_window_k != 0 and self.context_window_k < 32:
+            raise ValueError("Invalid context capacity")
+        if self.max_tokens_field and self.format != "openai":
+            raise ValueError("Output token field is only valid for Chat Completions")
+        return self
+
+
+class AISettingsInput(ClosedModel):
+    revision: int = Field(ge=0, le=9007199254740990)
+    profiles: list[AIModelProfile] = Field(max_length=20)
+    default_profile_id: AIIdentifier | None
+    agent_profile_id: AIIdentifier | None
+
+    @model_validator(mode="after")
+    def valid_selections(self):
+        ids = {profile.id for profile in self.profiles}
+        names = {profile.name.casefold() for profile in self.profiles}
+        if len(ids) != len(self.profiles) or len(names) != len(self.profiles):
+            raise ValueError("Duplicate model profile")
+        if any(
+            selected is not None and selected not in ids
+            for selected in (self.default_profile_id, self.agent_profile_id)
+        ):
+            raise ValueError("Invalid model profile selection")
+        return self
+
+
+class AISettingsSnapshot(AISettingsInput):
+    revision: int = Field(ge=0, le=9007199254740991)
+    updated_at: Timestamp | None
+    execution_enabled: Literal[False]
+    connection_status: Literal["not_tested"]
+
+    @model_validator(mode="after")
+    def valid_revision_state(self):
+        if self.revision == 0:
+            if self.updated_at is not None or self.profiles:
+                raise ValueError("Initial AI settings must be empty and unmodified")
+        elif self.updated_at is None:
+            raise ValueError("Saved AI settings require an update timestamp")
+        return self
+
+    @classmethod
+    def empty(cls):
+        return cls(
+            revision=0,
+            profiles=[],
+            default_profile_id=None,
+            agent_profile_id=None,
+            updated_at=None,
+            execution_enabled=False,
+            connection_status="not_tested",
+        )
+
+
+class LegacyDraftState(ClosedModel):
+    """UI-01's exact schema and invariants, admitted only for explicit migration."""
+
     format_version: Literal[1] = 1
     catalog_version: Literal["1.0.0"] = "1.0.0"
     targets: list[Target] = Field(default_factory=list, max_length=100)
@@ -154,7 +253,7 @@ class DraftState(ClosedModel):
         )
     )
     campaigns: list[Campaign] = Field(default_factory=list, max_length=100)
-    audit: list[AuditEvent] = Field(default_factory=list, max_length=500)
+    audit: list[LegacyAuditEvent] = Field(default_factory=list, max_length=500)
     audit_total: int = Field(default=0, ge=0, le=9007199254740991)
 
     @model_validator(mode="after")
@@ -199,9 +298,16 @@ class DraftState(ClosedModel):
             "skill.created": {s.id for s in self.skills},
             "campaign.created": {c.id for c in self.campaigns},
             "agent_profile.updated": {"agent-profile"},
+            "ai_settings.updated": {"ai-settings"},
         }
         if any(event.entity_id not in action_entities[event.action] for event in self.audit):
             raise ValueError("Invalid audit reference")
         if len(self.audit) != min(self.audit_total, 500):
             raise ValueError("Inconsistent audit retention")
         return self
+
+
+class DraftState(LegacyDraftState):
+    format_version: Literal[2] = 2
+    ai_settings: AISettingsSnapshot = Field(default_factory=AISettingsSnapshot.empty)
+    audit: list[AuditEvent] = Field(default_factory=list, max_length=500)

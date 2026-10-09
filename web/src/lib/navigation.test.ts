@@ -14,12 +14,13 @@ describe("workspace navigation contract", () => {
       "mcp-servers",
       "profiles",
       "agent",
+      "ai-settings",
       "skills",
       "approvals",
       "audit",
       "settings",
     ]);
-    expect(new Set(navigation.map((item) => item.id)).size).toBe(14);
+    expect(new Set(navigation.map((item) => item.id)).size).toBe(15);
     for (const item of navigation) {
       expect(item.label.en.trim()).not.toBe("");
       expect(item.label.ko.trim()).not.toBe("");
@@ -33,6 +34,7 @@ describe("workspace navigation contract", () => {
   });
   it("resolves deep links but does not silently turn unknown routes into overview", () => {
     expect(routeFromPath("/skills")).toBe("skills");
+    expect(routeFromPath("/ai-settings")).toBe("ai-settings");
     expect(routeFromPath("/not-a-route")).toBeNull();
   });
 });

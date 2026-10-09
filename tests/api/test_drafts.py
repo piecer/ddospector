@@ -28,7 +28,16 @@ def test_target_creation_is_durable_and_audited(client, state_path):
         assert event["origin"] == "local_operator"
         assert data["runs"] == []
     stored = json.loads(state_path.read_text())
-    assert stored["format_version"] == 1
+    assert stored["format_version"] == 2  # AI-02 explicitly advances the persisted schema.
+    assert stored["ai_settings"] == {
+        "revision": 0,
+        "profiles": [],
+        "default_profile_id": None,
+        "agent_profile_id": None,
+        "updated_at": None,
+        "execution_enabled": False,
+        "connection_status": "not_tested",
+    }
     assert stored["catalog_version"] == "1.0.0"
     assert not set(stored) & {"runs", "findings", "evidence", "profiles", "capabilities"}
 

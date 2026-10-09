@@ -33,7 +33,14 @@ SECURITY_HEADERS = frozenset(
         "access-control-request-headers",
     }
 )
-DENIAL_PATHS = frozenset({"/api/v1/runs", "/api/v1/agent/execute"})
+DENIAL_PATHS = frozenset(
+    {
+        "/api/v1/runs",
+        "/api/v1/agent/execute",
+        "/api/v1/ai-settings/test",
+        "/api/v1/ai-settings/models",
+    }
+)
 
 
 def checked_headers(scope: dict) -> dict[str, str]:

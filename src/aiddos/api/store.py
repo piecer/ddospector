@@ -17,10 +17,13 @@ from .errors import DraftError
 from .models import (
     AgentProfile,
     AgentProfileInput,
+    AISettingsInput,
+    AISettingsSnapshot,
     AuditEvent,
     Campaign,
     CampaignInput,
     DraftState,
+    LegacyDraftState,
     McpServer,
     McpServerInput,
     Skill,
@@ -64,6 +67,22 @@ class DraftStore:
             if len(raw) > MAX_STATE_BYTES:
                 raise DraftError("STATE_CORRUPT")
             payload = strict_json(raw)
+            if (
+                isinstance(payload, dict)
+                and type(payload.get("format_version")) is int
+                and payload["format_version"] == 1
+            ):
+                legacy = LegacyDraftState.model_validate(payload)
+                if json.dumps(legacy.model_dump(), sort_keys=True) != json.dumps(
+                    payload, sort_keys=True
+                ):
+                    raise DraftError("STATE_CORRUPT")
+                # No write here: only the next authorized mutation publishes v2.
+                payload = {
+                    **legacy.model_dump(),
+                    "format_version": 2,
+                    "ai_settings": AISettingsSnapshot.empty().model_dump(),
+                }
             state = DraftState.model_validate(payload)
             # Require every persisted field and exact primitive types. In-memory
             # defaults must not silently repair an incomplete/corrupt stored image.
@@ -105,6 +124,37 @@ class DraftStore:
             if temporary is not None:
                 with suppress(OSError):
                     temporary.unlink(missing_ok=True)
+
+    def ai_snapshot(self) -> dict:
+        with self.lock:
+            return self._read().ai_settings.model_dump()
+
+    def save_ai_settings(self, value: AISettingsInput) -> dict:
+        with self.lock:
+            state = self._read()
+            if value.revision != state.ai_settings.revision:
+                raise DraftError("AI_SETTINGS_CONFLICT")
+            data = value.model_dump()
+            data["revision"] += 1
+            updated_at = timestamp()
+            settings = AISettingsSnapshot(
+                **data,
+                updated_at=updated_at,
+                execution_enabled=False,
+                connection_status="not_tested",
+            )
+            state.ai_settings = settings
+            state.audit.append(
+                AuditEvent(
+                    id=str(uuid4()),
+                    action="ai_settings.updated",
+                    entity_id="ai-settings",
+                    created_at=updated_at,
+                )
+            )
+            state.audit_total += 1
+            self._write(state)
+            return settings.model_dump()
 
     def snapshot(self) -> dict:
         with self.lock:

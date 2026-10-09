@@ -1,7 +1,21 @@
-# UI-01 local draft API
+# Local draft API: UI-01 and AI-02
 
 This is a loopback development workspace, **not** the future execution backend,
 Safety Gate, authentication system, PostgreSQL store, MCP client or LLM client.
+
+AI-02 adds configuration-only model profiles through GET/PUT
+`/api/v1/ai-settings`: closed snapshots, revision compare-and-set, atomic audit,
+explicit default/review-agent bindings and a maximum of 20 profiles. Credential
+fields hold environment-variable names, never values; no lookup or connection
+occurs. POST `/api/v1/ai-settings/test` and `/api/v1/ai-settings/models` are denied
+after transport admission, including malformed bounded JSON bodies.
+
+The complete AI-02 configuration contract and execution boundaries are in
+[`docs/AI_SETTINGS_CONTRACT.md`](../../../docs/AI_SETTINGS_CONTRACT.md).
+The dedicated endpoint leaves the existing workspace response shape unchanged.
+The pinned Python 3.12 Unicode/IDNA metadata grammar and reproducible browser
+tables are described in
+[`AI_SETTINGS_COMPATIBILITY.md`](../../../docs/AI_SETTINGS_COMPATIBILITY.md).
 
 ## Run / verify
 
@@ -93,8 +107,12 @@ claim pagination. Consumers of the frozen shared fields remain compatible.
 ## Limits
 
 Single local process only: no multiprocess lock/durability promise, shared-network
-filesystem claim, authenticated audit, encryption, automatic migrations, updates
-or deletes. Local state is plaintext operator-owned draft data. Do not paste
+filesystem claim, authenticated audit or encryption. AI-02 has an explicit,
+exact-schema v1-to-v2 migration: GET changes memory only, and the next authorized
+draft mutation persists v2 while preserving prior data/audit. Profile edits and
+deletion use revision-checked AI snapshot replacement; generic UI-01 entity
+update/delete APIs remain unavailable. Local state is plaintext operator-owned
+draft data. Do not paste
 secrets into names or instructions; there is no general-purpose secret detector.
 Keep the containing directory trusted and private. No device, packet emission,
 MCP handshake, AI inference, operational approval or production deployment was

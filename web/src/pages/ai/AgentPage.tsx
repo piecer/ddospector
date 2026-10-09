@@ -118,7 +118,14 @@ export function AgentPage({ data, locale, refresh, navigate }: PageProps) {
           "Compose a review-only agent from Skills and registered MCP usage instructions.",
           "스킬과 등록된 MCP 사용 지침을 조합하여 검토 전용 에이전트를 구성하세요.",
         )}
-        actions={<Badge tone="info">REVIEW_ONLY</Badge>}
+        actions={
+          <div className="button-row">
+            <Badge tone="info">REVIEW_ONLY</Badge>
+            <Button onClick={() => navigate("ai-settings")}>
+              {t("AI settings", "AI 설정")}
+            </Button>
+          </div>
+        }
       />
       <Notice tone="warning">
         {t(

@@ -26,7 +26,7 @@ describe("workspace shell", () => {
       screen
         .getAllByRole("link")
         .filter((link) => link.getAttribute("href")?.startsWith("/")),
-    ).toHaveLength(14);
+    ).toHaveLength(15);
     expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute(
       "aria-current",
       "page",
@@ -54,6 +54,10 @@ describe("workspace shell", () => {
   });
   it("labels the shell in Korean", () => {
     mount("ko");
+    expect(screen.getByRole("link", { name: "AI 설정" })).toHaveAttribute(
+      "href",
+      "/ai-settings",
+    );
     expect(
       screen.getByRole("link", { name: "Skill 라이브러리" }),
     ).toBeInTheDocument();

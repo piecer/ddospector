@@ -3,6 +3,11 @@
 from starlette.responses import JSONResponse
 
 ERRORS = {
+    "AI_CONNECTION_NOT_AVAILABLE": (
+        409,
+        "AI connection tests and model discovery are unavailable in this draft workspace.",
+    ),
+    "AI_SETTINGS_CONFLICT": (409, "AI settings changed; reload before saving again."),
     "AUDIT_LIMIT_REACHED": (409, "The local audit counter has reached its safe limit."),
     "INTERNAL_ERROR": (500, "The draft service could not complete the request."),
     "NOT_FOUND": (404, "No such API route."),

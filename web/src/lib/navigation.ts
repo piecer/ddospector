@@ -9,6 +9,7 @@ export type RouteId =
   | "mcp-servers"
   | "profiles"
   | "agent"
+  | "ai-settings"
   | "skills"
   | "approvals"
   | "audit"
@@ -79,6 +80,12 @@ export const navigation: NavItem[] = [
     group: "ai",
     label: { en: "Agent workspace", ko: "AI 에이전트" },
     icon: "Bot",
+  },
+  {
+    id: "ai-settings",
+    group: "ai",
+    label: { en: "AI settings", ko: "AI 설정" },
+    icon: "SlidersHorizontal",
   },
   {
     id: "skills",

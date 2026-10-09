@@ -48,7 +48,7 @@ async function shot(page: Page, info: TestInfo, name: string) {
   });
 }
 
-test("all 14 actual menu routes render from the real API", async ({
+test("all 15 actual menu routes render from the real API", async ({
   page,
 }, info) => {
   const observed = diagnostics(page);
@@ -56,7 +56,7 @@ test("all 14 actual menu routes render from the real API", async ({
   await expect(
     page.getByRole("heading", { name: "Validation workspace" }),
   ).toBeVisible();
-  expect(navigation).toHaveLength(14);
+  expect(navigation).toHaveLength(15);
   await shot(page, info, "overview-en-1440");
   for (const route of navigation) {
     await navigate(page, route.id);

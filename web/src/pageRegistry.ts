@@ -18,6 +18,7 @@ import {
   SettingsPage,
 } from "./pages/lab";
 import { AgentPage, SkillsPage } from "./pages/ai";
+import { AISettingsPage } from "./pages/ai-settings";
 export const pages: Record<RouteId, ComponentType<PageProps>> = {
   overview: OverviewPage,
   campaigns: CampaignsPage,
@@ -29,6 +30,7 @@ export const pages: Record<RouteId, ComponentType<PageProps>> = {
   "mcp-servers": McpServersPage,
   profiles: ProfilesPage,
   agent: AgentPage,
+  "ai-settings": AISettingsPage,
   skills: SkillsPage,
   approvals: ApprovalsPage,
   audit: AuditPage,

@@ -82,12 +82,17 @@ export function SettingsPage({ data, locale, refresh, navigate }: PageProps) {
           "로컬 워크스페이스 구성과 현재 API 기능을 확인하세요. 이 항목은 상태 정보이며 권한 전환 스위치가 아닙니다.",
         )}
         actions={
-          <Button disabled={state === "loading"} onClick={reload}>
-            <RefreshCw size={16} aria-hidden="true" />
-            {state === "loading"
-              ? c("Refreshing…", "새로 고침 중…")
-              : c("Refresh workspace", "워크스페이스 새로 고침")}
-          </Button>
+          <div className="button-row">
+            <Button onClick={() => navigate("ai-settings")}>
+              {c("AI settings", "AI 설정")}
+            </Button>
+            <Button disabled={state === "loading"} onClick={reload}>
+              <RefreshCw size={16} aria-hidden="true" />
+              {state === "loading"
+                ? c("Refreshing…", "새로 고침 중…")
+                : c("Refresh workspace", "워크스페이스 새로 고침")}
+            </Button>
+          </div>
         }
       />
       {state === "error" && (

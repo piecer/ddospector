@@ -18,7 +18,7 @@ Open `http://127.0.0.1:5173`. From Windows with WSL localhost forwarding enabled
 
 - Workspace: Overview, Campaigns, Runs, Findings, Evidence
 - Lab configuration: Targets, Instruments, MCP servers, Traffic profiles
-- AI & governance: AI agent, Skill library, Approvals
+- AI & governance: AI agent, AI settings, Skill library, Approvals
 - System: Audit log, Settings
 
 The persistent shell has local API status, OFFLINE mode, a saved English/한국어 preference, responsive navigation, and a Ctrl/Cmd+K page search. The overview is a setup workspace; its component diagram is a planned topology, not live telemetry.
@@ -31,8 +31,11 @@ The persistent shell has local API status, OFFLINE mode, a saved English/한국�
 4. Assign Skills and MCP guidance to the review-only agent profile, then save the selection.
 5. Preview the assembled instruction context. This is deterministic text assembly, not an LLM response, model inference, tool call or executed test.
 6. Create a campaign draft from a real registered target and a profile template. Inspect actual changes in the audit log.
+7. Manage model configuration drafts in AI settings: protocol, model ID, endpoint, credential environment-variable reference, advanced options, an explicit default and a review-agent binding. Saving does not call or activate a model.
 
 A Skill explains how an agent should work. It cannot grant approval, override safety policy or enable execution. User-authored content retains its original language; the UI does not invent translations.
+
+AI settings manage multiple model configuration drafts without activating a provider. Profiles remain `not_tested`; API-key values, model discovery, connection tests and failover execution are unavailable. Existing version-1 draft files are validated and migrated in memory on read, then persisted as version 2 on the next authorized mutation. The previous drafts and audit history are preserved; corrupt files are not repaired silently.
 
 ## Deliberate boundaries
 
@@ -55,4 +58,6 @@ make test-e2e
 
 Browser tests start their own API/UI on loopback ports 5182/5175, use unique state under the configured `TMPDIR` (or project-owned cache), and never seed the development workspace. They do not reuse existing services. Source unit fixtures are test-only. Browser receipts and screenshots are retained under `.hermes/artifacts/ui-01/browser/`; deployment/device/physical-screen-reader acceptance is not implied by those tests.
 
-See `docs/UI_IMPLEMENTATION_CONTRACT.md` for the shared schema, stage scope, component/file ownership, limits and acceptance criteria. Korean usage instructions are in `docs/UI_GUIDE_KO.md`; verification scope and evidence locations are in `docs/UI_VERIFICATION.md`. No commit or push is performed without an explicit request.
+See `docs/UI_IMPLEMENTATION_CONTRACT.md` for the historical UI-01 contract and `docs/AI_SETTINGS_CONTRACT.md` for the AI-02 extension, exact API and acceptance criteria. Korean usage instructions are in `docs/UI_GUIDE_KO.md` and `docs/AI_SETTINGS_GUIDE_KO.md`; historical UI-01 verification scope and evidence locations are in `docs/UI_VERIFICATION.md`. No commit or push is performed without an explicit request.
+
+AI-02 configuration validation and review coverage are documented in `docs/AI_SETTINGS_VERIFICATION.md`; pinned cross-runtime text semantics and generated-data maintenance are in `docs/AI_SETTINGS_COMPATIBILITY.md`.
