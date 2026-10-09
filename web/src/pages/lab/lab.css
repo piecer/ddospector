@@ -1,0 +1,60 @@
+.lab-page .table td {
+  min-width: 7rem;
+  max-width: 28rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.lab-page .detail-list dd,
+.lab-page .mono {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lab-profile-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.lab-profile-card h3,
+.lab-profile-card p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.lab-profile-card > .button {
+  margin-top: auto;
+}
+
+.lab-instructions {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 22rem;
+  overflow: auto;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--panel-raised);
+  line-height: 1.7;
+}
+
+.lab-checklist {
+  padding-inline-start: 1.25rem;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.lab-checklist li + li {
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 600px) {
+  .lab-page .dialog .button-row > .button {
+    flex: 1 1 10rem;
+    justify-content: center;
+  }
+}

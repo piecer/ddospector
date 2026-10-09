@@ -1,0 +1,241 @@
+.operations-page {
+  min-width: 0;
+}
+
+.operations-primary-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: stretch;
+}
+
+.operations-primary-grid > *,
+.operations-page .panel-body,
+.operations-page .detail-list > *,
+.operations-page .form-grid > * {
+  min-width: 0;
+}
+
+.operations-locked-action {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  max-width: 320px;
+}
+
+.operations-locked-action p {
+  margin: 0;
+  text-align: right;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.operations-refresh {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.operations-refresh > .notice {
+  flex: 1 1 320px;
+}
+
+.operations-lifecycle {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.operations-lifecycle li {
+  padding: 20px;
+  background: var(--panel-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.operations-lifecycle svg,
+.operations-criteria svg,
+.operations-evidence-requirements svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.operations-lifecycle h3,
+.operations-criteria h3,
+.operations-evidence-requirements h3 {
+  margin: 12px 0 8px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.operations-lifecycle p,
+.operations-criteria p,
+.operations-evidence-requirements p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.operations-criteria article {
+  padding: 8px 16px;
+  border-left: 2px solid var(--border);
+}
+
+.operations-evidence-requirements {
+  display: grid;
+  gap: 0;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.operations-evidence-requirements li {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.operations-evidence-requirements li:first-child {
+  padding-top: 0;
+}
+.operations-evidence-requirements li:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.operations-evidence-requirements h3 {
+  margin-top: 0;
+}
+.operations-boundary {
+  margin-bottom: 24px;
+}
+
+.operations-page .table-scroll {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.operations-table {
+  width: 100%;
+  min-width: 680px;
+}
+
+.operations-table th,
+.operations-table td {
+  font-size: 14px;
+  line-height: 1.6;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  max-width: 320px;
+}
+
+.operations-table code {
+  font-size: inherit;
+}
+.operations-table time {
+  white-space: nowrap;
+}
+.operations-name {
+  text-align: left;
+  font: inherit;
+  overflow-wrap: anywhere;
+}
+.operations-page small {
+  display: block;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+.operations-table small {
+  font-size: 14px;
+}
+.operations-wrap,
+.operations-page dd {
+  overflow-wrap: anywhere;
+}
+.operations-prose {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.operations-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.operations-filter .field {
+  flex: 1 1 240px;
+  max-width: 440px;
+}
+.operations-filter input {
+  width: 100%;
+}
+.operations-filter small {
+  font-size: 14px;
+}
+
+.operations-footnote {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.operations-footnote svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.operations-footnote p {
+  margin: 0;
+}
+.operations-page .form-stack input,
+.operations-page .form-stack textarea,
+.operations-page .form-stack select {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (max-width: 1100px) {
+  .operations-primary-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .operations-lifecycle {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .operations-lifecycle {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .operations-locked-action {
+    justify-items: start;
+    max-width: none;
+  }
+  .operations-locked-action p {
+    text-align: left;
+  }
+  .operations-criteria article {
+    padding: 8px 12px;
+  }
+  .operations-refresh > .notice {
+    flex-basis: 100%;
+  }
+  .operations-filter .field {
+    max-width: none;
+  }
+}

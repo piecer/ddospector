@@ -1,0 +1,33 @@
+[project]
+name = "aiddos"
+version = "0.1.0"
+description = "Loopback-only Aegis Lab UI draft workspace; no execution runtime"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "pydantic>=2.10,<3",
+  "uvicorn>=0.34,<1",
+]
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "httpx2>=2.13,<3", "ruff>=0.11,<1"]
+
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/aiddos"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/api"]
+addopts = "-ra -p no:cacheprovider --basetemp=.venv/pytest-tmp"
+filterwarnings = ["error"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+cache-dir = ".venv/ruff-cache"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]

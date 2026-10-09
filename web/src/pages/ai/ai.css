@@ -1,0 +1,228 @@
+/* Page-local layout only; shell colors, typography and primitives stay shared. */
+.ai-page {
+  min-width: 0;
+}
+.ai-page .panel,
+.ai-page .panel-body,
+.ai-page .field,
+.ai-page .ai-fieldset,
+.ai-page .ai-skills-layout > * {
+  min-width: 0;
+}
+.ai-page .ai-fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.ai-page .ai-skills-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
+}
+.ai-page .ai-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.ai-page .ai-filters > :first-child {
+  grid-column: 1 / -1;
+}
+.ai-page .ai-catalog,
+.ai-page .ai-choice-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+.ai-page .ai-catalog .item-card {
+  padding: 20px;
+  border: 1px solid var(--border);
+  background: var(--panel-raised);
+  border-radius: 10px;
+}
+.ai-page .ai-catalog h3 {
+  margin: 15px 0 8px;
+  line-height: 1.4;
+}
+.ai-page .ai-catalog p {
+  margin: 0 0 18px;
+  line-height: 1.65;
+}
+.ai-page .ai-catalog .mono {
+  margin-inline-start: auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+.ai-page .chips {
+  flex-wrap: wrap;
+}
+.ai-page .ai-choice {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--panel);
+}
+.ai-page .ai-choice:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--panel-raised);
+}
+.ai-page .ai-choice > label {
+  display: flex;
+  align-items: start;
+  gap: 12px;
+  cursor: pointer;
+  min-height: 44px;
+}
+.ai-page .ai-choice > label > span {
+  min-width: 0;
+}
+.ai-page .ai-choice > label .muted {
+  display: block;
+  margin-top: 5px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.ai-page .ai-choice > label > .badge {
+  margin-inline-start: auto;
+  flex-shrink: 0;
+}
+.ai-page .ai-choice input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 3px 0 0;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+.ai-page .ai-choice .chips {
+  margin-top: 12px;
+}
+.ai-page .ai-choice details {
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.ai-page .ai-choice summary {
+  cursor: pointer;
+  padding: 14px 0;
+  min-height: 44px;
+  font-size: 13px;
+  color: var(--accent);
+}
+.ai-page .ai-choice .ai-skill-details {
+  padding-top: 8px;
+}
+.ai-page .ai-skill-details section > h3 {
+  font-size: 14px;
+  margin: 0 0 10px;
+}
+.ai-page .ai-skill-details p {
+  line-height: 1.7;
+}
+.ai-page .ai-skill-details section > p,
+.ai-page .ai-skill-details section > ul {
+  margin-top: 0;
+}
+.ai-page .ai-skill-details ul {
+  padding-inline-start: 20px;
+}
+.ai-page .ai-skill-details li + li {
+  margin-top: 8px;
+}
+.ai-page .ai-instructions {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.85;
+}
+.ai-page .ai-preview-output {
+  min-width: 0;
+  max-height: 36rem;
+  overflow: auto;
+  border-radius: 8px;
+}
+.ai-page .ai-preview-output .ai-instructions {
+  min-height: 140px;
+}
+.ai-page .ai-usage {
+  white-space: pre-wrap;
+  line-height: 1.75;
+  font-size: 13px;
+  color: var(--text);
+}
+.ai-page .ai-save-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.ai-page .ai-save-row p {
+  margin: 0;
+}
+.ai-page p,
+.ai-page code,
+.ai-page h2,
+.ai-page h3,
+.ai-page strong,
+.ai-page .notice {
+  overflow-wrap: anywhere;
+}
+.ai-page input:not([type="checkbox"]),
+.ai-page textarea,
+.ai-page select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.ai-page textarea {
+  resize: vertical;
+}
+.ai-page button,
+.ai-page input:not([type="checkbox"]),
+.ai-page select {
+  min-height: 44px;
+}
+.ai-page
+  :is(summary, input, textarea, select, button, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+@media (max-width: 1100px) {
+  .ai-page .ai-skills-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 760px) {
+  .ai-page .grid-two {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ai-page .ai-choice > label {
+    flex-wrap: wrap;
+  }
+  .ai-page .ai-choice > label > .badge {
+    margin-inline-start: 30px;
+  }
+  .ai-page .ai-instructions {
+    padding: 12px;
+  }
+  .ai-page .ai-save-row > .button {
+    width: 100%;
+  }
+}
+@media (max-width: 420px) {
+  .ai-page .ai-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ai-page .ai-catalog .item-card {
+    padding: 15px;
+  }
+}
