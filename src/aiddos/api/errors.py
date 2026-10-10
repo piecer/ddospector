@@ -3,6 +3,20 @@
 from starlette.responses import JSONResponse
 
 ERRORS = {
+    "SCENARIO_CONFLICT": (409, "Scenario history changed; reload before saving again."),
+    "SCENARIO_NOT_FOUND": (404, "No such scenario definition."),
+    "SCENARIO_LIMIT_REACHED": (409, "Scenario identity or version limit reached."),
+    "SCENARIO_STATE_CORRUPT": (503, "Scenario state is invalid; restore it before editing."),
+    "SCENARIO_STATE_UNAVAILABLE": (
+        503,
+        "Scenario storage is unavailable or write-quarantined. History reads do not unlock saves; "
+        "follow the offline recovery guide.",
+    ),
+    "SCENARIO_COMMIT_UNCERTAIN": (
+        503,
+        "Scenario may have been saved. Read its history; unresolved storage failure requires "
+        "offline recovery. Do not resubmit automatically.",
+    ),
     "AI_CONNECTION_NOT_AVAILABLE": (
         409,
         "AI connection tests and model discovery are unavailable in this draft workspace.",

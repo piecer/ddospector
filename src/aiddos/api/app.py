@@ -26,6 +26,7 @@ from .models import (
     TargetInput,
 )
 from .preview import preview_context
+from .scenarios import scenario_router
 from .store import DraftStore
 
 
@@ -112,6 +113,9 @@ def create_app(*, state_path: str | Path | None = None) -> FastAPI:
     def deny_agent_execution():
         return error_response("AGENT_EXECUTION_NOT_AVAILABLE")
 
+    application.include_router(
+        scenario_router(store, ticket=os.environ.get("AIDDOS_SCENARIO_RECOVERY_TICKET"))
+    )
     return application
 
 

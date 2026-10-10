@@ -1,4 +1,4 @@
-# Local draft API: UI-01 and AI-02
+# Local draft API: UI-01, AI-02 and S01
 
 This is a loopback development workspace, **not** the future execution backend,
 Safety Gate, authentication system, PostgreSQL store, MCP client or LLM client.
@@ -35,12 +35,19 @@ The factory is `aiddos.api.app.create_app(state_path=...)`. Otherwise the path i
 `AIDDOS_UI_STATE_PATH`, falling back to `.local/ui-drafts.json` relative to the
 launch directory. Import, health, initial workspace reads and preview do not
 create a state file. Health is process liveness, not a storage health assertion.
-The pytest fixture uses `http://localhost` and rejects socket connection, DNS
-lookup and subprocess calls; the separate smoke script starts only an owned,
+The default pytest fixture uses `http://localhost` and rejects socket connection,
+DNS lookup and subprocess calls. S01 recovery tests narrowly permit source-bound,
+finite local CLI/API child processes; they do not contact external services.
+The separate smoke script starts only an owned,
 ephemeral `127.0.0.1` Uvicorn listener and cleans up its process and draft file.
 
 ## Implemented contract
 
+- GET/POST `/api/v1/scenarios` and GET/PUT `/api/v1/scenarios/{id}`: bounded,
+  revision-checked scenario definitions with immutable versions and frozen
+  DUT/SINK/profile snapshots. Saving does not mutate the existing draft store.
+  Complete schema, pagination, digest and error precedence are specified in
+  [`S01_SCENARIOS.md`](../../../docs/stages/S01_SCENARIOS.md).
 - GET `/api/v1/health`, `/api/v1/workspace`.
 - POST `/api/v1/targets`, `/mcp-servers`, `/skills`, `/campaigns`: validated,
   atomically persisted drafts with actual local audit records.
@@ -92,7 +99,7 @@ claim pagination. Consumers of the frozen shared fields remain compatible.
 - Bodies require UTF-8 `application/json`, at most 256 KiB, at most 4096 ASGI frames
   and a 5-second receive budget. Invalid/ambiguous framing, compressed bodies,
   duplicate JSON keys, non-finite constants and nesting beyond 32 are rejected.
-- A single-process, per-path shared lock covers read/validate/mutate/replace.
+- For the legacy draft store, a single-process, per-path shared lock covers read/validate/mutate/replace.
   Writes use a same-directory 0600 temporary file, file fsync, atomic replace and
   directory fsync. State is freshly read and validated on each operation; there
   is no stale in-memory success cache. Reading is capped at 16 MiB and rejects
@@ -105,6 +112,37 @@ claim pagination. Consumers of the frozen shared fields remain compatible.
   the draft. Never describe this case as a rollback.
 
 ## Limits
+
+S01 uses a separate single-process registry at the effective draft filename plus
+`.scenarios.json`. The registry has 100 identity / 10 version limits, an 8192-byte
+complete-record cap and a 16 MiB state read cap. List/history/mutation responses
+have serialized limits of 1 MiB / 256 KiB / 256 KiB. Reads never repair state or
+rebind historical targets against today's draft store. Writes acquire scenario
+then draft locks; source failures retain `STATE_CORRUPT`/`STATE_UNAVAILABLE` while
+registry failures use `SCENARIO_STATE_*`. A failure after replacement returns
+`SCENARIO_COMMIT_UNCERTAIN`, never a rollback claim. The digest is not a signature.
+The browser has its own strict integer-token decoder, literal-preserving text
+validation, raw-byte budgets and a 10-second body-plus-validation deadline.
+
+S01 persistence additionally uses a fixed `R.s01-pending` holding directory and
+4,096-byte `R.s01-recovery` receipt, where R is the scenario registry path. Its
+private candidate and exposed publication alias normally share one inode bounded
+to 16 MiB. Failed operations retain material without pathname cleanup and fence
+the shared live owner. A fresh verified CLEAN registry/empty slot can resume
+without operator recovery. Incomplete state never silently becomes an empty store.
+
+The offline executable is `python -m aiddos.api.scenario_recovery`, with `inspect`
+and `recover` commands. All cooperating writers must be stopped first. Explicit
+`--accept-current` preserves the valid current registry and observable remnants
+when an incomplete attempt is abandoned; absent current state additionally needs
+`--confirm-empty-registry`. No candidate replay, rollback or force deletion exists.
+Recovery returns one ticket for `AIDDOS_SCENARIO_RECOVERY_TICKET` on a single API
+launch. Only a fully validated save consumes it; GET does not. Never retain this
+input in `.env`, logs or automatic restart configuration. See
+[`SCENARIO_STORAGE_RECOVERY.md`](../../../docs/SCENARIO_STORAGE_RECOVERY.md) for
+exact commands, per-invocation archive bounds and same-archive resume behavior,
+and [`S01_RETENTION_RECOVERY.md`](../../../docs/stages/S01_RETENTION_RECOVERY.md)
+for the closed frame/decision contract and failure ordering.
 
 Single local process only: no multiprocess lock/durability promise, shared-network
 filesystem claim, authenticated audit or encryption. AI-02 has an explicit,

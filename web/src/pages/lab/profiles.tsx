@@ -10,6 +10,7 @@ import {
   Panel,
 } from "../../components/ui";
 import type { PageProps } from "../../lib/contracts";
+import { ScenarioLibrary } from "../scenarios/ScenarioLibrary";
 import { choose, text } from "../../lib/i18n";
 
 export function ProfilesPage({ data, locale, navigate }: PageProps) {
@@ -85,6 +86,7 @@ export function ProfilesPage({ data, locale, navigate }: PageProps) {
           </div>
         )}
       </Panel>
+      <ScenarioLibrary data={data} locale={locale} navigate={navigate} />
       <Dialog
         open={Boolean(selected)}
         title={

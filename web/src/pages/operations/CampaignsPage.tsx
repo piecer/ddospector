@@ -139,6 +139,17 @@ export function CampaignsPage({ data, locale, navigate, refresh }: PageProps) {
           </Button>
         }
       />
+      <Notice>
+        {t(
+          "Versioned scenario definitions are separate from these campaign drafts and do not authorize execution.",
+          "버전별 시나리오 정의는 캠페인 초안과 별개이며 실행을 승인하지 않습니다.",
+        )}
+        <div className="button-row">
+          <Button onClick={() => navigate("profiles")}>
+            {t("Open scenario library", "시나리오 라이브러리 열기")}
+          </Button>
+        </div>
+      </Notice>
       {saved && !saving && (
         <div role="status">
           <Notice tone="success">

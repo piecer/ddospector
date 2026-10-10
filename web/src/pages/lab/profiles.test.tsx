@@ -70,13 +70,39 @@ describe("ProfilesPage", () => {
 
   it.each(["en", "ko"] as const)(
     "renders exactly the supplied templates and a useful detail view in %s",
-    (locale) => {
+    async (locale) => {
+      // Isolate the new passive library GET; retain the original no-execution
+      // assertion on every other transport call made by template controls.
       const fetch = vi.fn();
-      vi.stubGlobal("fetch", fetch);
+      const libraryRead = vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              revision: 0,
+              total: 0,
+              offset: 0,
+              limit: 50,
+              items: [],
+              execution_enabled: false,
+            }),
+          ),
+      );
+      vi.stubGlobal("fetch", (url: string, options: RequestInit) =>
+        url === "/api/v1/scenarios?offset=0&limit=50" &&
+        options.method === "GET"
+          ? libraryRead()
+          : fetch(url, options),
+      );
       const data = workspaceFixture();
       data.profiles = templates;
       const page = props({ data, locale });
       render(<ProfilesPage {...page} />);
+      await screen.findByText(
+        locale === "en"
+          ? "No scenario definitions yet."
+          : "아직 시나리오 정의가 없습니다.",
+      );
+      expect(libraryRead).toHaveBeenCalledTimes(1);
       for (const template of templates)
         expect(
           screen.getByRole("heading", { name: template.name[locale] }),

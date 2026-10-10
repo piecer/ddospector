@@ -1,0 +1,48 @@
+import type { Locale } from "../../lib/contracts";
+export const labels = {
+  name: ["Scenario name", "시나리오 이름"],
+  objective: ["Objective", "목표"],
+  target_id: ["DUT target", "DUT 대상"],
+  sink_id: ["Sink target", "수신 대상"],
+  dut_version: ["DUT version", "DUT 버전"],
+  policy_version: ["Policy version", "정책 버전"],
+  profile_id: ["Profile template", "프로필 템플릿"],
+  protocol: ["Protocol", "프로토콜"],
+  ip_version: ["IP version", "IP 버전"],
+  expected_action: ["Expected action", "기대 동작"],
+  delivery_expectation: ["Delivery expectation", "전달 기대값"],
+  detection_required: ["Detection required", "탐지 필수"],
+  max_pps: ["Maximum PPS", "최대 PPS"],
+  max_bps: ["Maximum BPS", "최대 BPS"],
+  max_packets: ["Maximum packets", "최대 패킷 수"],
+  max_bytes: ["Maximum bytes", "최대 바이트 수"],
+  max_connections: ["Maximum connections", "최대 연결 수"],
+  duration_seconds: ["Duration (seconds)", "지속 시간(초)"],
+  minimum_delivery_pct: ["Minimum delivery (%)", "최소 전달률(%)"],
+  maximum_delivery_pct: ["Maximum delivery (%)", "최대 전달률(%)"],
+  detection_deadline_ms: ["Detection deadline (ms)", "탐지 제한 시간(ms)"],
+  max_legitimate_loss_pct: [
+    "Maximum legitimate loss (%)",
+    "정상 트래픽 최대 손실률(%)",
+  ],
+  max_service_latency_ms: [
+    "Maximum service latency (ms)",
+    "최대 서비스 지연(ms)",
+  ],
+  max_cpu_pct: ["Maximum CPU (%)", "최대 CPU 사용률(%)"],
+  max_memory_pct: ["Maximum memory (%)", "최대 메모리 사용률(%)"],
+  max_sessions: ["Maximum sessions", "최대 세션 수"],
+  management_loss: ["Stop on management loss", "관리 연결 손실 시 중지"],
+  pcap_declared: ["Declare PCAP identity", "PCAP 식별 정보 선언"],
+  asset_label: ["PCAP label", "PCAP 이름"],
+  asset_sha256: ["PCAP SHA256", "PCAP SHA256"],
+  asset_size_bytes: ["PCAP size (bytes)", "PCAP 크기(바이트)"],
+  ingress_pcap: ["Ingress PCAP", "앞단 PCAP"],
+  egress_pcap: ["Egress PCAP", "뒷단 PCAP"],
+  dut_events: ["DUT events", "DUT 이벤트"],
+  service_probe: ["Service probe", "정상 서비스 프로브"],
+  resource_metrics: ["Resource metrics", "자원 메트릭"],
+} as const;
+export type LabelKey = keyof typeof labels;
+export const label = (locale: Locale, key: LabelKey): string =>
+  labels[key][locale === "en" ? 0 : 1];

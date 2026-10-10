@@ -1,0 +1,67 @@
+.scenario-library .panel-body {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.scenario-fields section {
+  display: grid;
+  gap: 0.8rem;
+  min-width: 0;
+}
+.scenario-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+.scenario-fields,
+.scenario-fields input,
+.scenario-fields select,
+.scenario-fields textarea {
+  min-width: 0;
+  max-width: 100%;
+}
+.scenario-fields input[type="checkbox"] {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+.scenario-evidence {
+  border: 1px solid var(--border);
+  border-radius: 0.7rem;
+  padding: 1rem;
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.scenario-fields p,
+.scenario-library p,
+.scenario-library dd {
+  overflow-wrap: anywhere;
+}
+.scenario-record {
+  min-width: 0;
+}
+.scenario-record dd,
+.scenario-record pre {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.scenario-record .detail-list {
+  min-width: 0;
+}
+.scenario-list {
+  display: grid;
+  gap: 1rem;
+}
+.scenario-list article {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 640px) {
+  .scenario-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .scenario-record .detail-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -32,6 +32,7 @@ The persistent shell has local API status, OFFLINE mode, a saved English/한국�
 5. Preview the assembled instruction context. This is deterministic text assembly, not an LLM response, model inference, tool call or executed test.
 6. Create a campaign draft from a real registered target and a profile template. Inspect actual changes in the audit log.
 7. Manage model configuration drafts in AI settings: protocol, model ID, endpoint, credential environment-variable reference, advanced options, an explicit default and a review-agent binding. Saving does not call or activate a model.
+8. In Traffic profiles, create a scenario using registered DUT/SINK targets, explicit expected policy, observation criteria, traffic budgets and required evidence. Open Scenario history to inspect a frozen revision or edit its latest version. Every save appends a new immutable version and verifies the returned record against its history; it never authorizes or starts execution.
 
 A Skill explains how an agent should work. It cannot grant approval, override safety policy or enable execution. User-authored content retains its original language; the UI does not invent translations.
 
@@ -42,6 +43,10 @@ AI settings manage multiple model configuration drafts without activating a prov
 LIVE run admission, model inference, MCP connection/handshake, traffic generation, instrument control, approvals, verdicts and evidence capture are unavailable. They remain separate implementation/acceptance work from the v2 plan. The server denies the execution endpoints as well as disabling the UI controls. Empty execution/history panels are intentional, not populated with sample telemetry.
 
 Local drafts are stored in `.local/ui-drafts.json` (override `AIDDOS_UI_STATE_PATH`). This single-process JSON store is not the planned PostgreSQL execution store. Keep it private and back it up before experimenting. Never put credentials into target addresses, MCP URLs or Skill instructions; no secrets workflow is implemented. Corrupt existing state must be surfaced, not reset silently.
+
+S01 scenario histories use a separate file beside the effective draft path, with `.scenarios.json` appended to its filename. The registry holds at most 100 scenario identities and 10 immutable versions per identity. Target/profile snapshots and SHA256 bind each definition; the hash is consistency checking, not authenticated provenance. PCAP fields are declared metadata only. Stale or unacknowledged saves preserve a read-only draft with explicit GET retry, close and discard/reopen controls; no write is automatically replayed.
+
+Scenario storage failures retain at most one 16 MiB managed candidate plus a fixed 4 KiB recovery receipt and deny further saves. Valid history stays readable; GET retry and closing/discarding an editor do not clear storage quarantine. A fresh process may resume a fully verified CLEAN registry with an empty holding directory without a ticket. Other failures require explicit offline inspection and bounded no-overwrite archival, with `--accept-current` available for reviewed incomplete material. See `docs/SCENARIO_STORAGE_RECOVERY.md` for English/Korean commands, one-use startup handoff, interruption handling and the separate per-invocation archive bound. This is not automatic replay, deletion or a power-loss guarantee.
 
 This build is for loopback development. It has no production login, RBAC, shared/multiprocess store or approved remote deployment. Do not bind it to a public interface or expose it through a tunnel. MCP endpoints are metadata only and are never fetched by draft registration/context preview.
 
@@ -61,3 +66,7 @@ Browser tests start their own API/UI on loopback ports 5182/5175, use unique sta
 See `docs/UI_IMPLEMENTATION_CONTRACT.md` for the historical UI-01 contract and `docs/AI_SETTINGS_CONTRACT.md` for the AI-02 extension, exact API and acceptance criteria. Korean usage instructions are in `docs/UI_GUIDE_KO.md` and `docs/AI_SETTINGS_GUIDE_KO.md`; historical UI-01 verification scope and evidence locations are in `docs/UI_VERIFICATION.md`. No commit or push is performed without an explicit request.
 
 AI-02 configuration validation and review coverage are documented in `docs/AI_SETTINGS_VERIFICATION.md`; pinned cross-runtime text semantics and generated-data maintenance are in `docs/AI_SETTINGS_COMPATIBILITY.md`.
+
+The current sequential development and per-stage commit contract is `docs/IMPLEMENTATION_CAMPAIGN.md`. S01 behavior and acceptance criteria are in `docs/stages/S01_SCENARIOS.md`; Korean scenario instructions are in `docs/SCENARIOS_GUIDE_KO.md`. Stage verification records distinguish isolated browser acceptance from active-service, real-model and physical-device tests.
+
+S01 implementation, independent review, failure/recovery coverage and verification limitations are recorded in `docs/SCENARIOS_VERIFICATION.md`.
