@@ -1,1 +1,1 @@
-"""Aegis Lab local UI drafts; no device or inference runtime."""
+"""Legacy implementation namespace for DDoSpector; retained for compatibility."""

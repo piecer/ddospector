@@ -1,9 +1,9 @@
 """Explicit atomic schema install; never imported by application wiring."""
 
 import asyncio
-import os
 
 from aiddos.api.errors import DraftError
+from aiddos.startup import startup_setting
 
 from . import schema
 from .config import driver, parameters
@@ -39,7 +39,7 @@ async def migrate(socket):
 
 def main():
     try:
-        outcome = asyncio.run(migrate(os.environ.get("AIDDOS_RUN_DB_SOCKET")))
+        outcome = asyncio.run(migrate(startup_setting("RUN_DB_SOCKET")))
     except (DraftError, OSError, RuntimeError):
         print('{"schema_version":1,"status":"REFUSED"}')
         return 78

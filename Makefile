@@ -1,15 +1,15 @@
 .DEFAULT_GOAL := help
 .PHONY: help setup api web test test-api test-web test-runs lint build test-e2e
 help:
-	@printf '%s\n' 'Aegis Lab · local UI workspace' '  make setup     Locked Python and web dependencies' '  make api       Local API on 127.0.0.1:5180' '  make web       UI on 127.0.0.1:5173 (separate terminal)' '  make test      API and UI unit/integration suites' '  make lint      Ruff, ESLint and TypeScript checks' '  make build     Production UI build' '  make test-e2e  Real Chromium + isolated API/browser state'
+	@printf '%s\n' 'DDoSpector · local UI workspace' '  make setup     Locked Python and web dependencies' '  make api       Local API on 127.0.0.1:5180' '  make web       UI on 127.0.0.1:5173 (separate terminal)' '  make test      API and UI unit/integration suites' '  make lint      Ruff, ESLint and TypeScript checks' '  make build     Production UI build' '  make test-e2e  Real Chromium + isolated API/browser state'
 setup:
 	uv sync --frozen
 	npm --prefix web ci
 runs-migrate:
-	.venv/bin/python -m aiddos.runs.migrate
+	.venv/bin/python -m ddospector.runs.migrate
 .PHONY: runs-migrate
 api:
-	.venv/bin/python -m uvicorn aiddos.api.app:app --host 127.0.0.1 --port 5180
+	.venv/bin/python -m uvicorn ddospector.api.app:app --host 127.0.0.1 --port 5180
 web:
 	npm --prefix web run dev
 test: test-api test-web test-runs

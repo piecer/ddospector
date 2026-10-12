@@ -1,7 +1,5 @@
 """OFFLINE admission transport, separate from the legacy LIVE denial."""
 
-import os
-
 from fastapi import APIRouter, Request
 from starlette.responses import Response
 
@@ -10,6 +8,7 @@ from aiddos.runs.contracts import identifier, raw_json, request_value, require
 from aiddos.runs.lifetime import manager
 from aiddos.runs.queries import events, list_runs, page_query
 from aiddos.runs.repository import create, get
+from aiddos.startup import startup_setting
 
 from .construction import serialized
 from .errors import DraftError
@@ -23,7 +22,7 @@ async def disconnected(request):
 
 
 def runs_router(drafts) -> APIRouter:
-    socket = os.environ.get("AIDDOS_RUN_DB_SOCKET")
+    socket = startup_setting("RUN_DB_SOCKET")
     peer = ScenarioStore(drafts, ticket=None)
     return _compose_runs(peer, socket)
 

@@ -12,7 +12,7 @@ test("documented root enters overview and preserves history, localization and un
   await expect(
     page.getByRole("navigation").locator('a[href="/overview"]'),
   ).toHaveAttribute("aria-current", "page");
-  await expect(page).toHaveTitle("Overview · Aegis Lab");
+  await expect(page).toHaveTitle("Overview · DDoSpector");
   await page.getByRole("navigation").locator('a[href="/targets"]').click();
   await expect(page).toHaveURL(/\/targets$/);
   await page.goBack();
@@ -29,7 +29,7 @@ test("documented root enters overview and preserves history, localization and un
   await expect(
     page.getByRole("heading", { name: "검증 워크스페이스" }),
   ).toBeVisible();
-  await expect(page).toHaveTitle("워크스페이스 · Aegis Lab");
+  await expect(page).toHaveTitle("워크스페이스 · DDoSpector");
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("lang", "ko");
   await expect(

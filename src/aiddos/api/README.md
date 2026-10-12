@@ -1,4 +1,4 @@
-# Local draft API: UI-01, AI-02 and S01
+# DDoSpector local draft API: UI-01, AI-02 and S01
 
 This is a loopback development workspace, **not** the future execution backend,
 Safety Gate, authentication system, PostgreSQL store, MCP client or LLM client.
@@ -24,15 +24,16 @@ Use Python 3.12 in a project-local `.venv`; do not replace system Python.
 ```sh
 uv venv --python 3.12 .venv
 uv sync --locked
-uv run uvicorn aiddos.api.app:app --host 127.0.0.1 --port 5180 --workers 1 --no-proxy-headers
+uv run uvicorn ddospector.api.app:app --host 127.0.0.1 --port 5180 --workers 1 --no-proxy-headers
 uv run pytest tests/api -q
-uv run ruff check src/aiddos tests/api
-uv run ruff format --check src/aiddos tests/api
+uv run ruff check src tests/api
+uv run ruff format --check src tests/api
 uv run python tests/api/smoke_loopback.py
 ```
 
-The factory is `aiddos.api.app.create_app(state_path=...)`. Otherwise the path is
-`AIDDOS_UI_STATE_PATH`, falling back to `.local/ui-drafts.json` relative to the
+The factory is `ddospector.api.app.create_app(state_path=...)`. Otherwise the path is
+`DDOSPECTOR_UI_STATE_PATH`, then legacy `AIDDOS_UI_STATE_PATH` only when the new
+setting is absent, falling back to `.local/ui-drafts.json` relative to the
 launch directory. Import, health, initial workspace reads and preview do not
 create a state file. Health is process liveness, not a storage health assertion.
 The default pytest fixture uses `http://localhost` and rejects socket connection,
@@ -131,12 +132,12 @@ to 16 MiB. Failed operations retain material without pathname cleanup and fence
 the shared live owner. A fresh verified CLEAN registry/empty slot can resume
 without operator recovery. Incomplete state never silently becomes an empty store.
 
-The offline executable is `python -m aiddos.api.scenario_recovery`, with `inspect`
+The offline executable is `python -m ddospector.api.scenario_recovery`, with `inspect`
 and `recover` commands. All cooperating writers must be stopped first. Explicit
 `--accept-current` preserves the valid current registry and observable remnants
 when an incomplete attempt is abandoned; absent current state additionally needs
 `--confirm-empty-registry`. No candidate replay, rollback or force deletion exists.
-Recovery returns one ticket for `AIDDOS_SCENARIO_RECOVERY_TICKET` on a single API
+Recovery returns one ticket for `DDOSPECTOR_SCENARIO_RECOVERY_TICKET` (legacy `AIDDOS_SCENARIO_RECOVERY_TICKET` remains supported) on a single API
 launch. Only a fully validated save consumes it; GET does not. Never retain this
 input in `.env`, logs or automatic restart configuration. See
 [`SCENARIO_STORAGE_RECOVERY.md`](../../../docs/SCENARIO_STORAGE_RECOVERY.md) for

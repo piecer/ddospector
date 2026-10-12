@@ -1,6 +1,12 @@
-# Aegis Lab · AI defense validation workspace
+# DDoSpector
 
-UI-first implementation of the project in `PLAN.md`. The historical plan is preserved. The initial delivery focuses on the complete layout/menu and real local draft workflows, **not the live test platform**.
+AI-Powered DDoS Defense Validation Framework
+
+Find the gaps before attackers do.
+
+AI-powered open-source framework for automated DDoS defense testing, mitigation gap discovery, and security validation.
+
+UI-first implementation of the project in `PLAN.md`. The historical plan is preserved. The initial delivery focuses on the complete layout/menu and real local draft workflows, **not the live test platform**. The description above states the project direction, not completed LIVE capabilities. Naming and compatibility are documented in `docs/NAMING.md`.
 
 ## S02 manual-review checkpoint
 
@@ -50,7 +56,7 @@ AI settings manage multiple model configuration drafts without activating a prov
 
 LIVE run admission, model inference, MCP connection/handshake, traffic generation, instrument control, approvals, verdicts and evidence capture are unavailable. The legacy LIVE execution endpoint remains denied. The new OFFLINE Runs route reads actual run storage; it shows an unavailable state when storage is absent, not fabricated empty history. Its candidate backend integration remains unaccepted.
 
-Local drafts are stored in `.local/ui-drafts.json` (override `AIDDOS_UI_STATE_PATH`). This single-process JSON store is separate from the candidate PostgreSQL OFFLINE run store. No automatic database provisioning or draft migration is performed. Keep drafts private and back them up before experimenting. Never put credentials into target addresses, MCP URLs or Skill instructions; no secrets workflow is implemented. Corrupt existing state must be surfaced, not reset silently.
+Local drafts are stored in `.local/ui-drafts.json` (override `DDOSPECTOR_UI_STATE_PATH`; legacy `AIDDOS_UI_STATE_PATH` remains supported). This single-process JSON store is separate from the candidate PostgreSQL OFFLINE run store. No automatic database provisioning or draft migration is performed. Keep drafts private and back them up before experimenting. Never put credentials into target addresses, MCP URLs or Skill instructions; no secrets workflow is implemented. Corrupt existing state must be surfaced, not reset silently.
 
 S01 scenario histories use a separate file beside the effective draft path, with `.scenarios.json` appended to its filename. The registry holds at most 100 scenario identities and 10 immutable versions per identity. Target/profile snapshots and SHA256 bind each definition; the hash is consistency checking, not authenticated provenance. PCAP fields are declared metadata only. Stale or unacknowledged saves preserve a read-only draft with explicit GET retry, close and discard/reopen controls; no write is automatically replayed.
 

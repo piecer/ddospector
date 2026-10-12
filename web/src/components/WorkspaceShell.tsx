@@ -131,15 +131,13 @@ export function WorkspaceShell({
           <button
             className="brand"
             onClick={() => go("overview")}
-            aria-label="Aegis Lab"
+            aria-label="DDoSpector"
           >
             <span className="brand-mark">
               <ShieldCheck size={23} strokeWidth={1.65} aria-hidden="true" />
             </span>
             <span>
-              <strong>
-                AEGIS<span className="brand-light"> LAB</span>
-              </strong>
+              <strong>DDoSpector</strong>
               <small>DEFENSE VALIDATION</small>
             </span>
           </button>
@@ -291,7 +289,7 @@ export function WorkspaceShell({
           {children}
           <footer className="content-footer">
             <span>
-              AEGIS LAB <span aria-hidden="true">/</span>{" "}
+              DDoSpector <span aria-hidden="true">/</span>{" "}
               {c("Evidence before conclusions.", "결론보다 먼저, 증거.")}
             </span>
             <span>

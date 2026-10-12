@@ -10,6 +10,7 @@ from contextlib import suppress
 from uuid import uuid4
 
 from aiddos.api.scenarios import canonical
+from aiddos.startup import startup_setting
 
 from . import offline, schema, transitions
 from .config import driver, parameters
@@ -159,7 +160,7 @@ async def run():
 
     owner.compute = compute
     try:
-        kwargs = parameters(os.environ.get("AIDDOS_RUN_DB_SOCKET"))
+        kwargs = parameters(startup_setting("RUN_DB_SOCKET"))
         pg = driver()
         await acquire(owner)
         ready = True

@@ -6,7 +6,7 @@ const webRoot = dirname(fileURLToPath(import.meta.url));
 const root = resolve(webRoot, "..");
 const scratch = process.env.TMPDIR || join(root, ".cache", "e2e");
 mkdirSync(scratch, { recursive: true });
-const stateRoot = mkdtempSync(join(scratch, "aegis-ui-e2e-"));
+const stateRoot = mkdtempSync(join(scratch, "ddospector-ui-e2e-"));
 const runKey =
   new Date().toISOString().replace(/[:.]/g, "-") + "-" + process.pid;
 const artifacts = join(
@@ -51,18 +51,18 @@ export default defineConfig({
     // Bind failures stay fatal; stdout readiness avoids unbounded closed-port probes.
     // The suite verifies HTTP health after both owned processes have actually bound.
     {
-      name: "aegis-api-e2e",
+      name: "ddospector-api-e2e",
       command:
-        ".venv/bin/python -m uvicorn aiddos.api.app:app --host 127.0.0.1 --port 5182",
+        ".venv/bin/python -m uvicorn ddospector.api.app:app --host 127.0.0.1 --port 5182",
       cwd: root,
       wait: { stderr: /Uvicorn running on http:\/\/127\.0\.0\.1:5182/ },
-      env: { AIDDOS_UI_STATE_PATH: join(stateRoot, "drafts.json") },
+      env: { DDOSPECTOR_UI_STATE_PATH: join(stateRoot, "drafts.json") },
       reuseExistingServer: false,
       timeout: 45_000,
       gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
     },
     {
-      name: "aegis-web-e2e",
+      name: "ddospector-web-e2e",
       command: "npm run dev -- --port 5175",
       cwd: webRoot,
       wait: { stdout: /http:\/\/127\.0\.0\.1:5175/ },

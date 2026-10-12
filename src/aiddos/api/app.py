@@ -1,6 +1,5 @@
 """FastAPI application wiring."""
 
-import os
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -8,6 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException
 
 from aiddos.runs.lifetime import lifespan
+from aiddos.startup import startup_setting
 
 from .boundary import DevelopmentBoundary
 from .construction import serialized
@@ -37,15 +37,11 @@ from .store import DraftStore
 def create_app(*, state_path: str | Path | None = None) -> FastAPI:
     store = DraftStore(
         Path(
-            state_path
-            or os.environ.get(
-                "AIDDOS_UI_STATE_PATH",
-                ".local/ui-drafts.json",
-            )
+            state_path or startup_setting("UI_STATE_PATH", ".local/ui-drafts.json")
         )
     )
 
-    scenarios = scenario_router(store, ticket=os.environ.get("AIDDOS_SCENARIO_RECOVERY_TICKET"))
+    scenarios = scenario_router(store, ticket=startup_setting("SCENARIO_RECOVERY_TICKET"))
     runs = runs_router(store)
     return _compose_app(store, scenarios, runs)
 

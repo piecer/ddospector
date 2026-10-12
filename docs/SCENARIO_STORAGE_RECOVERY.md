@@ -30,7 +30,7 @@ Examples below use Bash placeholders. Replace them with the reviewed local paths
 
 ```sh
 DRAFT_PATH=/absolute/private/drafts.json
-.venv/bin/python -m aiddos.api.scenario_recovery inspect --draft-path "$DRAFT_PATH"
+.venv/bin/python -m ddospector.api.scenario_recovery inspect --draft-path "$DRAFT_PATH"
 ```
 
 Inspection is read-only. Its bounded JSON includes receipt phase/presence, current registry hash/revision/size, pending-file hashes/sizes, and `review`. It does not print scenario bodies or a ticket. `ABSENT` is not the same as a validated nonempty history. Missing and malformed receipts are distinguished.
@@ -42,7 +42,7 @@ Review the observation and compare current history with the attempted save. Copy
 For valid prior metadata and complete preservation witnesses:
 
 ```sh
-.venv/bin/python -m aiddos.api.scenario_recovery recover \
+.venv/bin/python -m ddospector.api.scenario_recovery recover \
   --draft-path "$DRAFT_PATH" \
   --review REVIEW_HASH_FROM_INSPECTION \
   --archive /absolute/private/new-recovery-archive
@@ -51,7 +51,7 @@ For valid prior metadata and complete preservation witnesses:
 For missing/damaged control material or an incomplete attempt whose missing candidate cannot be reconstructed, explicitly choose the currently validated committed registry instead:
 
 ```sh
-.venv/bin/python -m aiddos.api.scenario_recovery recover \
+.venv/bin/python -m ddospector.api.scenario_recovery recover \
   --draft-path "$DRAFT_PATH" \
   --review REVIEW_HASH_FROM_INSPECTION \
   --archive /absolute/private/new-recovery-archive \
@@ -66,14 +66,19 @@ Successful recovery preserves the observed raw receipt in `receipt.bin`, an immu
 
 ## Start once with the handoff
 
+The legacy `aiddos` commands and `AIDDOS_*` settings remain supported. A present
+`DDOSPECTOR_*` setting takes precedence even when empty; remove conflicting newer
+settings before intentionally using a legacy setting. The one-use ticket and
+retained-data rules below are unchanged by the rename.
+
 Do not save tickets in `.env`, scripts, shell history, logs, persistent service configuration or HTTP requests. A ticket is a short-lived local recovery capability, not a model/API credential. Use only a complete recovery result with exit 0. Enter the returned ticket into a private shell without echo:
 
 ```sh
 IFS= read -r -s -p 'Recovery ticket: ' recovery_ticket
 printf '\n'
-AIDDOS_UI_STATE_PATH="$DRAFT_PATH" \
-AIDDOS_SCENARIO_RECOVERY_TICKET="$recovery_ticket" \
-  .venv/bin/python -m uvicorn aiddos.api.app:app \
+DDOSPECTOR_UI_STATE_PATH="$DRAFT_PATH" \
+DDOSPECTOR_SCENARIO_RECOVERY_TICKET="$recovery_ticket" \
+  .venv/bin/python -m uvicorn ddospector.api.app:app \
   --host 127.0.0.1 --port 5180 --workers 1 --no-proxy-headers
 unset recovery_ticket
 ```

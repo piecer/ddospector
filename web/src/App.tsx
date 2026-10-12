@@ -60,7 +60,7 @@ export function Application({ pages }: ApplicationProps) {
     document.documentElement.lang = locale;
     const item = navigation.find((item) => item.id === route);
     document.title =
-      (item ? text(item.label, locale) : "Aegis Lab") + " · Aegis Lab";
+      (item ? text(item.label, locale) : "DDoSpector") + " · DDoSpector";
   }, [locale, route]);
   useEffect(() => {
     try {
