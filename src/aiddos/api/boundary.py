@@ -6,6 +6,7 @@ Non-browser requests without Origin are allowed when Host is loopback.
 
 import asyncio
 import re
+import time
 
 from starlette.responses import Response
 
@@ -61,7 +62,9 @@ def checked_headers(scope: dict) -> dict[str, str]:
     return headers
 
 
-def body_headers(headers: dict[str, str]) -> int | None:
+def body_headers(
+    headers: dict[str, str], limit=MAX_BODY_BYTES, excess="BODY_TOO_LARGE"
+) -> int | None:
     if not re.fullmatch(
         r'application/json(?:\s*;\s*charset=(?:utf-8|"utf-8"))?',
         headers.get("content-type", ""),
@@ -79,8 +82,8 @@ def body_headers(headers: dict[str, str]) -> int | None:
     if not re.fullmatch(r"[0-9]{1,20}", length):
         raise DraftError("INVALID_FRAMING")
     size = int(length)
-    if size > MAX_BODY_BYTES:
-        raise DraftError("BODY_TOO_LARGE")
+    if size > limit:
+        raise DraftError(excess)
     return size
 
 
@@ -130,8 +133,19 @@ class DevelopmentBoundary:
                 )(scope, receive, protected_send)
                 return
             downstream_receive = receive
+            offline = scope["path"] == "/api/v1/offline-runs" or scope["path"].startswith(
+                "/api/v1/offline-runs/"
+            )
+            limit = 1024 if offline else MAX_BODY_BYTES
+            excess = "RUN_BODY_TOO_LARGE" if offline else "BODY_TOO_LARGE"
+            if (
+                offline
+                and scope["method"] in {"GET", "HEAD"}
+                and ("transfer-encoding" in headers or headers.get("content-length", "0") != "0")
+            ):
+                raise DraftError("INVALID_FRAMING")
             if scope["method"] not in {"GET", "HEAD"}:
-                expected_length = body_headers(headers)
+                expected_length = body_headers(headers, limit, excess)
                 body = bytearray()
                 try:
                     async with asyncio.timeout(BODY_TIMEOUT_SECONDS):
@@ -140,13 +154,13 @@ class DevelopmentBoundary:
                             if message["type"] == "http.disconnect":
                                 return
                             chunk = message.get("body", b"")
-                            if len(body) + len(chunk) > MAX_BODY_BYTES:
-                                raise DraftError("BODY_TOO_LARGE")
+                            if len(body) + len(chunk) > limit:
+                                raise DraftError(excess)
                             body.extend(chunk)
                             if not message.get("more_body", False):
                                 break
                         else:
-                            raise DraftError("BODY_TOO_LARGE")
+                            raise DraftError(excess)
                 except TimeoutError:
                     raise DraftError("REQUEST_TIMEOUT") from None
                 if expected_length is not None and len(body) != expected_length:
@@ -167,6 +181,8 @@ class DevelopmentBoundary:
                     return await receive()
 
                 downstream_receive = replay
+            if offline:
+                scope["s02_deadline"] = time.monotonic() + 5.0
             await self.app(scope, downstream_receive, protected_send)
         except DraftError as exc:
             await error_response(exc.code)(scope, receive, protected_send)

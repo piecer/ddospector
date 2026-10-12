@@ -3,6 +3,25 @@
 from starlette.responses import JSONResponse
 
 ERRORS = {
+    "RUN_BODY_TOO_LARGE": (413, "Offline run request exceeds the 1024-byte limit."),
+    "RUN_DB_NOT_CONFIGURED": (503, "Offline run storage is not configured."),
+    "RUN_DB_NOT_READY": (
+        503,
+        "Offline run storage requires the supported schema and durability settings.",
+    ),
+    "RUN_DB_UNAVAILABLE": (503, "Offline run storage is unavailable."),
+    "RUN_BUSY": (429, "Offline run storage admission is busy."),
+    "RUN_SOURCE_NOT_FOUND": (404, "No such scenario version."),
+    "RUN_SOURCE_CONFLICT": (409, "The selected scenario digest does not match."),
+    "RUN_STATE_CORRUPT": (503, "Retained offline run data is invalid; no repair was performed."),
+    "RUN_RETENTION_FULL": (409, "Offline run retention is full; existing records were preserved."),
+    "RUN_QUEUE_FULL": (429, "The offline run queue is full."),
+    "RUN_NOT_FOUND": (404, "No such offline run or request."),
+    "RUN_IDEMPOTENCY_CONFLICT": (409, "This request ID is bound to different input."),
+    "RUN_COMMIT_UNCERTAIN": (
+        503,
+        "The operation may have committed. Read by request or run ID before retrying.",
+    ),
     "SCENARIO_CONFLICT": (409, "Scenario history changed; reload before saving again."),
     "SCENARIO_NOT_FOUND": (404, "No such scenario definition."),
     "SCENARIO_LIMIT_REACHED": (409, "Scenario identity or version limit reached."),

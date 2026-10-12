@@ -10,6 +10,7 @@ from pydantic import BeforeValidator, Field, model_validator
 from starlette.responses import Response
 
 from .catalog import PROFILES_V1
+from .construction import serialized
 from .errors import DraftError
 from .models import ClosedModel, LocalizedText, Target, Timestamp
 from .validation import Goal, Identifier, Name
@@ -217,6 +218,11 @@ def scenario_router(drafts, *, ticket=None) -> APIRouter:
     from .scenario_store import ScenarioStore
 
     store = ScenarioStore(drafts, ticket=ticket)
+    return _compose_scenarios(store)
+
+
+@serialized
+def _compose_scenarios(store) -> APIRouter:
     router = APIRouter(prefix="/api/v1/scenarios")
 
     @router.get("")

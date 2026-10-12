@@ -2,6 +2,14 @@
 
 UI-first implementation of the project in `PLAN.md`. The historical plan is preserved. The initial delivery focuses on the complete layout/menu and real local draft workflows, **not the live test platform**.
 
+## S02 manual-review checkpoint
+
+This checkout includes the OFFLINE Runs UI and its candidate API/worker implementation
+for manual review. It is **not a completed S02 release**. At the user's request,
+backend and real-browser integration acceptance are deferred for this checkpoint.
+See `docs/S02_REVIEW_CHECKPOINT.md` for the verified scope, known gaps and review steps.
+No LIVE traffic, device control or defense evaluation is enabled.
+
 ## Run locally
 
 Requirements: Node.js compatible with the locked Vite version (Node 24 was used), npm, and uv. The project Python environment uses Python 3.12; do not change system Python.
@@ -40,9 +48,9 @@ AI settings manage multiple model configuration drafts without activating a prov
 
 ## Deliberate boundaries
 
-LIVE run admission, model inference, MCP connection/handshake, traffic generation, instrument control, approvals, verdicts and evidence capture are unavailable. They remain separate implementation/acceptance work from the v2 plan. The server denies the execution endpoints as well as disabling the UI controls. Empty execution/history panels are intentional, not populated with sample telemetry.
+LIVE run admission, model inference, MCP connection/handshake, traffic generation, instrument control, approvals, verdicts and evidence capture are unavailable. The legacy LIVE execution endpoint remains denied. The new OFFLINE Runs route reads actual run storage; it shows an unavailable state when storage is absent, not fabricated empty history. Its candidate backend integration remains unaccepted.
 
-Local drafts are stored in `.local/ui-drafts.json` (override `AIDDOS_UI_STATE_PATH`). This single-process JSON store is not the planned PostgreSQL execution store. Keep it private and back it up before experimenting. Never put credentials into target addresses, MCP URLs or Skill instructions; no secrets workflow is implemented. Corrupt existing state must be surfaced, not reset silently.
+Local drafts are stored in `.local/ui-drafts.json` (override `AIDDOS_UI_STATE_PATH`). This single-process JSON store is separate from the candidate PostgreSQL OFFLINE run store. No automatic database provisioning or draft migration is performed. Keep drafts private and back them up before experimenting. Never put credentials into target addresses, MCP URLs or Skill instructions; no secrets workflow is implemented. Corrupt existing state must be surfaced, not reset silently.
 
 S01 scenario histories use a separate file beside the effective draft path, with `.scenarios.json` appended to its filename. The registry holds at most 100 scenario identities and 10 immutable versions per identity. Target/profile snapshots and SHA256 bind each definition; the hash is consistency checking, not authenticated provenance. PCAP fields are declared metadata only. Stale or unacknowledged saves preserve a read-only draft with explicit GET retry, close and discard/reopen controls; no write is automatically replayed.
 
@@ -51,6 +59,12 @@ Scenario storage failures retain at most one 16 MiB managed candidate plus a fix
 This build is for loopback development. It has no production login, RBAC, shared/multiprocess store or approved remote deployment. Do not bind it to a public interface or expose it through a tunnel. MCP endpoints are metadata only and are never fetched by draft registration/context preview.
 
 ## Verification
+
+For this S02 checkpoint, Web unit tests, lint, type checking and build are the
+included verification scope. Run `make setup`, `make test-web`, then the Web lint,
+typecheck and build scripts. The historical full-stage commands below include
+backend/browser gates that are **not accepted or executed for this checkpoint**;
+some retained backend/browser probes still require campaign-specific inputs.
 
 ```sh
 make test

@@ -7,7 +7,10 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException
 
+from aiddos.runs.lifetime import lifespan
+
 from .boundary import DevelopmentBoundary
+from .construction import serialized
 from .errors import DraftError, error_response
 from .models import (
     AgentProfile,
@@ -26,13 +29,12 @@ from .models import (
     TargetInput,
 )
 from .preview import preview_context
+from .runs import runs_router
 from .scenarios import scenario_router
 from .store import DraftStore
 
 
 def create_app(*, state_path: str | Path | None = None) -> FastAPI:
-    application = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, redirect_slashes=False)
-    application.add_middleware(DevelopmentBoundary)
     store = DraftStore(
         Path(
             state_path
@@ -42,6 +44,18 @@ def create_app(*, state_path: str | Path | None = None) -> FastAPI:
             )
         )
     )
+
+    scenarios = scenario_router(store, ticket=os.environ.get("AIDDOS_SCENARIO_RECOVERY_TICKET"))
+    runs = runs_router(store)
+    return _compose_app(store, scenarios, runs)
+
+
+@serialized
+def _compose_app(store, scenarios, runs) -> FastAPI:
+    application = FastAPI(
+        docs_url=None, redoc_url=None, openapi_url=None, redirect_slashes=False, lifespan=lifespan
+    )
+    application.add_middleware(DevelopmentBoundary)
 
     @application.exception_handler(Exception)
     async def unexpected_error(request, exc):
@@ -113,9 +127,8 @@ def create_app(*, state_path: str | Path | None = None) -> FastAPI:
     def deny_agent_execution():
         return error_response("AGENT_EXECUTION_NOT_AVAILABLE")
 
-    application.include_router(
-        scenario_router(store, ticket=os.environ.get("AIDDOS_SCENARIO_RECOVERY_TICKET"))
-    )
+    application.include_router(scenarios)
+    application.include_router(runs)
     return application
 
 

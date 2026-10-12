@@ -402,9 +402,7 @@ it.each([
     fireEvent.click(
       screen.getByRole("button", { name: "Discard draft and reopen" }),
     );
-    await waitFor(() =>
-      expect(screen.getByLabelText("Scenario name")).toHaveValue(""),
-    );
+    await waitForScenarioEditor("");
     const save = screen.getByRole("button", { name: "Save scenario" });
     if (
       failure === "SCENARIO_STATE_UNAVAILABLE" ||
@@ -524,8 +522,10 @@ it.each(
     fireEvent.click(
       button("Discard draft and reopen", "초안 버리고 다시 열기"),
     );
-    await waitFor(() =>
-      expect(name()).toHaveValue(method === "POST" ? "" : two.definition.name),
+    await waitForScenarioEditor(
+      method === "POST" ? "" : two.definition.name,
+      locale,
+      method,
     );
     // These guards must survive the newly opened session's editing phase.
     expect(save()).toBeDisabled();
@@ -651,9 +651,7 @@ it("guards create and edit handlers independently of the disabled DOM buttons", 
   fireEvent.click(
     await screen.findByRole("button", { name: "Discard draft and reopen" }),
   );
-  await waitFor(() =>
-    expect(screen.getByLabelText("Scenario name")).toHaveValue(""),
-  );
+  await waitForScenarioEditor("");
   fireEvent.click(screen.getByRole("button", { name: "Discard draft" }));
   expect(screen.getByRole("button", { name: "New scenario" })).toBeDisabled();
   expect(createHandler).toBeTypeOf("function");
@@ -1288,16 +1286,115 @@ it("retains a PUT opening revision through conflict and refresh, and only an exp
   fireEvent.click(
     screen.getByRole("button", { name: "Discard draft and reopen" }),
   );
-  await waitFor(() =>
-    expect(screen.getByLabelText("Scenario name")).toHaveValue(
-      "newer stored name",
-    ),
-  );
+  await waitForScenarioEditor("newer stored name", "en", "PUT");
   expect(screen.getByText("Opening registry revision: 2")).toBeInTheDocument();
   expect(
     fetcher.mock.calls.filter(([, init]) => init.method === "PUT"),
   ).toHaveLength(1);
 });
+// A draft value can be committed before the modal becomes accessible.
+function waitForScenarioEditor(
+  value: string,
+  locale: Locale = "en",
+  method: "POST" | "PUT" = "POST",
+) {
+  const c = (en: string, ko: string) => (locale === "en" ? en : ko);
+  return waitFor(() => {
+    expect(
+      screen.getByLabelText(c("Scenario name", "시나리오 이름")),
+    ).toHaveValue(value);
+    const dialog = screen.getByRole("dialog", {
+      name: method === "POST"
+        ? c("New scenario", "새 시나리오")
+        : c("Edit scenario", "시나리오 수정"),
+    });
+    expect(dialog).toHaveAttribute("open");
+    expect(within(dialog).getByRole("button", {
+      name: method === "POST"
+        ? c("Save scenario", "시나리오 저장")
+        : c("Save new version", "새 버전 저장"),
+    })).toBeInTheDocument();
+  });
+}
+it.each(
+  (["en", "ko"] as const).flatMap((locale) =>
+    (["POST", "PUT"] as const).flatMap((method) =>
+      [false, true].map((locked) => ({ locale, method, locked })),
+    ),
+  ),
+)(
+  "waits for modal readiness with matching $method input in $locale (locked=$locked)",
+  async ({ locale, method, locked }) => {
+    const c = (en: string, ko: string) => (locale === "en" ? en : ko);
+    const title = method === "POST"
+      ? c("New scenario", "새 시나리오")
+      : c("Edit scenario", "시나리오 수정");
+    const saveName = method === "POST"
+      ? c("Save scenario", "시나리오 저장")
+      : c("Save new version", "새 버전 저장");
+    const nameLabel = c("Scenario name", "시나리오 이름");
+    const value = method === "POST" ? "" : "newer stored name";
+    const showModal = HTMLDialogElement.prototype.showModal;
+    let release!: () => void;
+    vi.spyOn(HTMLDialogElement.prototype, "showModal").mockImplementation(function (this: HTMLDialogElement) {
+      release = () => showModal.call(this);
+    });
+    render(
+      <ui.Dialog open title={title} onClose={vi.fn()} recoveryOnly={locked}>
+        <ui.Field label={nameLabel}>
+          <input defaultValue={value} readOnly={locked} />
+        </ui.Field>
+        <ui.Notice tone="danger">fixed</ui.Notice>
+        <ui.Button disabled={locked}>{saveName}</ui.Button>
+      </ui.Dialog>,
+    );
+    const input = screen.getByLabelText(nameLabel);
+    const dialog = input.closest("dialog")!;
+    expect(release).toBeTypeOf("function");
+    expect(input).toHaveValue(value);
+    expect(dialog.open).toBe(false);
+    expect(screen.queryByRole("button", { name: saveName })).toBeNull();
+    let completed = false;
+    let beforeRelease: { completed: boolean; open: boolean; accessible: boolean } | undefined;
+    const interval = globalThis.setInterval;
+    // Release from waitFor's own first real poll, not a sleep or a larger timeout.
+    // A value-only barrier completes immediately and cancels that poll: RED.
+    const polling = vi.spyOn(globalThis, "setInterval").mockImplementation(
+      ((callback: () => void, ms?: number) => interval(() => {
+        callback();
+        if (!beforeRelease) {
+          beforeRelease = {
+            completed,
+            open: dialog.open,
+            accessible: !!screen.queryByRole("button", { name: saveName }),
+          };
+          act(() => release());
+        }
+      }, ms)) as typeof setInterval,
+    );
+    try {
+      await waitForScenarioEditor(value, locale, method).then(() => {
+        completed = true;
+      });
+      expect(beforeRelease).toEqual({ completed: false, open: false, accessible: false });
+      expect(completed).toBe(true);
+      expect(screen.getByRole("dialog", { name: title })).toHaveAttribute("open");
+      const save = within(dialog).getByRole("button", { name: saveName });
+      expect(input).toHaveValue(value);
+      expect(within(dialog).getByRole("alert")).toHaveTextContent("fixed");
+      if (locked) {
+        expect(input).toHaveAttribute("readonly");
+        expect(save).toBeDisabled();
+      } else {
+        expect(input).not.toHaveAttribute("readonly");
+        expect(save).toBeEnabled();
+      }
+    } finally {
+      polling.mockRestore();
+      if (!dialog.open) act(() => release());
+    }
+  },
+);
 it("rejects missing budgets and inconsistent protocol/action/evidence locally without a write", async () => {
   const fetcher = vi.fn().mockResolvedValue(reply(empty));
   vi.stubGlobal("fetch", fetcher);

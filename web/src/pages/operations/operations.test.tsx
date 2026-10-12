@@ -329,59 +329,28 @@ describe("campaign recovery", () => {
 
 describe("RunsPage", () => {
   it.each(["en", "ko"] as const)(
-    "shows a locked execution workspace, not synthetic telemetry (%s)",
+    "reads real OFFLINE history separately while retaining LIVE denial and no fabricated telemetry (%s)",
     async (locale) => {
       const input = props(workspaceFixture(), locale);
+      vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => new Response(JSON.stringify(
+        String(url).startsWith("/api/v1/offline-runs?")
+          ? {schema_version:1,after:0,through:0,limit:20,total:0,items:[],next_after:null}
+          : {revision:0,total:0,offset:0,limit:20,items:[],execution_enabled:false}
+      )));
       const RunsPage = page("RunsPage");
       render(<RunsPage {...input} />);
-      expect(
-        screen.getByRole("heading", {
-          level: 1,
-          name: locale === "ko" ? "실행" : "Runs",
-        }),
-      ).toBeVisible();
-      expect(
-        screen.getByRole("heading", {
-          name:
-            locale === "ko"
-              ? "실행된 작업이 없습니다"
-              : "No runs have been executed",
-        }),
-      ).toBeVisible();
-      const reason =
-        locale === "ko"
-          ? "서버에서 라이브 실행이 비활성화되어 있습니다. 캠페인 초안은 실행되지 않습니다."
-          : "Live execution is disabled on the server. Campaign drafts do not start runs.";
-      expect(
-        screen.getByRole("button", {
-          name: locale === "ko" ? "실행 시작" : "Start run",
-        }),
-      ).toBeDisabled();
-      expect(
-        screen.getByRole("button", {
-          name: locale === "ko" ? "실행 시작" : "Start run",
-        }),
-      ).toHaveAccessibleDescription(reason);
-      expect(
-        screen.getByRole("list", {
-          name:
-            locale === "ko" ? "계획된 실행 수명주기" : "Planned run lifecycle",
-        }).children,
-      ).toHaveLength(4);
-      expect(
-        screen.getByText(
-          locale === "ko"
-            ? "계획된 흐름이며 실시간 상태가 아닙니다."
-            : "Planned workflow, not live status.",
-        ),
-      ).toBeVisible();
-      await userEvent.click(
-        screen.getByRole("button", {
-          name: locale === "ko" ? "캠페인 준비" : "Prepare a campaign",
-        }),
-      );
-      expect(input.navigate).toHaveBeenCalledWith("campaigns");
+      expect(screen.getByRole("heading", {level:1,name:locale==="ko"?"실행":"Runs"})).toBeVisible();
+      expect(await screen.findByRole("heading", {name:locale==="ko"?"아직 OFFLINE 실행 없음":"No OFFLINE runs yet"})).toBeVisible();
+      const reason=locale==="ko"?"서버에서 라이브 실행이 비활성화되어 있습니다. 캠페인 초안은 실행되지 않습니다.":"Live execution is disabled on the server. Campaign drafts do not start runs.";
+      const live=screen.getByRole("button", {name:locale==="ko"?"실행 시작":"Start run"});
+      expect(live).toBeDisabled();expect(live).toHaveAccessibleDescription(reason);
+      expect(screen.getByRole("button", {name:locale==="ko"?"OFFLINE 준비 시작":"Start OFFLINE preparation"})).toBeDisabled();
+      expect(screen.getByText("NOT_EVALUATED")).toBeVisible();
+      expect(screen.getByText(locale==="ko"?"측정값과 방어 판정은 null입니다. 캡처 패킷이나 장비 증거를 가져오지 않았습니다.":"Measurements and defense verdict remain null. No captured packets or device evidence have been ingested.")).toBeVisible();
+      await userEvent.click(await screen.findByRole("button", {name:locale==="ko"?"시나리오 라이브러리 열기":"Open scenario library"}));
+      expect(input.navigate).toHaveBeenCalledWith("profiles");
       expect(screen.queryByRole("table")).not.toBeInTheDocument();
+      expect(vi.mocked(globalThis.fetch).mock.calls.every(([,options])=>options?.method==="GET")).toBe(true);
     },
   );
 });
@@ -698,7 +667,6 @@ describe("audit search", () => {
 describe("workspace refresh states", () => {
   it.each([
     "CampaignsPage",
-    "RunsPage",
     "FindingsPage",
     "EvidencePage",
     "ApprovalsPage",
