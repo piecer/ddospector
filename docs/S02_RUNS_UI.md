@@ -1,9 +1,12 @@
-# S02 Runs UI — manual-review checkpoint, integration HOLD
+# S02 Runs UI — I3 browser portability slice; full integration HOLD
 
 The F1/F2/F3 client corrections and E1 Node evidence received scoped acceptance
 after independent source review and successful Web tests/lint/typecheck/build.
-Backend and real-browser integration are deferred for this user-requested
-checkpoint, not marked passed. See `S02_REVIEW_CHECKPOINT.md`.
+The manual-review checkpoint deferred backend and real-browser integration.
+The subsequently authorized I3-only continuation makes the existing browser
+harness portable and exercises its first full-mode normal UI path. This does
+not close backend acceptance or the complete S02 browser matrix. See
+`S02_REVIEW_CHECKPOINT.md` and the source-bound `browser-evidence/report.md`.
 
 This is the production `/runs` route, not a demo. `operations/RunsPage.tsx`
 exports the new Runs workspace. Existing components, scenario validators,
@@ -54,8 +57,10 @@ cases or a worker proof. New tests hash-check original files. The differential
 manifest under `tests/fixtures/runs/parity/` preserves real source/provenance and labels
 mutation negatives. These exact-byte fixtures are now committed with the source,
 so ordinary Web tests do not require the private campaign directories. Historical
-Node/Chromium evidence remains separately scoped; current checkpoint verification
-does not run Chromium or generate new backend responses.
+Node/Chromium evidence remains separately scoped. The I3 continuation runs the
+same 5,259 manifest entries through Node and Chromium and retains fresh browser
+HTTP receipts separately; it does not regenerate or relabel the frozen H1 corpus
+as final-source producer parity.
 
 Canonical Web commands are `npm test`, `npm run lint`, `npm run typecheck` and
 `npm run build`, always invoked with the assigned absolute prefix and distinct
@@ -69,22 +74,40 @@ descendant ownership and reaped/closed/absent receipts for each invocation.
 - explicit `scoped` selects actual ephemeral-Origin denial, unrelated ordinary
   B observation, native-API-created B processed by a separate worker, and parity.
   It is NOT replacement acceptance for the full browser-create scenario.
-- API and UI normally bind free loopback ports. The immutable Vite proxy uses
-  `VITE_API_PROXY_TARGET`, asserted before launch, with own endpoint preflight.
-- A parent-authorized `authorized_web_port` may be supplied only after resource
-  permission/ownership adjudication; it is not permission to use an existing
-  service. 5173 and 5180 are always refused by this verifier.
+- Full mode requires an explicit integer `authorized_web_port` of 5175 or 5182
+  before PG construction. Use only the port authorized for this invocation;
+  collision refuses without adopting or contacting the existing listener.
+  Scoped denial mode instead requires an unallowed ephemeral origin.
+- The API inherits an already-bound private loopback socket. The UI reservation
+  is released only for its own strict-port Vite start; the child's announcement,
+  PID/start identity and actual listener inode must agree before HTTP readiness.
+  The immutable Vite proxy receives exactly the owned API origin via
+  `VITE_API_PROXY_TARGET`. Active 5173/5180 are always forbidden.
+- `web/playwright.runs.config.ts` is repository-relative, requires explicit
+  `I3_WEB_ORIGIN`/`I3_WEB_OUTPUT`, and has no `webServer` or default endpoint.
+  `--list` collects the two full-mode cases without starting a server/browser/DB.
+  Test 30s, expect 10s, caller 90s, retries zero remain unchanged.
+- Native children have boot/start and pidfd custody, bounded descendant retirement
+  and reaped/closed/absent receipts. Piped raw logs retain writes through a reopened
+  stderr descriptor without overwriting earlier startup evidence. Browser network
+  journals/traces survive assertion failures; foreign page requests are denied.
 - PG uses only the protected I0 harness, exact cached image, fresh anonymous
   volume and private Unix socket. Children retire before PG disposal. Final
   independent PG readback compares this run's captured input/result with HTTP.
 
 ## Open acceptance and preserved incidents
 
-**Browser POST admission is HOLD:** the protected development boundary accepts
+**Historical Browser POST admission HOLD (superseded only for this I3 slice):** the protected development boundary accepts
 only Origin ports 5173/5175/5180/5182, not a randomly assigned test UI port.
 The real full browser-create test failed honestly with ORIGIN_NOT_ALLOWED.
-No boundary patch or Origin spoof was used. Parent disposition is needed for an
-owned allowed test port or separately authorized configuration change.
+No boundary patch or Origin spoof was used. The new I3 work order authorizes an
+actually owned 5175 listener (5182 only as an explicitly adjudicated free fallback).
+The first new full-mode browser run passed create → queued cancel → second create
+with dropped HTTP response → GET-only reload → separate-worker SUCCEEDED, with
+independent PG Snapshot/Result comparison, EN/KO, keyboard and mobile checks.
+Dropping the confirmed POST's HTTP response is not an uncertain database COMMIT
+fault. Final source/gate status and original failures remain in `browser-evidence/`;
+two browser tests are not full A16–A19 or full-stage acceptance.
 
 An earlier verifier typo used `AEGIS_API_PROXY_TARGET` instead of the existing
 `VITE_API_PROXY_TARGET`; that browser attempt made forbidden GET-only contact

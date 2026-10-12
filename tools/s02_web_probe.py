@@ -5,13 +5,20 @@ Verifier-env instrumentation is explicit; not a whole-chain foreign-access certi
 from __future__ import annotations
 
 import contextlib
+import ctypes
+import errno
+import hashlib
 import json
 import os
+import select
 import signal
 import socket
 import subprocess
 import sys
+import threading
 import time
+import traceback
+import urllib.parse
 import urllib.request
 import uuid
 from pathlib import Path
@@ -31,27 +38,359 @@ def durable(path, value):
 def identity(pid):
     try:
         return Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[19]
-    except FileNotFoundError:
+    except OSError as error:
+        if error.errno in (errno.ENOENT, errno.ESRCH):
+            return None
+        raise
+
+
+def owned_listener(pid, port, start, expected_inode=None):
+    """Match only this still-owned PID's descriptors to its listening TCP inode."""
+    if identity(pid) != start:
         return None
+    inodes = set()
+    try:
+        for fd in Path(f"/proc/{pid}/fd").iterdir():
+            try:
+                target = os.readlink(fd)
+            except OSError as error:
+                if error.errno in (errno.ENOENT, errno.ESRCH):
+                    continue
+                raise
+            if target.startswith("socket:["):
+                inodes.add(target[8:-1])
+        for line in Path(f"/proc/{pid}/net/tcp").read_text().splitlines()[1:]:
+            fields = line.split()
+            if fields[9] not in inodes:
+                continue
+            if fields[1] == f"0100007F:{port:04X}" and fields[3] == "0A":
+                inode = fields[9]
+                if expected_inode is not None and inode != str(expected_inode):
+                    continue
+                if identity(pid) == start:
+                    return inode
+    except OSError as error:
+        if error.errno not in (errno.ENOENT, errno.ESRCH):
+            raise
+    return None
+
+
+def ready(url, child, *, start=None, announcement=None, expected_inode=None, receipt=None):
+    if start is None or announcement is None:
+        raise RuntimeError("owned listener binding proof required")
+    port = urllib.parse.urlsplit(url).port
+    if port in (5173, 5180):
+        raise RuntimeError("active endpoint forbidden")
+    log, marker = announcement
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        if child.poll() is not None or identity(child.pid) != start:
+            raise RuntimeError("owned server exited before binding/readiness")
+        # Do not inspect transitional exec credentials before the child's own marker.
+        if marker not in log.read_text():
+            time.sleep(0.05)
+            continue
+        inode = owned_listener(child.pid, port, start, expected_inode)
+        if inode is None:
+            time.sleep(0.05)
+            continue
+        # Bind success and kernel descriptor ownership precede the first HTTP byte.
+        if receipt is not None:
+            durable(
+                receipt,
+                {
+                    "url": url,
+                    "pid": child.pid,
+                    "start": start,
+                    "inode": inode,
+                    "announcement": marker,
+                    "proven_before_http": True,
+                },
+            )
+        try:
+            with urllib.request.urlopen(url, timeout=1) as response:
+                if response.status == 200:
+                    return
+        except OSError:
+            time.sleep(0.05)
+    raise RuntimeError("owned server binding/readiness deadline")
+
+
+class NativeChildren:
+    """Exclusive subreaper custody; pidfds, never numeric-PID killpg cleanup."""
+
+    def __init__(self, output, env):
+        if self.children(os.getpid()):
+            raise RuntimeError("native supervisor requires an exclusive child subtree")
+        if ctypes.CDLL(None).prctl(36, 1, 0, 0, 0) != 0:
+            raise RuntimeError("subreaper unavailable")
+        self.output, self.env = output, env
+        self.boot = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+        self.processes, self.receipts = [], []
+        self.pumps = {}
+        self.known, self.handles, self.origins = {}, {}, {}
+        self.signals, self.reaped, self.errors = [], [], []
+        self.sent = set()
+        self.clean = False
+        self.closed = False
+
+    @staticmethod
+    def children(pid):
+        try:
+            return [int(x) for x in Path(f"/proc/{pid}/task/{pid}/children").read_text().split()]
+        except OSError as error:
+            if error.errno in (errno.ENOENT, errno.ESRCH):
+                return []
+            raise
+
+    def discover(self):
+        todo = self.children(os.getpid()) + list(self.known)
+        seen = set()
+        while todo:
+            pid = todo.pop()
+            if pid in seen:
+                continue
+            seen.add(pid)
+            start = identity(pid)
+            if start is None:
+                continue
+            if pid in self.known:
+                if self.known[pid]["start_ticks"] != start:
+                    continue
+            else:
+                try:
+                    fd = os.pidfd_open(pid, 0)
+                except OSError as error:
+                    if error.errno in (errno.ENOENT, errno.ESRCH):
+                        continue
+                    raise
+                if identity(pid) != start:
+                    os.close(fd)
+                    continue
+                self.handles[pid] = fd
+                self.known[pid] = {"pid": pid, "start_ticks": start, "boot_id": self.boot}
+            if pid not in self.origins:
+                try:
+                    item = {
+                        "exe": str(Path(f"/proc/{pid}/exe").resolve(strict=True)),
+                        "cwd": str(Path(f"/proc/{pid}/cwd").resolve(strict=True)),
+                        "argv": Path(f"/proc/{pid}/cmdline").read_bytes().decode().split("\0")[:-1],
+                    }
+                    if identity(pid) == start:
+                        self.origins[pid] = item
+                except OSError as error:
+                    if error.errno not in (errno.ENOENT, errno.ESRCH):
+                        raise
+            todo.extend(self.children(pid))
+
+    def pump(self, pipe, destination):
+        try:
+            while data := os.read(pipe.fileno(), 65536):
+                destination.write(data)
+                destination.flush()
+        except BaseException:
+            self.errors.append(traceback.format_exc())
+        finally:
+            pipe.close()
+
+    def launch(self, name, argv, extra=None, pass_fds=()):
+        if self.closed:
+            raise RuntimeError("native owner retired")
+        stdout = (self.output / (name + ".stdout")).open("xb")
+        stderr = (self.output / (name + ".stderr")).open("xb")
+        environment = dict(self.env) | (extra or {})
+        record = {
+            "name": name,
+            "argv": argv,
+            "cwd": str(ROOT),
+            "environment": environment,
+            "shell": False,
+            "pass_fds": list(pass_fds),
+            "boot_id": self.boot,
+            "helper_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        }
+        try:
+            p = subprocess.Popen(
+                argv,
+                cwd=ROOT,
+                env=environment,
+                shell=False,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                start_new_session=True,
+                pass_fds=pass_fds,
+            )
+        except BaseException:
+            stdout.close()
+            stderr.close()
+            durable(
+                self.output / (name + ".spawn-failure.json"),
+                record
+                | {
+                    "traceback": traceback.format_exc(),
+                    "stdout_closed": stdout.closed,
+                    "stderr_closed": stderr.closed,
+                },
+            )
+            raise
+        # Install custody before fallible identity/provenance publication.
+        self.processes.append((p, stdout, stderr, record))
+        self.pumps[p.pid] = []
+        for pipe, destination in ((p.stdout, stdout), (p.stderr, stderr)):
+            thread = threading.Thread(target=self.pump, args=(pipe, destination), daemon=True)
+            self.pumps[p.pid].append((thread, pipe))
+            thread.start()
+        record.update(pid=p.pid, start_ticks=identity(p.pid))
+        self.discover()
+        if p.pid not in self.known:
+            raise RuntimeError("native launch identity unconfirmed")
+        durable(self.output / (name + ".native-start.json"), record)
+        return p
+
+    def gone(self, pid):
+        return bool(select.select([self.handles[pid]], [], [], 0)[0])
+
+    def send(self, pid, sig):
+        if (pid, sig) in self.sent or self.gone(pid):
+            return
+        try:
+            signal.pidfd_send_signal(self.handles[pid], sig, None, 0)
+            self.sent.add((pid, sig))
+            self.signals.append({"identity": self.known[pid], "signal": int(sig), "via": "pidfd"})
+        except OSError as error:
+            if error.errno not in (errno.ENOENT, errno.ESRCH):
+                raise
+
+    def reap(self):
+        roots = set()
+        for p, _, _, _ in self.processes:
+            roots.add(p.pid)
+            p.poll()
+        for pid, item in self.known.items():
+            if pid in roots or identity(pid) != item["start_ticks"]:
+                continue
+            try:
+                got, status = os.waitpid(pid, os.WNOHANG)
+                if got:
+                    self.reaped.append({"identity": item, "wait_status": status})
+            except ChildProcessError:
+                pass
+
+    def retire_all(self):
+        if self.closed:
+            return
+        start = time.monotonic()
+        quiet = 0
+        remaining = list(self.known.values())
+        try:
+            while time.monotonic() - start < 3:
+                try:
+                    self.discover()
+                    self.reap()
+                    for pid in list(self.known):
+                        self.send(
+                            pid,
+                            signal.SIGKILL if time.monotonic() - start >= 1.2 else signal.SIGTERM,
+                        )
+                    roots_done = all(p.returncode is not None for p, _, _, _ in self.processes)
+                    if (
+                        roots_done
+                        and not self.children(os.getpid())
+                        and all(self.gone(pid) for pid in self.known)
+                    ):
+                        quiet += 1
+                        if quiet == 2:
+                            self.clean = True
+                            break
+                    else:
+                        quiet = 0
+                except BaseException:
+                    self.errors.append(traceback.format_exc())
+                    quiet = 0
+                time.sleep(0.01)
+            remaining = [
+                item
+                for pid, item in self.known.items()
+                if not self.gone(pid) or identity(pid) == item["start_ticks"]
+            ]
+            self.clean = self.clean and not self.errors and not remaining
+        finally:
+            for p, stdout, stderr, record in self.processes:
+                for thread, pipe in self.pumps.get(p.pid, []):
+                    thread.join(timeout=max(0, 3 - (time.monotonic() - start)))
+                    if thread.is_alive() or not pipe.closed:
+                        self.errors.append("native log pipe retirement unconfirmed")
+                for stream in (stdout, stderr):
+                    try:
+                        stream.close()
+                    except BaseException:
+                        self.errors.append(traceback.format_exc())
+                value = record | {
+                    "actual_exit": p.returncode,
+                    "log_pipes_closed": all(pipe.closed for _, pipe in self.pumps.get(p.pid, [])),
+                    "reaped": p.returncode is not None,
+                    "forced": any(
+                        s["identity"]["pid"] == p.pid and s["signal"] == 9 for s in self.signals
+                    ),
+                    "absent": identity(p.pid) != record["start_ticks"],
+                    "stdout_closed": stdout.closed,
+                    "stderr_closed": stderr.closed,
+                }
+                self.receipts.append(value)
+                durable(self.output / (record["name"] + ".native-end.json"), value)
+            for fd in self.handles.values():
+                os.close(fd)
+            self.closed = True
+        self.clean = self.clean and not self.errors
+        durable(
+            self.output / "native-retirement.json",
+            {
+                "clean": self.clean,
+                "remaining": remaining,
+                "identities": list(self.known.values()),
+                "origins": self.origins,
+                "signals": self.signals,
+                "reaped_descendants": self.reaped,
+                "remaining_direct_children": self.children(os.getpid()),
+                "errors": self.errors,
+                "pidfds_closed": True,
+            },
+        )
+        if not self.clean:
+            raise RuntimeError("native retirement unconfirmed; evidence retained")
 
 
 def main():
-    from tools import s02_harness as h
-
     config = json.loads(Path(sys.argv[1]).read_text())
     mode = sys.argv[2] if len(sys.argv) > 2 else "full"
     assert mode in {"full", "scoped"}
+    port = config.get("authorized_web_port")
+    if mode == "full" and (type(port) is not int or port not in (5175, 5182)):
+        raise ValueError("full mode requires an explicit allowed test port (5175 or 5182)")
+    if mode == "scoped" and port is not None:
+        raise ValueError("scoped denial requires an unallowed ephemeral origin")
     assert config["root"] == str(ROOT)
     runtime = Path(config["runtime"])
     env = config["env"]
     assert env["HOME"] == str(runtime / "home")
     assert not any(k.startswith("PG") for k in env)
     assert Path(sys.prefix) == ROOT / ".venv"
-    output = ROOT / "next-evidence" / "live" / ("probe-" + uuid.uuid4().hex)
+    with socket.socket() as reservation:
+        reservation.bind(("127.0.0.1", port if mode == "full" else 0))
+        return exercise(config, mode, reservation)
+
+
+def exercise(config, mode, reservation):
+    from tools import s02_harness as h
+
+    env = config["env"]
+    web_port = reservation.getsockname()[1]
+    if web_port in (5173, 5180) or (mode == "scoped" and web_port in (5175, 5182)):
+        raise RuntimeError("reserved origin conflicts with scope")
+    output = ROOT / "browser-evidence" / "live" / ("probe-" + uuid.uuid4().hex)
     output.mkdir(parents=True)
     print(json.dumps({"output": str(output)}), flush=True)
-    processes = []
-    receipts = []
     # All harness-owned native children get this literal invocation-owned env.
     h.child_environment = lambda directory: dict(env)
     durable(
@@ -65,79 +404,15 @@ def main():
         },
     )
 
-    def launch(name, argv, extra=None, pass_fds=()):
-        stdout = (output / (name + ".stdout")).open("wb")
-        stderr = (output / (name + ".stderr")).open("wb")
-        try:
-            p = subprocess.Popen(
-                argv,
-                cwd=ROOT,
-                env=dict(env) | (extra or {}),
-                shell=False,
-                stdin=subprocess.DEVNULL,
-                stdout=stdout,
-                stderr=stderr,
-                start_new_session=True,
-                pass_fds=pass_fds,
-            )
-        except BaseException:
-            stdout.close()
-            stderr.close()
-            raise
-        record = {
-            "name": name,
-            "argv": argv,
-            "pid": p.pid,
-            "start_ticks": identity(p.pid),
-            "pass_fds": list(pass_fds),
-            "environment": dict(env) | (extra or {}),
-        }
-        processes.append((p, stdout, stderr, record))
-        durable(output / (name + ".native-start.json"), record)
-        return p
+    native = NativeChildren(output, env)
+    launch = native.launch
+    retire_all = native.retire_all
+    receipts = native.receipts
 
-    def ready(url, child):
-        deadline = time.monotonic() + 10
-        while time.monotonic() < deadline:
-            if child.poll() is not None:
-                raise RuntimeError("owned server exited before readiness")
-            try:
-                with urllib.request.urlopen(url, timeout=1) as response:
-                    if response.status == 200:
-                        return
-            except OSError:
-                time.sleep(0.05)
-        raise RuntimeError("owned server readiness deadline")
-
-    def retire_all():
-        for p, stdout, stderr, record in reversed(processes):
-            graceful = p.poll() is not None
-            if not graceful:
-                os.killpg(p.pid, signal.SIGTERM)
-            forced = False
-            try:
-                p.wait(timeout=3)
-            except subprocess.TimeoutExpired:
-                forced = True
-                os.killpg(p.pid, signal.SIGKILL)
-                p.wait(timeout=3)
-            stdout.close()
-            stderr.close()
-            value = record | {
-                "actual_exit": p.returncode,
-                "forced": forced,
-                "reaped": p.poll() is not None,
-                "stdout_closed": stdout.closed,
-                "stderr_closed": stderr.closed,
-                "absent": identity(p.pid) is None,
-            }
-            receipts.append(value)
-            durable(output / (record["name"] + ".native-end.json"), value)
-        processes.clear()
-
-    owner = h.Harness(output / "pg")
+    owner = None
     failure = None
     try:
+        owner = h.Harness(output / "pg")
         with owner, contextlib.ExitStack() as stack:
             stack.callback(retire_all)
             owner.bootstrap()
@@ -159,10 +434,11 @@ def main():
                 },
             )
             python = str(ROOT / ".venv/bin/python")
-            listener = socket.socket()
+            listener = stack.enter_context(socket.socket())
             listener.bind(("127.0.0.1", 0))
             listener.listen(128)
             port = listener.getsockname()[1]
+            api_inode = os.fstat(listener.fileno()).st_ino
             assert port not in (5173, 5180)
             api = launch(
                 "api",
@@ -182,16 +458,21 @@ def main():
                 (listener.fileno(),),
             )
             listener.close()
-            ready(f"http://127.0.0.1:{port}/api/v1/health", api)
-            with socket.socket() as reservation:
-                reservation.bind(("127.0.0.1", config.get("authorized_web_port", 0)))
-                web_port = reservation.getsockname()[1]
+            ready(
+                f"http://127.0.0.1:{port}/api/v1/health",
+                api,
+                start=native.known[api.pid]["start_ticks"],
+                announcement=(output / "api.stderr", "Application startup complete."),
+                expected_inode=api_inode,
+                receipt=output / "api-binding.json",
+            )
             assert web_port not in (5173, 5180)
             web_origin = f"http://127.0.0.1:{web_port}"
             assert (
                 "target: process.env.VITE_API_PROXY_TARGET ??"
                 in (ROOT / "web/vite.config.ts").read_text()
             )
+            reservation.close()  # strictPort + kernel ownership closes the bind-race gate.
             vite = launch(
                 "vite",
                 [
@@ -206,7 +487,20 @@ def main():
                 ],
                 {"VITE_API_PROXY_TARGET": f"http://127.0.0.1:{port}"},
             )
-            ready(web_origin, vite)
+            assert native.processes[-1][3]["environment"]["VITE_API_PROXY_TARGET"] == f"http://127.0.0.1:{port}"
+            durable(output / "proxy-binding.json", {
+                "api_origin": f"http://127.0.0.1:{port}", "api_pid": api.pid,
+                "api_start_ticks": native.known[api.pid]["start_ticks"], "api_inode": api_inode,
+                "web_origin": web_origin, "vite_pid": vite.pid,
+                "proxy": native.processes[-1][3]["environment"]["VITE_API_PROXY_TARGET"],
+                "default_active_endpoint_used": False})
+            ready(
+                web_origin,
+                vite,
+                start=native.known[vite.pid]["start_ticks"],
+                announcement=(output / "vite.stdout", web_origin),
+                receipt=output / "vite-binding.json",
+            )
             with urllib.request.urlopen(web_origin + "/api/v1/offline-runs", timeout=2) as response:
                 assert response.status == 200 and json.load(response)["total"] == 0
             test = launch(
@@ -216,7 +510,7 @@ def main():
                     str(ROOT / "web/node_modules/playwright/cli.js"),
                     "test",
                     "--config",
-                    str(ROOT / "next-evidence/playwright.config.ts"),
+                    str(ROOT / "web/playwright.runs.config.ts"),
                     "--grep",
                     "owned ephemeral-origin|exact-byte"
                     if mode == "scoped"
@@ -227,6 +521,7 @@ def main():
             deadline = time.monotonic() + 90
             worker = None
             while test.poll() is None:
+                native.discover()
                 if time.monotonic() >= deadline:
                     raise RuntimeError("original browser process deadline")
                 if (output / "start-worker").exists() and worker is None:
@@ -273,6 +568,11 @@ def main():
                 ).read_bytes()
             )
             assert row and count == (1 if mode == "scoped" else 2)
+            raw_hashes = {}
+            for field, raw in zip(("request", "snapshot", "result"), row, strict=True):
+                data = bytes(raw)
+                (output / ("pg-" + field + ".body")).write_bytes(data)
+                raw_hashes[field] = hashlib.sha256(data).hexdigest()
             assert json.loads(bytes(row[1])) == terminal["snapshot"]
             assert json.loads(bytes(row[2])) == terminal["result"]
             durable(
@@ -280,20 +580,32 @@ def main():
                 {
                     "run_id": run_id,
                     "input_count": count,
+                    "raw_sha256": raw_hashes,
+                    "cid": owner.cid,
+                    "socket": str(owner.socket),
                     "snapshot_matches_http": True,
                     "result_matches_http": True,
                     "request": json.loads(bytes(row[0])),
                 },
             )
     except BaseException as error:
-        failure = {"type": type(error).__name__, "message": str(error)}
+        failure = {
+            "type": type(error).__name__,
+            "message": str(error),
+            "traceback": traceback.format_exc(),
+        }
     finally:
-        retire_all()
+        try:
+            retire_all()
+        except BaseException as error:
+            cleanup = {"type": type(error).__name__, "traceback": traceback.format_exc()}
+            failure = failure or {"type": "CleanupFailure"}
+            failure["native_cleanup"] = cleanup
         durable(
             output / "result.json",
             {
                 "failure": failure,
-                "pg_state": owner.state,
+                "pg_state": owner.state if owner else "NOT_CONSTRUCTED",
                 "processes": receipts,
                 "scope": mode + ": I3 earlier-source runtime proof, not final W2 source acceptance",
             },

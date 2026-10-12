@@ -12,6 +12,27 @@
 
 Backend and real-browser integration acceptance is explicitly deferred, not passed. This checkpoint does not claim a completed S02 release or production readiness.
 
+## 후속 I3 전용 재개 — 체크포인트 이후
+
+이번 재개는 browser harness 이식과 기존 full-mode 정상 경로만 승인받았다.
+`tools/s02_web_probe.py`와 `web/playwright.runs.config.ts`는 저장소 상대 경로,
+명시적 own-origin/output, 허용 시험 포트의 실제 소유·ready 증명 및 격리된
+PG/API/Vite/worker 수명을 사용한다. fixture와 예상 판정은 변경하지 않았다.
+
+- 최초 실제 full-mode 2개 case가 성공했다: 브라우저 생성·QUEUED 취소·두 번째
+  생성의 HTTP 응답 유실·GET-only 새로고침·별도 worker SUCCEEDED·독립 PG
+  Snapshot/Result 대조, EN/KO·키보드·390px 확인과 동결 5,259건 Chromium parity.
+- 초기 성공 실행의 직접 파일 stderr에서 재오픈 diagnostic이 앞부분을 덮는
+  관측기 문제가 발견되어, 원본을 보존하고 harness-only RED→GREEN으로 pipe
+  수집을 추가했다. 최종 helper의 실행·Web gates·cleanup은 새 source-bound
+  `browser-evidence/report.md`와 `verdict.json`으로 구분한다.
+- 기존 30초 test / 10초 expect / 90초 caller 제한, retry=0을 유지한다.
+  새로운 허용 포트는 실제 bind 후에만 사용하며 active 5173/5180은 접촉하지 않는다.
+- 아래의 “이번 커밋” 및 과거 미완료 항목은 역사 기록이다. 이번 제한된 정상
+  경로 성공은 W2 DB fault/COMMIT/fencing/corruption/outage, 최종 producer parity,
+  전체 A16–A19, 독립 통합 검토·active/exact-commit 수용을 완료하지 않는다.
+  소스/backend/보호 harness와 과거 승인·실패·복구 횟수는 그대로 유지한다.
+
 ## 로컬 화면 검토
 
 ```sh

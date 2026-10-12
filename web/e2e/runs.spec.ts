@@ -1,18 +1,67 @@
-import { test, expect } from "@playwright/test";
+import { test as baseTest, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { createHash, randomUUID } from "node:crypto";
-import { readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 const root = resolve(import.meta.dirname, "../..");
 const output = process.env.I3_WEB_OUTPUT!;
 const base = process.env.I3_WEB_ORIGIN!;
 const ep = "/api/v1/offline-runs";
+const test = baseTest.extend<{ ownedNetwork: void }>({
+  ownedNetwork: [async ({ context }, use, info) => {
+    const journal = resolve(output, `network-${info.testId}.jsonl`);
+    const denied: string[] = [];
+    const pending: Promise<void>[] = [];
+    let serial = 0;
+    const record = (value: unknown) => appendFileSync(journal, JSON.stringify(value) + "\n");
+    record({ kind: "binding", origin: base, test: info.title,
+      specSha256: createHash("sha256").update(readFileSync(import.meta.filename)).digest("hex") });
+    context.on("request", (r) => record({ kind: "request", method: r.method(), url: r.url(), body: r.postData() }));
+    context.on("requestfailed", (r) => record({ kind: "requestfailed", url: r.url(), failure: r.failure() }));
+    context.on("page", (page) => page.on("pageerror", (error) => record({ kind: "pageerror", message: error.message })));
+    context.on("response", (r) => {
+      if (new URL(r.url()).pathname.startsWith("/api/")) {
+        const file = `network-${info.testId}-${serial++}.body`;
+        pending.push((async () => {
+          try {
+            const bytes = await r.body();
+            writeFileSync(resolve(output, file), bytes);
+            record({ kind: "response", url: r.url(), status: r.status(), headers: r.headers(), file,
+              sha256: createHash("sha256").update(bytes).digest("hex") });
+          } catch (error) {
+            record({ kind: "body-unavailable", url: r.url(), message: String(error) });
+          }
+        })());
+      }
+    });
+    await context.route("**/*", async (route) => {
+      if (new URL(route.request().url()).origin !== base) {
+        denied.push(route.request().url());
+        record({ kind: "foreign-request-denied", url: route.request().url() });
+        await route.abort("blockedbyclient");
+      } else await route.continue();
+    });
+    await context.routeWebSocket("**/*", (route) => {
+      if (new URL(route.url()).origin !== base.replace("http:", "ws:")) {
+        denied.push(route.url());
+        record({ kind: "foreign-websocket-denied", url: route.url() });
+        route.close();
+      } else route.connectToServer();
+    });
+    try { await use(); }
+    finally {
+      await Promise.all(pending);
+      record({ kind: "finished", status: info.status, denied });
+      expect(denied).toEqual([]);
+    }
+  }, { auto: true }],
+});
 const input = JSON.parse(
-  readFileSync(resolve(root, "inputs/h1-producer/selected-index.json"), "utf8"),
+  readFileSync(resolve(root, "tests/fixtures/runs/h1/selected-index.json"), "utf8"),
 );
 const witness = input.find((r: { state: string }) => r.state === "QUEUED");
 const original = JSON.parse(
-  readFileSync(resolve(root, "inputs/h1-producer", witness.body), "utf8"),
+  readFileSync(resolve(root, "tests/fixtures/runs/h1", witness.body), "utf8"),
 );
 test("real EN/KO browser → isolated API → private PG → separate worker; reload receipt and ordinary observer", async ({
   page,
@@ -137,7 +186,7 @@ test("real EN/KO browser → isolated API → private PG → separate worker; re
   let committed: string | null = null;
   await page.route("**/api/v1/offline-runs", async (route) => {
     if (route.request().method() !== "POST") return route.continue();
-    const result = await route.fetch();
+    const result = await route.fetch({ maxRedirects: 0 });
     expect(result.status()).toBe(202);
     const bytes = await result.body();
     writeFileSync(resolve(output, "actual-lost-ack.body"), bytes);
@@ -468,7 +517,7 @@ test("exact-byte Node/Chromium parity uses the same shipped parser and provenanc
   page,
 }, info) => {
   await page.goto("/runs");
-  const directory = resolve(root, "next-evidence/parity");
+  const directory = resolve(root, "tests/fixtures/runs/parity");
   const manifest = JSON.parse(
     readFileSync(resolve(directory, "manifest.json"), "utf8"),
   );
