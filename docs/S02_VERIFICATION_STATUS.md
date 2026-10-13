@@ -2,13 +2,36 @@
 
 ## Current checkpoint
 
-Snapshot/request error normalization, compiler result-limit classification and
-`make worker` have been applied while preserving the DDoSpector startup aliases.
-At the user's request, these latest product changes have **not been retested**.
-The preceding source passed all 1215 API tests within the approved 600-second
-outer limit (448.4 seconds), and separately passed 79 pre-DB/query tests. Those
-results do not verify the latest product changes. UI/geometry work remains
-deferred and full S02 is **not accepted**.
+Full S02 is **not accepted**, but the known error-classification, retry-focus,
+scroll-oracle and dedicated-test-discovery corrections are committed:
+
+- `672cc8c`: snapshot/request error normalization, distinct compiler result-limit
+  failure and `make worker`, preserving DDoSpector startup compatibility.
+- `5f54508`: focus-preserving read retry, bounded keyboard/clip verification,
+  dedicated browser-test routing and pure offline-failure regression tests.
+- `9d71adc`: 720 validated synthetic manifest variants covering legal categorical
+  policy, profile/asset, resource-stop and evidence-subset combinations.
+
+Scoped verification passed: API1215 (446.79 seconds within600), Web2025/55 files,
+tooling31, pure/boundary98, Python/Web lint, typecheck and production UI build.
+The real private-PG/API/separate-worker/browser normal path and independent
+PG/HTTP snapshot/result comparison passed, including EN/KO at1440/1024/390px
+and Agent/Campaign execution locks. The dedicated browser suite passed21 cases;
+the default E2E collection retains89 cases (collection is not full execution).
+After the test-routing-only correction, earlier API/PG evidence was reused with
+explicit user approval and unchanged product bytes.
+
+The later manifest-only slice passed720 new cases plus19 existing cases and
+canonical Python Ruff; it did not rerun API/UI or DB suites. Expected manifest
+bytes/digests use a standard-library test oracle. This verifies repeat pure
+calls, not real worker retries, actual asset ingestion or fresh producer parity.
+Both code/test slices received scoped independent source review. The existing
+500kB bundle warning remains; no active product-service rollout was performed.
+
+Remaining work is the blocked W2 worker/DB fault-and-recovery obligations,
+expanded state/source/maximum-content combinations, final producer matrices,
+complete canonical gates and active/exact stage acceptance. Incremental commits
+do not close those obligations or authorize exhausted execution allowances.
 
 The sections below retain the earlier verification snapshots and their original
 limitations; they are not current execution permissions or final-source passes.
@@ -26,7 +49,7 @@ historical receipts remain unchanged. Namespace compatibility is documented in
 
 The first tooling target used the console pytest entry point and failed collection because the root `tools` namespace was not on its import path. The target now uses `uv run --frozen python -m pytest tests/tooling -q`; the actual target passed 31 cases. Original missing-target/coverage failures and the collection error are retained, not relabeled as product passes.
 
-## Acceptance rows
+## Historical adjudication
 
 ### Received API/Ruff candidate
 
@@ -43,8 +66,9 @@ flight and 117 had not started. The quota/pagination case began at observer
 elapsed time 174.415 seconds; this is not evidence that it hung for 180 seconds
 or caused the whole-suite delay. The uv exit was 143 and the supervisor rejected
 the run; pytest's individual exit was not observed. The original receipts and
-owned-process retirement records are preserved. No full API retry is authorized
-by this result, and the full API gate remains open.
+owned-process retirement records are preserved. That result did not authorize a
+retry. Later separately approved600-second runs passed; the old timeout is not
+a current full-API failure.
 
 ### Received normal-path UI result
 
@@ -60,7 +84,8 @@ The same review found `UI-ORACLE-02`: the new geometry observer can confuse
 offscreen text inside a keyboard-scrollable container with inaccessible clipping.
 That observer was not reached in the failed run; this is not a demonstrated
 product clipping defect and does not justify changing product CSS. Both the
-focus behavior and the observer need bounded correction before UI acceptance.
+focus behavior and the observer required correction at that checkpoint. The
+corrections and subsequent scoped passes are summarized above.
 
 The A19 matrix is 0 passed / 1 failed / 5 not reached. Agent/Campaign lock checks
 and the helper's final independent PostgreSQL byte comparison were not reached.
@@ -76,35 +101,39 @@ snapshot: construction13, tooling31, canonical `make lint` and `make build`
 passed. The build's existing 500kB chunk warning remains. These receipts precede
 this documentation-only adjudication update; application/test code is unchanged.
 They do not replace the incomplete full API or failed UI gates. Further full API
-and full UI admissions require an explicit bounded continuation decision.
+and full UI admissions required an explicit bounded continuation decision at
+that historical checkpoint. These paragraphs preserve the original failures,
+not the current permission or acceptance state.
+
+## Current acceptance rows
 
 | ID | Current status | Remaining scope / evidence qualification |
 |---|---|---|
-| A01 | PARTIAL | Legacy/S01 preservation and isolated naming checks retained; full current canonical API/combined validation is not closed. |
-| A02 | PARTIAL | Normal real browser create/PG readback exists; fresh normal-path continuation pending, complete restart witness not accepted. |
+| A01 | PARTIAL | API1215 and scoped legacy/S01 checks passed; whole-stage preservation/combined acceptance remains separate. |
+| A02 | PARTIAL | Fresh normal browser/private-PG/worker and exact PG/HTTP readback passed; complete restart witness not accepted. |
 | A03 | OPEN | Capture timing/source lifetime/late admission and final source-bound integration obligations remain. |
 | A04 | PARTIAL | Confirmed POST HTTP-response loss and GET-only reload verified earlier; all404/COMMIT and8192-byte unavailable-source combinations remain. |
 | A05 | BLOCKED_W2 | Actual concurrent worker claims and pre-claim SQL abort/ambiguous-claim obligations are within blocked backend work. |
-| A06 | BLOCKED_W2 | Live successor-generation fencing not accepted; old terminal-only stale-owner witness insufficient. |
+| A06 | BLOCKED_W2 | The original terminal-only witness gap was resolved for the saved source version; current complete restart/fencing acceptance remains open. |
 | A07 | PARTIAL_BLOCKED_W2 | Queued cancel verified; running/terminal/deadline arbitration matrix not accepted. |
 | A08 | BLOCKED_W2 | Terminal restart immutability and complete atomic failure matrix not accepted. |
 | A09 | BLOCKED_W2 | DB outage and SQLSTATE abort/disposal/reconnect obligations not accepted. |
 | A10 | BLOCKED_W2 | Retry exhaustion/watchdog/real300s expiry/exact connection-disposal evidence not fully accepted. |
 | A11 | PARTIAL | Prior admission/quota/custody evidence retained, no full latest-source integrated acceptance. |
-| A12 | PARTIAL | Strict producer/consumer negative coverage retained; full latest-source stage gate remains. |
+| A12 | PARTIAL | Pre-DB/query79 and pure offline-failure19 passed; DB-backed and whole-stage obligations remain. |
 | A13 | PARTIAL_BLOCKED_W2 | Pagination source evidence retained; outage/readback no-cache combinations still open. |
-| A14 | PARTIAL_BLOCKED_W2 | Ordinary manifest success verified; malformed snapshot classification IR-01 remains unaccepted. |
+| A14 | PARTIAL_BLOCKED_W2 | IR-01 correction and720 pure categorical manifest cases committed; real worker repeat attempts/final producer acceptance remain open. |
 | A15 | BLOCKED_W2 | Complete driver/cleanup/DDL/integrity outcome matrix not accepted. |
 | A16 | PARTIAL_FINAL_PRODUCER_OPEN | 5259 frozen Node/Chromium entries checked, not a newly regenerated final-source producer corpus. |
 | A17 | PARTIAL | Client corrections and unit matrices retained; every required real-browser storage/receipt/selection combination not closed. |
 | A18 | PARTIAL_BLOCKED_W2 | Normal unmocked UI→HTTP→PG→worker path verified; combined faults/outage/recovery matrix not accepted. |
-| A19 | HOLD_CONFIRMED_FOCUS_AND_ORACLE | Independent review confirms focus RED and a separate static scroll-reachability oracle flaw.0 rows passed,1 failed,5 not reached; Agent/Campaign/final PG comparison not reached. No correction/retry yet admitted. |
-| A20 | OPEN | Five verification-only files independently accepted/integrated; scoped combined construction13/tooling31/make lint/build passed. Full API timed out at180s with1097/1215 complete. Full four-make, final exactcommit and active deployment remain. |
+| A19 | PARTIAL_NORMAL_UI_PASS | Known focus/oracle defects corrected. Six locale/viewport rows, Agent/Campaign locks and final normal PG comparison passed; complete cross-state/maximum-content coverage is not claimed. |
+| A20 | OPEN | Scoped reviews, component gates and normal PG/browser acceptance passed. Full canonical/final-producer/active stage gates remain; checkpoint commits are not stage completion. |
 
 ## Non-waived limits
 
 The previously provider-blocked W2 workload is not retried, rephrased or reassigned by this continuation. Generic API-test/lint repairs and the bounded normal UI checks are separate work, not backend fault acceptance. No service restart, foreign-resource access, automatic source-data recovery or deployment is performed.
 
-The original full API attempt reached its 180-second outer deadline without a final pytest result. Its separate route-count failure and JUnit observer incompatibility were reproduced on the pre-rename baseline; neither explains the entire timeout. The new bounded canonical API attempt retains the same 180-second ceiling and does not weaken or skip the quota test.
+The original180-second API failure and its distinct route-count/JUnit issues are preserved. Later approved600-second runs retained the test selection, assertions and internal deadlines; no quota test was skipped or weakened. Their success does not retrospectively explain the original timeout.
 
-No final S02 completion commit or S03 advancement is justified until every required row, independent acceptance and active/exact gates pass. Local source-bound reports, original failures and current assignments are recorded in `.hermes/artifacts/campaign-01/S02/verification-resume/`.
+No final S02 completion commit or S03 advancement is justified until every required row, independent acceptance and active/exact gates pass. Source-bound reports and original failures are retained under `.hermes/artifacts/campaign-01/S02/verification-resume/`, `post-commit-completion/` and `manifest-variants/`. The frozen acceptance contract is unchanged.
