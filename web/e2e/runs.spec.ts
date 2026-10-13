@@ -1,4 +1,6 @@
 import { test as baseTest, expect } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { literalGeometry } from "./runs-geometry";
 import AxeBuilder from "@axe-core/playwright";
 import { createHash, randomUUID } from "node:crypto";
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
@@ -56,6 +58,14 @@ const test = baseTest.extend<{ ownedNetwork: void }>({
     }
   }, { auto: true }],
 });
+async function keyboardRoute(page: Page, route: string) {
+  await page.keyboard.press("Control+k");
+  const search = page.getByRole("textbox", { name: /Find a page|메뉴 찾기/ });
+  await expect(search).toBeFocused();
+  await search.fill(route);
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(new RegExp('/' + route + '$'));
+}
 const input = JSON.parse(
   readFileSync(resolve(root, "tests/fixtures/runs/h1/selected-index.json"), "utf8"),
 );
@@ -69,6 +79,21 @@ test("real EN/KO browser → isolated API → private PG → separate worker; re
 }, info) => {
   const external: string[] = [];
   const posts: string[] = [];
+  const mutations: { method: string; path: string }[] = [];
+  const a19 = ["en", "ko"].flatMap((locale) => [1440, 1024, 390].map((width) => ({
+    locale, width, status: "NOT_REACHED", observations: {} as Record<string, unknown>,
+  })));
+  const locks: Record<string, unknown>[] = [];
+  const publishA19 = () => writeFileSync(resolve(output, "a19-matrix.json"), JSON.stringify({
+    scope: "new bounded A19 normal-flow coverage; not product repair or full A19/A18/S02 acceptance",
+    rows: a19, locks, mutations,
+  }, null, 2));
+  publishA19();
+  page.on("request", (r) => {
+    if (!["GET", "HEAD", "OPTIONS"].includes(r.method())) {
+      mutations.push({ method: r.method(), path: new URL(r.url()).pathname });
+    }
+  });
   const responses: {
     path: string;
     status: number;
@@ -137,6 +162,14 @@ test("real EN/KO browser → isolated API → private PG → separate worker; re
   });
   expect(updated.status()).toBe(200);
   const second = await updated.json();
+  // A local draft prerequisite exposes the retained Campaign LIVE lock; no run is created.
+  const campaignResponse = await request.post("/api/v1/campaigns", { data: {
+    name: "A19 retained LIVE lock", objective: "UI lock observation only; no execution.",
+    target_id: definition.target_id, profile_id: definition.profile_id,
+  } });
+  expect(campaignResponse.status()).toBe(201);
+  const campaign = await campaignResponse.json();
+  writeFileSync(resolve(output, "a19-campaign-draft.body"), await campaignResponse.body());
   await page
     .getByRole("button", { name: "Reload scenarios", exact: true })
     .click();
@@ -248,6 +281,124 @@ test("real EN/KO browser → isolated API → private PG → separate worker; re
     await page.evaluate(() => sessionStorage.getItem("aiddos.s02.pending.v1")),
   ).toBeNull();
   expect(posts.filter((p) => p === ep)).toHaveLength(2);
+  const matrixBaseline = mutations.slice();
+  for (const witness of a19) {
+    witness.status = "RUNNING";
+    publishA19();
+    const { locale, width } = witness;
+    const ko = locale === "ko";
+    const label = (en: string, korean: string) => ko ? korean : en;
+    try {
+      await page.setViewportSize({ width, height: 1000 });
+      const language = page.getByRole("combobox", { name: /Interface language|화면 언어/ });
+      await language.focus();
+      await expect(language).toBeFocused();
+      // Native select keyboard changes, not dispatchEvent or a mocked locale.
+      await page.keyboard.press(ko ? "End" : "Home");
+      await expect(language).toHaveValue(locale);
+      await expect(language).toBeFocused();
+      await expect(page.locator("html")).toHaveAttribute("lang", locale);
+      await expect(page.getByRole("heading", { name: label("Run history", "실행 이력"), exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: label("Start run", "실행 시작"), exact: true })).toBeDisabled();
+      await expect(page.getByRole("button", { name: label("Cancel OFFLINE run", "OFFLINE 실행 취소"), exact: true })).toBeDisabled();
+      const boundary = page.locator(".runs-boundary");
+      await expect(boundary).toContainText("NOT_EVALUATED");
+      await expect(boundary).toContainText(label(
+        "Measurements and defense verdict remain null. No captured packets or device evidence have been ingested.",
+        "측정값과 방어 판정은 null입니다. 캡처 패킷이나 장비 증거를 가져오지 않았습니다.",
+      ));
+      const nullEvidence = page.getByText(label(
+        "Defense not evaluated; measurements null; defense verdict null.",
+        "방어 미평가; 측정값 null; 방어 판정 null.",
+      ), { exact: true });
+      await expect(nullEvidence).toBeVisible();
+      await expect(page.locator(".runs-summary")).toContainText("SUCCEEDED");
+      const retryRead = page.getByRole("button", { name: label("Retry run read", "실행 읽기 재시도"), exact: true });
+      await retryRead.focus();
+      const read = page.waitForResponse((r) => new URL(r.url()).pathname === ep + "/" + committed && r.request().method() === "GET");
+      await page.keyboard.press("Enter");
+      const readResponse = await read;
+      expect(readResponse.status()).toBe(200);
+      expect(await readResponse.json()).toEqual(value);
+      await expect(retryRead).toBeEnabled();
+      await expect(retryRead).toBeFocused();
+      witness.observations.readRetry = { status: readResponse.status(), method: "GET", exactTerminal: true, focusRetained: true };
+      const region = page.getByRole("region", { name: label("Retained OFFLINE runs", "보관된 OFFLINE 실행"), exact: true });
+      await region.focus();
+      await expect(region).toBeFocused();
+      const beforeScroll = await region.evaluate((e) => ({ left: e.scrollLeft, width: e.clientWidth, extent: e.scrollWidth }));
+      if (beforeScroll.extent > beforeScroll.width) {
+        await page.keyboard.press("ArrowRight");
+        await expect.poll(() => region.evaluate((e) => e.scrollLeft)).toBeGreaterThan(beforeScroll.left);
+      }
+      witness.observations.tableScroll = { before: beforeScroll, after: await region.evaluate((e) => e.scrollLeft) };
+      const runButton = page.getByRole("button", { name: committed!, exact: true });
+      await runButton.focus();
+      await expect(runButton).toBeFocused();
+      await page.keyboard.press("Enter");
+      const closeDetails = page.getByRole("button", { name: label("Close details", "상세 닫기"), exact: true });
+      await closeDetails.focus();
+      await page.keyboard.press("Enter");
+      await expect(runButton).toBeFocused();
+      await page.keyboard.press("Enter");
+      await expect(page.locator(".runs-summary")).toContainText("SUCCEEDED");
+      witness.observations.closeReopen = { keyboard: "Enter", invokerFocusRestored: true };
+      const details = page.locator(".panel").filter({ has: page.getByRole("heading", { name: label("Run details", "실행 상세"), exact: true }) });
+      const scenarioSummary = details.locator("summary").filter({ hasText: label("Captured scenario and declared limits", "캡처 시나리오와 선언된 제한") });
+      await scenarioSummary.focus();
+      await page.keyboard.press("Enter");
+      await expect(details.locator(".scenario-record")).toBeVisible();
+      const literals = [
+        ["run_id", details.locator("p.runs-identity").filter({ hasText: committed! }), committed!],
+        ["history_run_id", runButton, committed!],
+        ["scenario_digest", details.locator(".scenario-record dd").filter({ hasText: value.snapshot.scenario.digest }), value.snapshot.scenario.digest],
+        ["snapshot_digest", details.locator("dd").filter({ hasText: value.snapshot.digest }), value.snapshot.digest],
+        ["result_digest", details.locator("p.runs-identity").filter({ hasText: value.result.digest }), value.result.digest],
+      ] as const;
+      const measured: Record<string, unknown> = {};
+      witness.observations.literals = measured;
+      for (const [name, locator, literal] of literals) {
+        const geometry = await literalGeometry(locator, literal);
+        measured[name] = geometry;
+        publishA19();
+        expect(geometry.rectangles.length).toBeGreaterThan(0);
+        expect(geometry.inaccessible, name).toEqual([]);
+        expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth);
+      }
+      const jsonSummary = details.locator("summary").filter({ hasText: label("Complete verified record (JSON)", "검증된 전체 기록 (JSON)") });
+      await jsonSummary.focus();
+      await page.keyboard.press("Enter");
+      await page.keyboard.press("Tab");
+      const jsonRecord = details.locator("pre");
+      await expect(jsonRecord).toBeFocused();
+      expect(JSON.parse((await jsonRecord.textContent())!)).toEqual(value);
+      await page.keyboard.press("Control+End");
+      await expect.poll(() => jsonRecord.evaluate((e) => e.scrollHeight - e.clientHeight - e.scrollTop)).toBeLessThanOrEqual(1);
+      witness.observations.fullRecord = { exactHTTPRecord: true, keyboardFocus: true,
+        scroll: await jsonRecord.evaluate((e) => ({ top: e.scrollTop, height: e.clientHeight, extent: e.scrollHeight })) };
+      await page.keyboard.press("Shift+Tab");
+      await expect(jsonSummary).toBeFocused();
+      await page.keyboard.press("Enter");
+      const screenshot = `a19-${locale}-${width}.png`;
+      await page.screenshot({ path: info.outputPath(screenshot), fullPage: true });
+      witness.observations.screenshot = info.outputPath(screenshot);
+      await scenarioSummary.focus();
+      await page.keyboard.press("Enter");
+      expect(mutations).toEqual(matrixBaseline);
+      witness.observations.mutationDelta = mutations.length - matrixBaseline.length;
+      witness.observations.notEvaluatedAndNullVisible = true;
+      witness.observations.liveAndTerminalCancelDisabled = true;
+      witness.status = "PASS";
+    } catch (error) {
+      witness.status = "FAIL";
+      witness.observations.error = String(error);
+      throw error;
+    } finally { publishA19(); }
+  }
+  expect(a19).toHaveLength(6);
+  expect(a19.every((row) => row.status === "PASS")).toBe(true);
+  await page.getByRole("combobox", { name: /Interface language|화면 언어/ }).selectOption("en");
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page.screenshot({
     path: info.outputPath("runs-en-desktop.png"),
     fullPage: true,
@@ -276,6 +427,42 @@ test("real EN/KO browser → isolated API → private PG → separate worker; re
   await expect(retry).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(retry).toBeFocused();
+  for (const locale of ["en", "ko"]) {
+    const lock: Record<string, unknown> = { locale, status: "RUNNING" };
+    locks.push(lock);
+    publishA19();
+    try {
+      const label = (en: string, korean: string) => locale === "ko" ? korean : en;
+      await page.getByRole("combobox", { name: /Interface language|화면 언어/ }).selectOption(locale);
+      await keyboardRoute(page, "agent");
+      await expect(page.getByRole("button", { name: label("Run agent", "에이전트 실행"), exact: true })).toBeDisabled();
+      await expect(page.getByRole("button", { name: label("Connect MCP", "MCP 연결"), exact: true })).toBeDisabled();
+      lock.agent = { runDisabled: true, connectMCPDisabled: true };
+      await page.screenshot({ path: info.outputPath(`a19-agent-${locale}-390.png`), fullPage: true });
+      await keyboardRoute(page, "campaigns");
+      const campaignButton = page.getByRole("button", { name: campaign.name, exact: true });
+      await campaignButton.focus();
+      await page.keyboard.press("Enter");
+      const dialog = page.getByRole("dialog", { name: label("Campaign draft details", "캠페인 초안 상세"), exact: true });
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByRole("button", { name: label("Start run", "실행 시작"), exact: true })).toBeDisabled();
+      await expect(dialog.locator("#campaign-run-reason")).toHaveText(label(
+        "This draft grants no execution authority. The server does not allow live runs.",
+        "이 초안은 실행을 승인하지 않습니다. 서버에서 라이브 실행을 허용하지 않습니다.",
+      ));
+      await page.screenshot({ path: info.outputPath(`a19-campaign-${locale}-390.png`), fullPage: true });
+      await page.keyboard.press("Escape");
+      await expect(dialog).not.toBeVisible();
+      await expect(campaignButton).toBeFocused();
+      lock.campaign = { id: campaign.id, startDisabled: true, escapeRestoresFocus: true };
+      expect(mutations).toEqual(matrixBaseline);
+      lock.mutationDelta = mutations.length - matrixBaseline.length;
+      lock.status = "PASS";
+    } catch (error) { lock.status = "FAIL"; lock.error = String(error); throw error; }
+    finally { publishA19(); }
+  }
+  expect(posts.filter((path) => path.endsWith("/cancel"))).toHaveLength(1);
+  expect(mutations).toEqual(matrixBaseline);
   await Promise.all(pending);
   expect(external).toEqual([]);
   writeFileSync(

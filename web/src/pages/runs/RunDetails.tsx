@@ -84,8 +84,11 @@ export function RunDetails({
       )}
       <div className="runs-toolbar">
         <Button
-          onClick={() => void c.read()}
-          disabled={v.reading || v.cancelling}
+          className="runs-read-retry"
+          onClick={() => {
+            if (!v.reading && !v.cancelling) void c.read();
+          }}
+          aria-disabled={v.reading || v.cancelling}
         >
           {t("Retry run read", "실행 읽기 재시도")}
         </Button>

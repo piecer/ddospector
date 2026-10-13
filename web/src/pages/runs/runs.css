@@ -113,6 +113,10 @@
 .runs-page .runs-progress small {
   color: var(--muted);
 }
+.runs-page .runs-read-retry[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
 .runs-page :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
