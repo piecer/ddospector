@@ -1,5 +1,8 @@
 """Two bounded, deterministic pure steps over captured PostgreSQL bytes."""
 
+from functools import wraps
+
+from aiddos.api.errors import DraftError
 from aiddos.api.scenarios import ScenarioVersion, canonical, record_digest
 
 from .contracts import raw_json, request_value
@@ -15,6 +18,26 @@ def check_stop(stop):
         raise WorkStopped()
 
 
+class SnapshotInvalid(ValueError):
+    """Expected captured-byte decoding, shape or integrity refusal."""
+
+
+def snapshot_integrity(function):
+    @wraps(function)
+    def checked(*args, **kwargs):
+        try:
+            return function(*args, **kwargs)
+        except DraftError as error:
+            if error.code != "VALIDATION_ERROR":
+                raise
+            raise SnapshotInvalid() from None
+        except (ValueError, TypeError, KeyError):
+            raise SnapshotInvalid() from None
+
+    return checked
+
+
+@snapshot_integrity
 def verify(raw, *, stop=None):
     check_stop(stop)
     snapshot = raw_json(raw)
@@ -31,6 +54,7 @@ def verify(raw, *, stop=None):
     return snapshot
 
 
+@snapshot_integrity
 def verify_claim(owned, *, stop=None):
     import hashlib
 
@@ -47,6 +71,10 @@ def verify_claim(owned, *, stop=None):
     check(snapshot["digest"] == owned["snapshot_digest"])
     check_stop(stop)
     return snapshot
+
+
+class ResultLimitExceeded(ValueError):
+    """The actual compiler encoder exceeded the retained-result boundary."""
 
 
 def compile_manifest(snapshot, *, stop=None):
@@ -76,6 +104,7 @@ def compile_manifest(snapshot, *, stop=None):
     }
     result["digest"] = record_digest(result)
     raw = canonical(result)
-    check(len(raw) <= 8192)
+    if len(raw) > 8192:
+        raise ResultLimitExceeded()
     check_stop(stop)
     return raw

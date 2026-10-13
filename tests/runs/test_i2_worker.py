@@ -1,8 +1,8 @@
 """I2 vertical acceptance through separately launched HTTP/worker processes."""
 import hashlib
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 
 from tools import s02_harness as h
 

@@ -3,14 +3,13 @@ import hashlib
 import http.client
 import json
 import os
-from pathlib import Path
-import signal
 import socket
 import subprocess
 import sys
 import time
 import traceback
 from contextlib import contextmanager
+from pathlib import Path
 from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -69,6 +68,7 @@ def serve(data, fd):
     os.environ['AIDDOS_RUN_DB_SOCKET'] = data['socket']
     os.environ['AIDDOS_UI_STATE_PATH'] = data['state']
     import uvicorn
+
     from aiddos.api.app import app
     listener = socket.socket(fileno=fd)
     assert list(listener.getsockname()) == data['bind']
@@ -96,7 +96,9 @@ def server(data):
         conn.sock = sock
         raw = None if body is None else json.dumps(body).encode()
         try:
-            conn.request(method, path, raw, {} if raw is None else {'Content-Type': 'application/json'})
+            conn.request(
+                method, path, raw, {} if raw is None else {'Content-Type': 'application/json'}
+            )
             response = conn.getresponse()
             content = response.read()
             headers = dict(response.getheaders())
@@ -147,8 +149,10 @@ def execute(data):
     with server(data) as request:
         targets = []
         for kind in ('DUT', 'SINK'):
-            status, target = request('POST', '/api/v1/targets',
-                                     {'name': kind, 'kind': kind, 'address': 'never-resolve.invalid'})
+            status, target = request(
+                'POST', '/api/v1/targets',
+                {'name': kind, 'kind': kind, 'address': 'never-resolve.invalid'},
+            )
             assert status == 201
             targets.append(target)
         status, scenario = request('POST', '/api/v1/scenarios',
@@ -159,7 +163,9 @@ def execute(data):
                  'scenario_version': record['version'], 'scenario_digest': record['digest']}
         status, queued = request('POST', '/api/v1/offline-runs', value)
         assert status == 202 and queued['run']['state'] == 'QUEUED'
-        with psycopg.connect(**h.connection_parameters(Path(data['socket'])), autocommit=True) as db:
+        with psycopg.connect(
+            **h.connection_parameters(Path(data['socket'])), autocommit=True
+        ) as db:
             captured = db.execute('SELECT request,snapshot FROM aiddos_runs_v1.inputs').fetchone()
         assert json.loads(captured[1]) == queued['snapshot']
         # These files were created by this exact API fixture, never caller S01 data.
@@ -185,10 +191,19 @@ def execute(data):
             assert detail['result']['evaluation'] == 'NOT_EVALUATED'
             assert detail['result']['measurements'] is None
             assert detail['result']['defense_verdict'] is None
-            with psycopg.connect(**h.connection_parameters(Path(data['socket'])), autocommit=True) as db:
-                assert db.execute('SELECT state FROM aiddos_runs_v1.jobs').fetchall() == [('SUCCEEDED',)]
-                assert json.loads(db.execute('SELECT result FROM aiddos_runs_v1.results').fetchone()[0]) == detail['result']
-                assert db.execute('SELECT retained_count,unfinished_count,leased_count,reserved_bytes FROM aiddos_runs_v1.quota').fetchone() == (1, 0, 0, 65536)
+            with psycopg.connect(
+                **h.connection_parameters(Path(data['socket'])), autocommit=True
+            ) as db:
+                assert db.execute('SELECT state FROM aiddos_runs_v1.jobs').fetchall() == [
+                    ('SUCCEEDED',)
+                ]
+                assert json.loads(
+                    db.execute('SELECT result FROM aiddos_runs_v1.results').fetchone()[0]
+                ) == detail['result']
+                assert db.execute(
+                    'SELECT retained_count,unfinished_count,leased_count,reserved_bytes '
+                    'FROM aiddos_runs_v1.quota'
+                ).fetchone() == (1, 0, 0, 65536)
         (output / 'result.json').write_text(json.dumps({'detail': detail}, indent=2) + '\n')
 
 

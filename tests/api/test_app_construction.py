@@ -207,7 +207,22 @@ def test_nested_prepared_builders_are_reentrant(tmp_path):
 
     with ThreadPoolExecutor(max_workers=1) as pool:
         routers = pool.submit(nested).result(5)
-    assert [len(router.routes) for router in routers] == [4, 3]
+    assert [[(route.methods, route.path) for route in router.routes] for router in routers] == [
+        [
+            ({"GET"}, "/api/v1/scenarios"),
+            ({"GET"}, "/api/v1/scenarios/{scenario_id}"),
+            ({"POST"}, "/api/v1/scenarios"),
+            ({"PUT"}, "/api/v1/scenarios/{scenario_id}"),
+        ],
+        [
+            ({"POST"}, "/api/v1/offline-runs"),
+            ({"GET"}, "/api/v1/offline-runs"),
+            ({"GET"}, "/api/v1/offline-runs/by-request/{request_id}"),
+            ({"GET"}, "/api/v1/offline-runs/{run_id}"),
+            ({"GET"}, "/api/v1/offline-runs/{run_id}/events"),
+            ({"POST"}, "/api/v1/offline-runs/{run_id}/cancel"),
+        ],
+    ]
     assert warnings.filters == before
 
 

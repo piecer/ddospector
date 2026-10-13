@@ -139,6 +139,8 @@ async def run():
         except Exception as error:
             if failure_code is None:
                 raise
+            if isinstance(error, offline.ResultLimitExceeded):
+                raise PureFailure("RESULT_LIMIT_EXCEEDED") from None
             code = failure_code if isinstance(error, ValueError) else "OFFLINE_PREPARATION_FAILED"
             raise PureFailure(code) from None
 
