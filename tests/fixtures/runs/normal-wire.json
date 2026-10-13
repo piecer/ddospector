@@ -1,0 +1,772 @@
+{
+  "schema_version": 1,
+  "scope": "Recorded normal HTTP with product source still identical; not a new producer run or full W2/A16 acceptance",
+  "producer_source_sha256": {
+    "pyproject.toml": "e09f77c47ea9da6f11d0409fbbeef3f5c19f84ceadcf93c76273ddd7bd64e20a",
+    "src/aiddos/__init__.py": "8f9fddb0b60773f9fd321c2ae30f87ad0d02f4ea6e34fd4e648d25ac5cfb696d",
+    "src/aiddos/api/README.md": "21dec944d111dc20f309d649c6638b84872be86a0b50b76a13a09e86052a0196",
+    "src/aiddos/api/__init__.py": "ee6d4f32fe50e4616dce67678a520c6ae0776d121141f480d220347c5b4bb7c3",
+    "src/aiddos/api/ai_settings.py": "8f683c1a639494df325aecde68abd64c4ad9e744d7576dd9e54015a5c63d5316",
+    "src/aiddos/api/app.py": "5b05d0f1b9076de478854eaece1b51c66f403341f40ee002af38f67bf2d2bf3e",
+    "src/aiddos/api/boundary.py": "8bb9448abf45056f48f50f05c843f2e1918f732a9c707cbfbbb53e53c0f89985",
+    "src/aiddos/api/catalog.py": "c02a4932e716e0f8a05e1350a55470ddf2b27ec4dc16a0dab4374a2ea533f9c4",
+    "src/aiddos/api/construction.py": "64cf174df562dc92f2ae6825dfaf8e42d01926ba11095d5b2b5fa37bf20638c8",
+    "src/aiddos/api/encoding.py": "204804443f5411add1b0804335e4f9891f8df382d1ff65559a47c1c3c28e7ad8",
+    "src/aiddos/api/errors.py": "c0d01ad648118d70a5894f67565eabeec405f0957407d4aec32d4f02eefc6844",
+    "src/aiddos/api/models.py": "3570c681130e1c150a70f2b1b286a75953b2dc65c8713a9b05fbb17f1391e7d9",
+    "src/aiddos/api/preview.py": "34da4d459cec22d07285fc38651c1f5c284aa95eee63f670c4f624e2328e6769",
+    "src/aiddos/api/runs.py": "66fcff0d44cd76334d3733a944a7dac781f711d5d7671653aa6331cfcffb86cf",
+    "src/aiddos/api/scenario_persistence.py": "d32bd4cc1232f6fb200bdb330a3071109643a1ad6b0bce65bbf5c01768cbbb8c",
+    "src/aiddos/api/scenario_recovery.py": "7bc5a70f2a75aed55eb1156d79ebb2a4ce63f6c8432f62556822933be10d6177",
+    "src/aiddos/api/scenario_store.py": "00ac210f4459e0c6d5c6f17584d2f835242e45a75884368110af24bb79bf62cc",
+    "src/aiddos/api/scenarios.py": "02ecc3d2f6978462fe1421fbdeee694149ecd3e76a84cc88b9ed39d7328b3b2c",
+    "src/aiddos/api/store.py": "9e284e0c49f2737ce46deb468f39b5c74472b79e23e12fc0adf2214d8b2901c1",
+    "src/aiddos/api/validation.py": "4ec3d1a4d58f673c9b4803790f5962f6808a4408e66821e7ea7f2beaae22c015",
+    "src/aiddos/runs/__init__.py": "7ad9359840b47082fde176e7b326491930b0922a3a982ccb64991d92863c020e",
+    "src/aiddos/runs/cancellation.py": "6b6f8e9e9962954389f760906031f6f8637ce31ada8ca73eb1ac66059fa0c682",
+    "src/aiddos/runs/config.py": "65c9bc871ef9edd12e538d0f85b6f6108fd2fc52a501fe8ae850888954167b17",
+    "src/aiddos/runs/contracts.py": "66f22c8b690c386e8741331077294a929fd86c3c7681673f5483301688572eef",
+    "src/aiddos/runs/http_detail.py": "e4a836a58726a7ac651f0a5c4b7e85cd76372ca658ec8556e9f14e45c6e90a90",
+    "src/aiddos/runs/http_summary.py": "feb1c70e62537b630e1a813bc7908cfe4ddaf7c50456a4a8e86b652c5aef81d8",
+    "src/aiddos/runs/lifetime.py": "5c53bb4b313148539c1f99037d900c041e33dc6fdb3088e021e06509cb919930",
+    "src/aiddos/runs/migrate.py": "167ca9f32cff02e1df191007eabb0909e2bacce4942e8c794be2f13a5bdf80ab",
+    "src/aiddos/runs/migrations/001_offline_runs.sql": "41d093ff97ee9203be8273f8b45a11e5207c24a0b2e7f33c429c345a2138df3b",
+    "src/aiddos/runs/offline.py": "a23619029775dd00abd4b08984710faa39de2baf2b87dabd990070133a0ed911",
+    "src/aiddos/runs/queries.py": "3687c964e20a89083b15109ab6cd40987303434a93ac497323b5224f0dacc097",
+    "src/aiddos/runs/repository.py": "25113d0f2c8927756bf15b1037f6ffaf029c1a8e0294bba38ee537918b0db968",
+    "src/aiddos/runs/schema.py": "8325f8d9922bb0f2574f68891b462ec0df1dcd017a314b7df6540abcdc359772",
+    "src/aiddos/runs/source.py": "66e71fae57d624a49c4ee59bb8ef79c5fc2141cad69765f7da3e82aa0ea772e0",
+    "src/aiddos/runs/transitions.py": "12fd54ebbc1c9ea0531b717c5db01b99a7f9d5936a49e9e99826f0e2dc8ef9f0",
+    "src/aiddos/runs/validation.py": "76f9f2a7f4fbfa11e531d614eaaaa76fa698f30ed651b1eefca643f1da4201c1",
+    "src/aiddos/runs/worker.py": "de5414a935904269e584cb55cc2de7a0e407390e6ad9fb194310ef893ad8ef15",
+    "src/aiddos/runs/worker_connection.py": "8dda2beb2ad922794f96bad7bb605518cd6b8ffb3b540e2014cc91801c19684f",
+    "src/aiddos/startup.py": "2cd69d4598e3f3940f55f1e4949c78e2d3d12188c06e93ab8b3a73061f337f93",
+    "src/ddospector/__init__.py": "7cc42d04c5748a7f526feb7b4effba1a4387305ff44cbd5efca42507a767232d",
+    "src/ddospector/api/__init__.py": "4d32494cdef0710547b9fd0cdc9b514741f5138f9c834ef80e146e5a742f13f6",
+    "src/ddospector/api/app.py": "6ae31d4386b8199fda33e81719aaac3d55ef24c3aa9453550666665d88498a9f",
+    "src/ddospector/api/scenario_recovery.py": "58b914ff139ee4b4474ccbd98ca0a6915e12eaadd9e15a9e1d977a78593575e0",
+    "src/ddospector/runs/__init__.py": "df9196d1204dc9fab5a8757c6bbaaf29042b5c27cc6fab4e15dc690fa2e4d0e4",
+    "src/ddospector/runs/migrate.py": "e0a7344f7e3a9bd91000600540f53e7e4e7ed9a20aa7d7d29b17400530bd67dd",
+    "src/ddospector/runs/worker.py": "3f75db0c72b07ea919525b8ebdeab75c487c1b4be5939f66d6523ed80b93676c",
+    "uv.lock": "bbfd76ea8401d8d2170bb729939dc15d715a64b6f38086ad18bc83c0a816f3f0"
+  },
+  "origin": {
+    "api_browser_report_sha256": "9447610c20c3df845641c98c099436086eff6fee62f488262598a546f9948e9e",
+    "pg_readback_sha256": "88ccc4f541d13ad33384b552a83cbbcced1dd89b112a46a63fa204de31794f3c",
+    "http_index_sha256": "7f6a193b2b26c4721764823eff7ea5172c124c95bec9e7d3488a04fa3b95edc4",
+    "archive_sha256": "5043a32b5ba39cd30a8307b6289730630d76565a9e8f0b83070502024b0e1454"
+  },
+  "cases": [
+    {
+      "label": "list-0",
+      "raw": "{\"after\":0,\"items\":[],\"limit\":20,\"next_after\":null,\"schema_version\":1,\"through\":0,\"total\":0}",
+      "sha256": "ce6ad60e46ff45e0db93d79f479b92115745ab211ce979fa0d75933d87c82dc6",
+      "context": {
+        "method": "GET",
+        "status": 200,
+        "kind": "list",
+        "after": 0,
+        "limit": 20
+      },
+      "expected": "ACCEPT",
+      "provenance": "RECORDED_REAL_HTTP",
+      "origin_file": "browser-0000.body"
+    },
+    {
+      "label": "create-1",
+      "raw": "{\"result\":null,\"run\":{\"attempt\":0,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:45.667814Z\",\"deadline_at\":\"2026-10-13T09:50:45.667814Z\",\"event_count\":1,\"failure_code\":null,\"finished_at\":null,\"generation\":0,\"id\":\"a95568fd-c83d-4c8d-999d-bb200b924ff1\",\"mode\":\"OFFLINE\",\"ordinal\":1,\"request_id\":\"5228c6d3-f452-4782-a2b5-4f8ceb53449b\",\"scenario_digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":1,\"snapshot_digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"started_at\":null,\"state\":\"QUEUED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:45.667814Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.339977+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\" Preserve literals\\n\\t정책 검증\\r\\n \",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":1},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"}}",
+      "sha256": "88b865c34ef1e1e3a7142b0ba3aa3ee4e34c09e55726f2bed97434a05e2dfc99",
+      "context": {
+        "method": "POST",
+        "status": 202,
+        "kind": "create"
+      },
+      "expected": "ACCEPT",
+      "provenance": "RECORDED_REAL_HTTP",
+      "origin_file": "browser-0001.body"
+    },
+    {
+      "label": "detail-2",
+      "raw": "{\"result\":null,\"run\":{\"attempt\":0,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:45.667814Z\",\"deadline_at\":\"2026-10-13T09:50:45.667814Z\",\"event_count\":1,\"failure_code\":null,\"finished_at\":null,\"generation\":0,\"id\":\"a95568fd-c83d-4c8d-999d-bb200b924ff1\",\"mode\":\"OFFLINE\",\"ordinal\":1,\"request_id\":\"5228c6d3-f452-4782-a2b5-4f8ceb53449b\",\"scenario_digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":1,\"snapshot_digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"started_at\":null,\"state\":\"QUEUED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:45.667814Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.339977+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\" Preserve literals\\n\\t정책 검증\\r\\n \",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":1},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"}}",
+      "sha256": "88b865c34ef1e1e3a7142b0ba3aa3ee4e34c09e55726f2bed97434a05e2dfc99",
+      "context": {
+        "method": "GET",
+        "status": 200,
+        "kind": "detail",
+        "id": "a95568fd-c83d-4c8d-999d-bb200b924ff1"
+      },
+      "expected": "ACCEPT",
+      "provenance": "RECORDED_REAL_HTTP",
+      "origin_file": "browser-0002.body"
+    },
+    {
+      "label": "events-3",
+      "raw": "{\"after\":0,\"items\":[{\"at\":\"2026-10-13T09:45:45.667814Z\",\"attempt\":0,\"generation\":0,\"reason\":null,\"seq\":1,\"state\":\"QUEUED\",\"type\":\"QUEUED\"}],\"limit\":16,\"next_after\":null,\"run_id\":\"a95568fd-c83d-4c8d-999d-bb200b924ff1\",\"schema_version\":1,\"total\":1}",
+      "sha256": "523f10c33aa6c4fef13643a0a4f948823f4fc2cb9dc3fc1766cb6f9309fde4f2",
+      "context": {
+        "method": "GET",
+        "status": 200,
+        "kind": "events",
+        "id": "a95568fd-c83d-4c8d-999d-bb200b924ff1",
+        "after": 0,
+        "limit": 16
+      },
+      "expected": "ACCEPT",
+      "provenance": "RECORDED_REAL_HTTP",
+      "origin_file": "browser-0004.body"
+    },
+    {
+      "label": "cancel-4",
+      "raw": "{\"result\":null,\"run\":{\"attempt\":0,\"cancel_requested_at\":\"2026-10-13T09:45:45.916148Z\",\"created_at\":\"2026-10-13T09:45:45.667814Z\",\"deadline_at\":\"2026-10-13T09:50:45.667814Z\",\"event_count\":2,\"failure_code\":null,\"finished_at\":\"2026-10-13T09:45:45.916148Z\",\"generation\":0,\"id\":\"a95568fd-c83d-4c8d-999d-bb200b924ff1\",\"mode\":\"OFFLINE\",\"ordinal\":1,\"request_id\":\"5228c6d3-f452-4782-a2b5-4f8ceb53449b\",\"scenario_digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":1,\"snapshot_digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"started_at\":null,\"state\":\"CANCELLED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:45.916148Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.339977+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\" Preserve literals\\n\\t정책 검증\\r\\n \",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":1},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"}}",
+      "sha256": "416fad6fa21aa3cc25acda0c9147ceafcfd0d4954aa73ab0b4be1b9e7cf08a75",
+      "context": {
+        "method": "POST",
+        "status": 200,
+        "kind": "cancel",
+        "id": "a95568fd-c83d-4c8d-999d-bb200b924ff1"
+      },
+      "expected": "ACCEPT",
+      "provenance": "RECORDED_REAL_HTTP",
+      "origin_file": "browser-0005.body"
+    },
+    {
+      "label": "events-5",
+      "raw": "{\"after\":0,\"items\":[{\"at\":\"2026-10-13T09:45:45.667814Z\",\"attempt\":0,\"generation\":0,\"reason\":null,\"seq\":1,\"state\":\"QUEUED\",\"type\":\"QUEUED\"},{\"at\":\"2026-10-13T09:45:45.916148Z\",\"attempt\":0,\"generation\":0,\"reason\":\"BEFORE_CLAIM\",\"seq\":2,\"state\":\"CANCELLED\",\"type\":\"CANCELLED\"}],\"limit\":16,\"next_after\":null,\"run_id\":\"a95568fd-c83d-4c8d-999d-bb200b924ff1\",\"schema_version\":1,\"total\":2}",
+      "sha256": "c83b70696e29724635e0cfed613f72b49d2e5f4b470465c3a204ebfcf7700713",
+      "context": {
+        "method": "GET",
+        "status": 200,
+        "kind": "events",
+        "id": "a95568fd-c83d-4c8d-999d-bb200b924ff1",
+        "after": 0,
+        "limit": 16
+      },
+      "expected": "ACCEPT",
+      "provenance": "RECORDED_REAL_HTTP",
+      "origin_file": "browser-0006.body"
+    },
+    {
+      "label": "request-6",
+      "raw": "{\"result\":null,\"run\":{\"attempt\":0,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:46.132672Z\",\"deadline_at\":\"2026-10-13T09:50:46.132672Z\",\"event_count\":1,\"failure_code\":null,\"finished_at\":null,\"generation\":0,\"id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"mode\":\"OFFLINE\",\"ordinal\":2,\"request_id\":\"4aa0568e-ef22-4741-99bc-d96b4b6d7926\",\"scenario_digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":2,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"started_at\":null,\"state\":\"QUEUED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:46.132672Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.415263+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\"Second captured OFFLINE definition; no live device activity.\",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":2},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"}}",
+      "sha256": "69f0b0b1398606caac64ab2bb88d5be02e6e909a0ed763e37f50c24f9cc48aa6",
+      "context": {
+        "method": "GET",
+        "status": 200,
+        "kind": "request",
+        "id": "4aa0568e-ef22-4741-99bc-d96b4b6d7926"
+      },
+      "expected": "ACCEPT",
+      "provenance": "RECORDED_REAL_HTTP",
+      "origin_file": "browser-0008.body"
+    },
+    {
+      "label": "list-7",
+      "raw": "{\"after\":0,\"items\":[{\"attempt\":0,\"cancel_requested_at\":\"2026-10-13T09:45:45.916148Z\",\"created_at\":\"2026-10-13T09:45:45.667814Z\",\"deadline_at\":\"2026-10-13T09:50:45.667814Z\",\"event_count\":2,\"failure_code\":null,\"finished_at\":\"2026-10-13T09:45:45.916148Z\",\"generation\":0,\"id\":\"a95568fd-c83d-4c8d-999d-bb200b924ff1\",\"mode\":\"OFFLINE\",\"ordinal\":1,\"request_id\":\"5228c6d3-f452-4782-a2b5-4f8ceb53449b\",\"scenario_digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":1,\"snapshot_digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"started_at\":null,\"state\":\"CANCELLED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:45.916148Z\"},{\"attempt\":0,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:46.132672Z\",\"deadline_at\":\"2026-10-13T09:50:46.132672Z\",\"event_count\":1,\"failure_code\":null,\"finished_at\":null,\"generation\":0,\"id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"mode\":\"OFFLINE\",\"ordinal\":2,\"request_id\":\"4aa0568e-ef22-4741-99bc-d96b4b6d7926\",\"scenario_digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":2,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"started_at\":null,\"state\":\"QUEUED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:46.132672Z\"}],\"limit\":20,\"next_after\":null,\"schema_version\":1,\"through\":2,\"total\":2}",
+      "sha256": "ff393f61264be8babaeed52af2733386a034cabb2e78e5e68473b6590143487a",
+      "context": {
+        "method": "GET",
+        "status": 200,
+        "kind": "list",
+        "after": 0,
+        "limit": 20
+      },
+      "expected": "ACCEPT",
+      "provenance": "RECORDED_REAL_HTTP",
+      "origin_file": "browser-0009.body"
+    },
+    {
+      "label": "detail-8",
+      "raw": "{\"result\":null,\"run\":{\"attempt\":0,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:46.132672Z\",\"deadline_at\":\"2026-10-13T09:50:46.132672Z\",\"event_count\":1,\"failure_code\":null,\"finished_at\":null,\"generation\":0,\"id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"mode\":\"OFFLINE\",\"ordinal\":2,\"request_id\":\"4aa0568e-ef22-4741-99bc-d96b4b6d7926\",\"scenario_digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":2,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"started_at\":null,\"state\":\"QUEUED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:46.132672Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.415263+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\"Second captured OFFLINE definition; no live device activity.\",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":2},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"}}",
+      "sha256": "69f0b0b1398606caac64ab2bb88d5be02e6e909a0ed763e37f50c24f9cc48aa6",
+      "context": {
+        "method": "GET",
+        "status": 200,
+        "kind": "detail",
+        "id": "daba0ecd-0186-4bc7-ac0c-89430ad5312d"
+      },
+      "expected": "ACCEPT",
+      "provenance": "RECORDED_REAL_HTTP",
+      "origin_file": "browser-0011.body"
+    },
+    {
+      "label": "events-9",
+      "raw": "{\"after\":0,\"items\":[{\"at\":\"2026-10-13T09:45:46.132672Z\",\"attempt\":0,\"generation\":0,\"reason\":null,\"seq\":1,\"state\":\"QUEUED\",\"type\":\"QUEUED\"}],\"limit\":16,\"next_after\":null,\"run_id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"schema_version\":1,\"total\":1}",
+      "sha256": "7c2fe2a9323893bc64014595790d31284740892d6c522db33325826fb0b07985",
+      "context": {
+        "method": "GET",
+        "status": 200,
+        "kind": "events",
+        "id": "daba0ecd-0186-4bc7-ac0c-89430ad5312d",
+        "after": 0,
+        "limit": 16
+      },
+      "expected": "ACCEPT",
+      "provenance": "RECORDED_REAL_HTTP",
+      "origin_file": "browser-0012.body"
+    },
+    {
+      "label": "detail-10",
+      "raw": "{\"result\":{\"asset_status\":\"NOT_DECLARED\",\"checks\":[\"SNAPSHOT_INTEGRITY\",\"POLICY_CONSISTENCY\",\"REQUIREMENTS_COMPILED\"],\"declared_limits\":{\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"defense_verdict\":null,\"digest\":\"6724ec2d868e58a22bb445a37d23d70493f3f18eddd25842c70984101c584488\",\"evaluation\":\"NOT_EVALUATED\",\"evidence_requirements\":[{\"availability\":\"NOT_INGESTED\",\"role\":\"ingress_pcap\"},{\"availability\":\"NOT_INGESTED\",\"role\":\"egress_pcap\"},{\"availability\":\"NOT_INGESTED\",\"role\":\"service_probe\"}],\"expected_policy\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"expected_action\":\"ALLOW\"},\"kind\":\"offline_preparation\",\"measurements\":null,\"schema_version\":1,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90}},\"run\":{\"attempt\":1,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:46.132672Z\",\"deadline_at\":\"2026-10-13T09:50:46.132672Z\",\"event_count\":5,\"failure_code\":null,\"finished_at\":\"2026-10-13T09:45:47.119489Z\",\"generation\":2,\"id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"mode\":\"OFFLINE\",\"ordinal\":2,\"request_id\":\"4aa0568e-ef22-4741-99bc-d96b4b6d7926\",\"scenario_digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":2,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"started_at\":\"2026-10-13T09:45:47.103978Z\",\"state\":\"SUCCEEDED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:47.119489Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.415263+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\"Second captured OFFLINE definition; no live device activity.\",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":2},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"}}",
+      "sha256": "143701fa6ad9005d239b1478a88814e490024443924ea5a11a5a697df0faa6aa",
+      "context": {
+        "method": "GET",
+        "status": 200,
+        "kind": "detail",
+        "id": "daba0ecd-0186-4bc7-ac0c-89430ad5312d"
+      },
+      "expected": "ACCEPT",
+      "provenance": "RECORDED_REAL_HTTP",
+      "origin_file": "browser-0013.body"
+    },
+    {
+      "label": "events-11",
+      "raw": "{\"after\":0,\"items\":[{\"at\":\"2026-10-13T09:45:46.132672Z\",\"attempt\":0,\"generation\":0,\"reason\":null,\"seq\":1,\"state\":\"QUEUED\",\"type\":\"QUEUED\"},{\"at\":\"2026-10-13T09:45:47.103978Z\",\"attempt\":1,\"generation\":1,\"reason\":null,\"seq\":2,\"state\":\"RUNNING\",\"type\":\"CLAIMED\"},{\"at\":\"2026-10-13T09:45:47.109302Z\",\"attempt\":1,\"generation\":1,\"reason\":null,\"seq\":3,\"state\":\"RUNNING\",\"type\":\"SNAPSHOT_VERIFIED\"},{\"at\":\"2026-10-13T09:45:47.114218Z\",\"attempt\":1,\"generation\":1,\"reason\":null,\"seq\":4,\"state\":\"RUNNING\",\"type\":\"MANIFEST_COMPILED\"},{\"at\":\"2026-10-13T09:45:47.119489Z\",\"attempt\":1,\"generation\":2,\"reason\":null,\"seq\":5,\"state\":\"SUCCEEDED\",\"type\":\"SUCCEEDED\"}],\"limit\":16,\"next_after\":null,\"run_id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"schema_version\":1,\"total\":5}",
+      "sha256": "bcc9df34d66fa5a407d56e8b7eceb70560c8b2e32ece2d9d1bca38c4892b08a0",
+      "context": {
+        "method": "GET",
+        "status": 200,
+        "kind": "events",
+        "id": "daba0ecd-0186-4bc7-ac0c-89430ad5312d",
+        "after": 0,
+        "limit": 16
+      },
+      "expected": "ACCEPT",
+      "provenance": "RECORDED_REAL_HTTP",
+      "origin_file": "browser-0014.body"
+    },
+    {
+      "label": "unknown-root-0",
+      "raw": "{\"after\":0,\"items\":[],\"limit\":20,\"next_after\":null,\"schema_version\":1,\"through\":0,\"total\":0,\"unexpected\":true}",
+      "sha256": "165fdbc857c4494315084539853f9bdf6c86ea2066590a9729f36f36e37b00be",
+      "context": {
+        "method": "GET",
+        "status": 200,
+        "kind": "list",
+        "after": 0,
+        "limit": 20
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "wrong-method-0",
+      "raw": "{\"after\":0,\"items\":[],\"limit\":20,\"next_after\":null,\"schema_version\":1,\"through\":0,\"total\":0}",
+      "sha256": "ce6ad60e46ff45e0db93d79f479b92115745ab211ce979fa0d75933d87c82dc6",
+      "context": {
+        "method": "POST",
+        "status": 200,
+        "kind": "list",
+        "after": 0,
+        "limit": 20
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "wrong-status-0",
+      "raw": "{\"after\":0,\"items\":[],\"limit\":20,\"next_after\":null,\"schema_version\":1,\"through\":0,\"total\":0}",
+      "sha256": "ce6ad60e46ff45e0db93d79f479b92115745ab211ce979fa0d75933d87c82dc6",
+      "context": {
+        "method": "GET",
+        "status": 204,
+        "kind": "list",
+        "after": 0,
+        "limit": 20
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "unknown-root-1",
+      "raw": "{\"result\":null,\"run\":{\"attempt\":0,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:45.667814Z\",\"deadline_at\":\"2026-10-13T09:50:45.667814Z\",\"event_count\":1,\"failure_code\":null,\"finished_at\":null,\"generation\":0,\"id\":\"a95568fd-c83d-4c8d-999d-bb200b924ff1\",\"mode\":\"OFFLINE\",\"ordinal\":1,\"request_id\":\"5228c6d3-f452-4782-a2b5-4f8ceb53449b\",\"scenario_digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":1,\"snapshot_digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"started_at\":null,\"state\":\"QUEUED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:45.667814Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.339977+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\" Preserve literals\\n\\t정책 검증\\r\\n \",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":1},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"},\"unexpected\":true}",
+      "sha256": "e00d60d09314b86f8e389131355214c573541487f498c97788c599a1e41e1c3e",
+      "context": {
+        "method": "POST",
+        "status": 202,
+        "kind": "create"
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "wrong-method-1",
+      "raw": "{\"result\":null,\"run\":{\"attempt\":0,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:45.667814Z\",\"deadline_at\":\"2026-10-13T09:50:45.667814Z\",\"event_count\":1,\"failure_code\":null,\"finished_at\":null,\"generation\":0,\"id\":\"a95568fd-c83d-4c8d-999d-bb200b924ff1\",\"mode\":\"OFFLINE\",\"ordinal\":1,\"request_id\":\"5228c6d3-f452-4782-a2b5-4f8ceb53449b\",\"scenario_digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":1,\"snapshot_digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"started_at\":null,\"state\":\"QUEUED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:45.667814Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.339977+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\" Preserve literals\\n\\t정책 검증\\r\\n \",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":1},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"}}",
+      "sha256": "88b865c34ef1e1e3a7142b0ba3aa3ee4e34c09e55726f2bed97434a05e2dfc99",
+      "context": {
+        "method": "GET",
+        "status": 202,
+        "kind": "create"
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "wrong-status-1",
+      "raw": "{\"result\":null,\"run\":{\"attempt\":0,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:45.667814Z\",\"deadline_at\":\"2026-10-13T09:50:45.667814Z\",\"event_count\":1,\"failure_code\":null,\"finished_at\":null,\"generation\":0,\"id\":\"a95568fd-c83d-4c8d-999d-bb200b924ff1\",\"mode\":\"OFFLINE\",\"ordinal\":1,\"request_id\":\"5228c6d3-f452-4782-a2b5-4f8ceb53449b\",\"scenario_digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":1,\"snapshot_digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"started_at\":null,\"state\":\"QUEUED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:45.667814Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.339977+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\" Preserve literals\\n\\t정책 검증\\r\\n \",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":1},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"}}",
+      "sha256": "88b865c34ef1e1e3a7142b0ba3aa3ee4e34c09e55726f2bed97434a05e2dfc99",
+      "context": {
+        "method": "POST",
+        "status": 204,
+        "kind": "create"
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "unknown-root-2",
+      "raw": "{\"result\":null,\"run\":{\"attempt\":0,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:45.667814Z\",\"deadline_at\":\"2026-10-13T09:50:45.667814Z\",\"event_count\":1,\"failure_code\":null,\"finished_at\":null,\"generation\":0,\"id\":\"a95568fd-c83d-4c8d-999d-bb200b924ff1\",\"mode\":\"OFFLINE\",\"ordinal\":1,\"request_id\":\"5228c6d3-f452-4782-a2b5-4f8ceb53449b\",\"scenario_digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":1,\"snapshot_digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"started_at\":null,\"state\":\"QUEUED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:45.667814Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.339977+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\" Preserve literals\\n\\t정책 검증\\r\\n \",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":1},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"},\"unexpected\":true}",
+      "sha256": "e00d60d09314b86f8e389131355214c573541487f498c97788c599a1e41e1c3e",
+      "context": {
+        "method": "GET",
+        "status": 200,
+        "kind": "detail",
+        "id": "a95568fd-c83d-4c8d-999d-bb200b924ff1"
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "wrong-method-2",
+      "raw": "{\"result\":null,\"run\":{\"attempt\":0,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:45.667814Z\",\"deadline_at\":\"2026-10-13T09:50:45.667814Z\",\"event_count\":1,\"failure_code\":null,\"finished_at\":null,\"generation\":0,\"id\":\"a95568fd-c83d-4c8d-999d-bb200b924ff1\",\"mode\":\"OFFLINE\",\"ordinal\":1,\"request_id\":\"5228c6d3-f452-4782-a2b5-4f8ceb53449b\",\"scenario_digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":1,\"snapshot_digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"started_at\":null,\"state\":\"QUEUED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:45.667814Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.339977+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\" Preserve literals\\n\\t정책 검증\\r\\n \",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":1},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"}}",
+      "sha256": "88b865c34ef1e1e3a7142b0ba3aa3ee4e34c09e55726f2bed97434a05e2dfc99",
+      "context": {
+        "method": "POST",
+        "status": 200,
+        "kind": "detail",
+        "id": "a95568fd-c83d-4c8d-999d-bb200b924ff1"
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "wrong-status-2",
+      "raw": "{\"result\":null,\"run\":{\"attempt\":0,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:45.667814Z\",\"deadline_at\":\"2026-10-13T09:50:45.667814Z\",\"event_count\":1,\"failure_code\":null,\"finished_at\":null,\"generation\":0,\"id\":\"a95568fd-c83d-4c8d-999d-bb200b924ff1\",\"mode\":\"OFFLINE\",\"ordinal\":1,\"request_id\":\"5228c6d3-f452-4782-a2b5-4f8ceb53449b\",\"scenario_digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":1,\"snapshot_digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"started_at\":null,\"state\":\"QUEUED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:45.667814Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.339977+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\" Preserve literals\\n\\t정책 검증\\r\\n \",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":1},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"}}",
+      "sha256": "88b865c34ef1e1e3a7142b0ba3aa3ee4e34c09e55726f2bed97434a05e2dfc99",
+      "context": {
+        "method": "GET",
+        "status": 204,
+        "kind": "detail",
+        "id": "a95568fd-c83d-4c8d-999d-bb200b924ff1"
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "unknown-root-3",
+      "raw": "{\"after\":0,\"items\":[{\"at\":\"2026-10-13T09:45:45.667814Z\",\"attempt\":0,\"generation\":0,\"reason\":null,\"seq\":1,\"state\":\"QUEUED\",\"type\":\"QUEUED\"}],\"limit\":16,\"next_after\":null,\"run_id\":\"a95568fd-c83d-4c8d-999d-bb200b924ff1\",\"schema_version\":1,\"total\":1,\"unexpected\":true}",
+      "sha256": "88b4e55bf109eb1b8afe4edc545202f1409cd3646c699172c12eb3d7b3877f27",
+      "context": {
+        "method": "GET",
+        "status": 200,
+        "kind": "events",
+        "id": "a95568fd-c83d-4c8d-999d-bb200b924ff1",
+        "after": 0,
+        "limit": 16
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "wrong-method-3",
+      "raw": "{\"after\":0,\"items\":[{\"at\":\"2026-10-13T09:45:45.667814Z\",\"attempt\":0,\"generation\":0,\"reason\":null,\"seq\":1,\"state\":\"QUEUED\",\"type\":\"QUEUED\"}],\"limit\":16,\"next_after\":null,\"run_id\":\"a95568fd-c83d-4c8d-999d-bb200b924ff1\",\"schema_version\":1,\"total\":1}",
+      "sha256": "523f10c33aa6c4fef13643a0a4f948823f4fc2cb9dc3fc1766cb6f9309fde4f2",
+      "context": {
+        "method": "POST",
+        "status": 200,
+        "kind": "events",
+        "id": "a95568fd-c83d-4c8d-999d-bb200b924ff1",
+        "after": 0,
+        "limit": 16
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "wrong-status-3",
+      "raw": "{\"after\":0,\"items\":[{\"at\":\"2026-10-13T09:45:45.667814Z\",\"attempt\":0,\"generation\":0,\"reason\":null,\"seq\":1,\"state\":\"QUEUED\",\"type\":\"QUEUED\"}],\"limit\":16,\"next_after\":null,\"run_id\":\"a95568fd-c83d-4c8d-999d-bb200b924ff1\",\"schema_version\":1,\"total\":1}",
+      "sha256": "523f10c33aa6c4fef13643a0a4f948823f4fc2cb9dc3fc1766cb6f9309fde4f2",
+      "context": {
+        "method": "GET",
+        "status": 204,
+        "kind": "events",
+        "id": "a95568fd-c83d-4c8d-999d-bb200b924ff1",
+        "after": 0,
+        "limit": 16
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "unknown-root-4",
+      "raw": "{\"result\":null,\"run\":{\"attempt\":0,\"cancel_requested_at\":\"2026-10-13T09:45:45.916148Z\",\"created_at\":\"2026-10-13T09:45:45.667814Z\",\"deadline_at\":\"2026-10-13T09:50:45.667814Z\",\"event_count\":2,\"failure_code\":null,\"finished_at\":\"2026-10-13T09:45:45.916148Z\",\"generation\":0,\"id\":\"a95568fd-c83d-4c8d-999d-bb200b924ff1\",\"mode\":\"OFFLINE\",\"ordinal\":1,\"request_id\":\"5228c6d3-f452-4782-a2b5-4f8ceb53449b\",\"scenario_digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":1,\"snapshot_digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"started_at\":null,\"state\":\"CANCELLED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:45.916148Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.339977+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\" Preserve literals\\n\\t정책 검증\\r\\n \",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":1},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"},\"unexpected\":true}",
+      "sha256": "17928501246d7ed1d18371f0f9fbc48146dcef246130fe527c4fee48857527f0",
+      "context": {
+        "method": "POST",
+        "status": 200,
+        "kind": "cancel",
+        "id": "a95568fd-c83d-4c8d-999d-bb200b924ff1"
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "wrong-method-4",
+      "raw": "{\"result\":null,\"run\":{\"attempt\":0,\"cancel_requested_at\":\"2026-10-13T09:45:45.916148Z\",\"created_at\":\"2026-10-13T09:45:45.667814Z\",\"deadline_at\":\"2026-10-13T09:50:45.667814Z\",\"event_count\":2,\"failure_code\":null,\"finished_at\":\"2026-10-13T09:45:45.916148Z\",\"generation\":0,\"id\":\"a95568fd-c83d-4c8d-999d-bb200b924ff1\",\"mode\":\"OFFLINE\",\"ordinal\":1,\"request_id\":\"5228c6d3-f452-4782-a2b5-4f8ceb53449b\",\"scenario_digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":1,\"snapshot_digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"started_at\":null,\"state\":\"CANCELLED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:45.916148Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.339977+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\" Preserve literals\\n\\t정책 검증\\r\\n \",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":1},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"}}",
+      "sha256": "416fad6fa21aa3cc25acda0c9147ceafcfd0d4954aa73ab0b4be1b9e7cf08a75",
+      "context": {
+        "method": "GET",
+        "status": 200,
+        "kind": "cancel",
+        "id": "a95568fd-c83d-4c8d-999d-bb200b924ff1"
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "wrong-status-4",
+      "raw": "{\"result\":null,\"run\":{\"attempt\":0,\"cancel_requested_at\":\"2026-10-13T09:45:45.916148Z\",\"created_at\":\"2026-10-13T09:45:45.667814Z\",\"deadline_at\":\"2026-10-13T09:50:45.667814Z\",\"event_count\":2,\"failure_code\":null,\"finished_at\":\"2026-10-13T09:45:45.916148Z\",\"generation\":0,\"id\":\"a95568fd-c83d-4c8d-999d-bb200b924ff1\",\"mode\":\"OFFLINE\",\"ordinal\":1,\"request_id\":\"5228c6d3-f452-4782-a2b5-4f8ceb53449b\",\"scenario_digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":1,\"snapshot_digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"started_at\":null,\"state\":\"CANCELLED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:45.916148Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.339977+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\" Preserve literals\\n\\t정책 검증\\r\\n \",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":1},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"}}",
+      "sha256": "416fad6fa21aa3cc25acda0c9147ceafcfd0d4954aa73ab0b4be1b9e7cf08a75",
+      "context": {
+        "method": "POST",
+        "status": 204,
+        "kind": "cancel",
+        "id": "a95568fd-c83d-4c8d-999d-bb200b924ff1"
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "unknown-root-5",
+      "raw": "{\"after\":0,\"items\":[{\"at\":\"2026-10-13T09:45:45.667814Z\",\"attempt\":0,\"generation\":0,\"reason\":null,\"seq\":1,\"state\":\"QUEUED\",\"type\":\"QUEUED\"},{\"at\":\"2026-10-13T09:45:45.916148Z\",\"attempt\":0,\"generation\":0,\"reason\":\"BEFORE_CLAIM\",\"seq\":2,\"state\":\"CANCELLED\",\"type\":\"CANCELLED\"}],\"limit\":16,\"next_after\":null,\"run_id\":\"a95568fd-c83d-4c8d-999d-bb200b924ff1\",\"schema_version\":1,\"total\":2,\"unexpected\":true}",
+      "sha256": "6498ef0ff41b2bc8be15a50a8adda0609efd982f567da0281d2240f8537fbfe0",
+      "context": {
+        "method": "GET",
+        "status": 200,
+        "kind": "events",
+        "id": "a95568fd-c83d-4c8d-999d-bb200b924ff1",
+        "after": 0,
+        "limit": 16
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "wrong-method-5",
+      "raw": "{\"after\":0,\"items\":[{\"at\":\"2026-10-13T09:45:45.667814Z\",\"attempt\":0,\"generation\":0,\"reason\":null,\"seq\":1,\"state\":\"QUEUED\",\"type\":\"QUEUED\"},{\"at\":\"2026-10-13T09:45:45.916148Z\",\"attempt\":0,\"generation\":0,\"reason\":\"BEFORE_CLAIM\",\"seq\":2,\"state\":\"CANCELLED\",\"type\":\"CANCELLED\"}],\"limit\":16,\"next_after\":null,\"run_id\":\"a95568fd-c83d-4c8d-999d-bb200b924ff1\",\"schema_version\":1,\"total\":2}",
+      "sha256": "c83b70696e29724635e0cfed613f72b49d2e5f4b470465c3a204ebfcf7700713",
+      "context": {
+        "method": "POST",
+        "status": 200,
+        "kind": "events",
+        "id": "a95568fd-c83d-4c8d-999d-bb200b924ff1",
+        "after": 0,
+        "limit": 16
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "wrong-status-5",
+      "raw": "{\"after\":0,\"items\":[{\"at\":\"2026-10-13T09:45:45.667814Z\",\"attempt\":0,\"generation\":0,\"reason\":null,\"seq\":1,\"state\":\"QUEUED\",\"type\":\"QUEUED\"},{\"at\":\"2026-10-13T09:45:45.916148Z\",\"attempt\":0,\"generation\":0,\"reason\":\"BEFORE_CLAIM\",\"seq\":2,\"state\":\"CANCELLED\",\"type\":\"CANCELLED\"}],\"limit\":16,\"next_after\":null,\"run_id\":\"a95568fd-c83d-4c8d-999d-bb200b924ff1\",\"schema_version\":1,\"total\":2}",
+      "sha256": "c83b70696e29724635e0cfed613f72b49d2e5f4b470465c3a204ebfcf7700713",
+      "context": {
+        "method": "GET",
+        "status": 204,
+        "kind": "events",
+        "id": "a95568fd-c83d-4c8d-999d-bb200b924ff1",
+        "after": 0,
+        "limit": 16
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "unknown-root-6",
+      "raw": "{\"result\":null,\"run\":{\"attempt\":0,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:46.132672Z\",\"deadline_at\":\"2026-10-13T09:50:46.132672Z\",\"event_count\":1,\"failure_code\":null,\"finished_at\":null,\"generation\":0,\"id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"mode\":\"OFFLINE\",\"ordinal\":2,\"request_id\":\"4aa0568e-ef22-4741-99bc-d96b4b6d7926\",\"scenario_digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":2,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"started_at\":null,\"state\":\"QUEUED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:46.132672Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.415263+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\"Second captured OFFLINE definition; no live device activity.\",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":2},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"},\"unexpected\":true}",
+      "sha256": "2930b993d23b3f98e1f7c2de066a9bf1b988b65b6b125668f6cd06509b82eed9",
+      "context": {
+        "method": "GET",
+        "status": 200,
+        "kind": "request",
+        "id": "4aa0568e-ef22-4741-99bc-d96b4b6d7926"
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "wrong-method-6",
+      "raw": "{\"result\":null,\"run\":{\"attempt\":0,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:46.132672Z\",\"deadline_at\":\"2026-10-13T09:50:46.132672Z\",\"event_count\":1,\"failure_code\":null,\"finished_at\":null,\"generation\":0,\"id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"mode\":\"OFFLINE\",\"ordinal\":2,\"request_id\":\"4aa0568e-ef22-4741-99bc-d96b4b6d7926\",\"scenario_digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":2,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"started_at\":null,\"state\":\"QUEUED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:46.132672Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.415263+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\"Second captured OFFLINE definition; no live device activity.\",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":2},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"}}",
+      "sha256": "69f0b0b1398606caac64ab2bb88d5be02e6e909a0ed763e37f50c24f9cc48aa6",
+      "context": {
+        "method": "POST",
+        "status": 200,
+        "kind": "request",
+        "id": "4aa0568e-ef22-4741-99bc-d96b4b6d7926"
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "wrong-status-6",
+      "raw": "{\"result\":null,\"run\":{\"attempt\":0,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:46.132672Z\",\"deadline_at\":\"2026-10-13T09:50:46.132672Z\",\"event_count\":1,\"failure_code\":null,\"finished_at\":null,\"generation\":0,\"id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"mode\":\"OFFLINE\",\"ordinal\":2,\"request_id\":\"4aa0568e-ef22-4741-99bc-d96b4b6d7926\",\"scenario_digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":2,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"started_at\":null,\"state\":\"QUEUED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:46.132672Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.415263+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\"Second captured OFFLINE definition; no live device activity.\",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":2},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"}}",
+      "sha256": "69f0b0b1398606caac64ab2bb88d5be02e6e909a0ed763e37f50c24f9cc48aa6",
+      "context": {
+        "method": "GET",
+        "status": 204,
+        "kind": "request",
+        "id": "4aa0568e-ef22-4741-99bc-d96b4b6d7926"
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "unknown-root-7",
+      "raw": "{\"after\":0,\"items\":[{\"attempt\":0,\"cancel_requested_at\":\"2026-10-13T09:45:45.916148Z\",\"created_at\":\"2026-10-13T09:45:45.667814Z\",\"deadline_at\":\"2026-10-13T09:50:45.667814Z\",\"event_count\":2,\"failure_code\":null,\"finished_at\":\"2026-10-13T09:45:45.916148Z\",\"generation\":0,\"id\":\"a95568fd-c83d-4c8d-999d-bb200b924ff1\",\"mode\":\"OFFLINE\",\"ordinal\":1,\"request_id\":\"5228c6d3-f452-4782-a2b5-4f8ceb53449b\",\"scenario_digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":1,\"snapshot_digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"started_at\":null,\"state\":\"CANCELLED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:45.916148Z\"},{\"attempt\":0,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:46.132672Z\",\"deadline_at\":\"2026-10-13T09:50:46.132672Z\",\"event_count\":1,\"failure_code\":null,\"finished_at\":null,\"generation\":0,\"id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"mode\":\"OFFLINE\",\"ordinal\":2,\"request_id\":\"4aa0568e-ef22-4741-99bc-d96b4b6d7926\",\"scenario_digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":2,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"started_at\":null,\"state\":\"QUEUED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:46.132672Z\"}],\"limit\":20,\"next_after\":null,\"schema_version\":1,\"through\":2,\"total\":2,\"unexpected\":true}",
+      "sha256": "7fd7f522ca9e35bf7d090aa9080380f178ac48b86d436ad49d2eb85e815c4d59",
+      "context": {
+        "method": "GET",
+        "status": 200,
+        "kind": "list",
+        "after": 0,
+        "limit": 20
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "wrong-method-7",
+      "raw": "{\"after\":0,\"items\":[{\"attempt\":0,\"cancel_requested_at\":\"2026-10-13T09:45:45.916148Z\",\"created_at\":\"2026-10-13T09:45:45.667814Z\",\"deadline_at\":\"2026-10-13T09:50:45.667814Z\",\"event_count\":2,\"failure_code\":null,\"finished_at\":\"2026-10-13T09:45:45.916148Z\",\"generation\":0,\"id\":\"a95568fd-c83d-4c8d-999d-bb200b924ff1\",\"mode\":\"OFFLINE\",\"ordinal\":1,\"request_id\":\"5228c6d3-f452-4782-a2b5-4f8ceb53449b\",\"scenario_digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":1,\"snapshot_digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"started_at\":null,\"state\":\"CANCELLED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:45.916148Z\"},{\"attempt\":0,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:46.132672Z\",\"deadline_at\":\"2026-10-13T09:50:46.132672Z\",\"event_count\":1,\"failure_code\":null,\"finished_at\":null,\"generation\":0,\"id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"mode\":\"OFFLINE\",\"ordinal\":2,\"request_id\":\"4aa0568e-ef22-4741-99bc-d96b4b6d7926\",\"scenario_digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":2,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"started_at\":null,\"state\":\"QUEUED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:46.132672Z\"}],\"limit\":20,\"next_after\":null,\"schema_version\":1,\"through\":2,\"total\":2}",
+      "sha256": "ff393f61264be8babaeed52af2733386a034cabb2e78e5e68473b6590143487a",
+      "context": {
+        "method": "POST",
+        "status": 200,
+        "kind": "list",
+        "after": 0,
+        "limit": 20
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "wrong-status-7",
+      "raw": "{\"after\":0,\"items\":[{\"attempt\":0,\"cancel_requested_at\":\"2026-10-13T09:45:45.916148Z\",\"created_at\":\"2026-10-13T09:45:45.667814Z\",\"deadline_at\":\"2026-10-13T09:50:45.667814Z\",\"event_count\":2,\"failure_code\":null,\"finished_at\":\"2026-10-13T09:45:45.916148Z\",\"generation\":0,\"id\":\"a95568fd-c83d-4c8d-999d-bb200b924ff1\",\"mode\":\"OFFLINE\",\"ordinal\":1,\"request_id\":\"5228c6d3-f452-4782-a2b5-4f8ceb53449b\",\"scenario_digest\":\"a1cc022b58d1f299d56762141d4a9cf5558aa995f56618daf872a07da694f112\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":1,\"snapshot_digest\":\"df3cffa7bf1221a5532c3b38f17450894521259099c8e540c13987624df2a65b\",\"started_at\":null,\"state\":\"CANCELLED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:45.916148Z\"},{\"attempt\":0,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:46.132672Z\",\"deadline_at\":\"2026-10-13T09:50:46.132672Z\",\"event_count\":1,\"failure_code\":null,\"finished_at\":null,\"generation\":0,\"id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"mode\":\"OFFLINE\",\"ordinal\":2,\"request_id\":\"4aa0568e-ef22-4741-99bc-d96b4b6d7926\",\"scenario_digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":2,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"started_at\":null,\"state\":\"QUEUED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:46.132672Z\"}],\"limit\":20,\"next_after\":null,\"schema_version\":1,\"through\":2,\"total\":2}",
+      "sha256": "ff393f61264be8babaeed52af2733386a034cabb2e78e5e68473b6590143487a",
+      "context": {
+        "method": "GET",
+        "status": 204,
+        "kind": "list",
+        "after": 0,
+        "limit": 20
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "unknown-root-8",
+      "raw": "{\"result\":null,\"run\":{\"attempt\":0,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:46.132672Z\",\"deadline_at\":\"2026-10-13T09:50:46.132672Z\",\"event_count\":1,\"failure_code\":null,\"finished_at\":null,\"generation\":0,\"id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"mode\":\"OFFLINE\",\"ordinal\":2,\"request_id\":\"4aa0568e-ef22-4741-99bc-d96b4b6d7926\",\"scenario_digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":2,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"started_at\":null,\"state\":\"QUEUED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:46.132672Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.415263+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\"Second captured OFFLINE definition; no live device activity.\",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":2},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"},\"unexpected\":true}",
+      "sha256": "2930b993d23b3f98e1f7c2de066a9bf1b988b65b6b125668f6cd06509b82eed9",
+      "context": {
+        "method": "GET",
+        "status": 200,
+        "kind": "detail",
+        "id": "daba0ecd-0186-4bc7-ac0c-89430ad5312d"
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "wrong-method-8",
+      "raw": "{\"result\":null,\"run\":{\"attempt\":0,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:46.132672Z\",\"deadline_at\":\"2026-10-13T09:50:46.132672Z\",\"event_count\":1,\"failure_code\":null,\"finished_at\":null,\"generation\":0,\"id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"mode\":\"OFFLINE\",\"ordinal\":2,\"request_id\":\"4aa0568e-ef22-4741-99bc-d96b4b6d7926\",\"scenario_digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":2,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"started_at\":null,\"state\":\"QUEUED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:46.132672Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.415263+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\"Second captured OFFLINE definition; no live device activity.\",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":2},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"}}",
+      "sha256": "69f0b0b1398606caac64ab2bb88d5be02e6e909a0ed763e37f50c24f9cc48aa6",
+      "context": {
+        "method": "POST",
+        "status": 200,
+        "kind": "detail",
+        "id": "daba0ecd-0186-4bc7-ac0c-89430ad5312d"
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "wrong-status-8",
+      "raw": "{\"result\":null,\"run\":{\"attempt\":0,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:46.132672Z\",\"deadline_at\":\"2026-10-13T09:50:46.132672Z\",\"event_count\":1,\"failure_code\":null,\"finished_at\":null,\"generation\":0,\"id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"mode\":\"OFFLINE\",\"ordinal\":2,\"request_id\":\"4aa0568e-ef22-4741-99bc-d96b4b6d7926\",\"scenario_digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":2,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"started_at\":null,\"state\":\"QUEUED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:46.132672Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.415263+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\"Second captured OFFLINE definition; no live device activity.\",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":2},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"}}",
+      "sha256": "69f0b0b1398606caac64ab2bb88d5be02e6e909a0ed763e37f50c24f9cc48aa6",
+      "context": {
+        "method": "GET",
+        "status": 204,
+        "kind": "detail",
+        "id": "daba0ecd-0186-4bc7-ac0c-89430ad5312d"
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "unknown-root-9",
+      "raw": "{\"after\":0,\"items\":[{\"at\":\"2026-10-13T09:45:46.132672Z\",\"attempt\":0,\"generation\":0,\"reason\":null,\"seq\":1,\"state\":\"QUEUED\",\"type\":\"QUEUED\"}],\"limit\":16,\"next_after\":null,\"run_id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"schema_version\":1,\"total\":1,\"unexpected\":true}",
+      "sha256": "82fa2018ecccefed55e32fa777bd96c9df456da2bb678144f9b47bb6251ef011",
+      "context": {
+        "method": "GET",
+        "status": 200,
+        "kind": "events",
+        "id": "daba0ecd-0186-4bc7-ac0c-89430ad5312d",
+        "after": 0,
+        "limit": 16
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "wrong-method-9",
+      "raw": "{\"after\":0,\"items\":[{\"at\":\"2026-10-13T09:45:46.132672Z\",\"attempt\":0,\"generation\":0,\"reason\":null,\"seq\":1,\"state\":\"QUEUED\",\"type\":\"QUEUED\"}],\"limit\":16,\"next_after\":null,\"run_id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"schema_version\":1,\"total\":1}",
+      "sha256": "7c2fe2a9323893bc64014595790d31284740892d6c522db33325826fb0b07985",
+      "context": {
+        "method": "POST",
+        "status": 200,
+        "kind": "events",
+        "id": "daba0ecd-0186-4bc7-ac0c-89430ad5312d",
+        "after": 0,
+        "limit": 16
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "wrong-status-9",
+      "raw": "{\"after\":0,\"items\":[{\"at\":\"2026-10-13T09:45:46.132672Z\",\"attempt\":0,\"generation\":0,\"reason\":null,\"seq\":1,\"state\":\"QUEUED\",\"type\":\"QUEUED\"}],\"limit\":16,\"next_after\":null,\"run_id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"schema_version\":1,\"total\":1}",
+      "sha256": "7c2fe2a9323893bc64014595790d31284740892d6c522db33325826fb0b07985",
+      "context": {
+        "method": "GET",
+        "status": 204,
+        "kind": "events",
+        "id": "daba0ecd-0186-4bc7-ac0c-89430ad5312d",
+        "after": 0,
+        "limit": 16
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "unknown-root-10",
+      "raw": "{\"result\":{\"asset_status\":\"NOT_DECLARED\",\"checks\":[\"SNAPSHOT_INTEGRITY\",\"POLICY_CONSISTENCY\",\"REQUIREMENTS_COMPILED\"],\"declared_limits\":{\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"defense_verdict\":null,\"digest\":\"6724ec2d868e58a22bb445a37d23d70493f3f18eddd25842c70984101c584488\",\"evaluation\":\"NOT_EVALUATED\",\"evidence_requirements\":[{\"availability\":\"NOT_INGESTED\",\"role\":\"ingress_pcap\"},{\"availability\":\"NOT_INGESTED\",\"role\":\"egress_pcap\"},{\"availability\":\"NOT_INGESTED\",\"role\":\"service_probe\"}],\"expected_policy\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"expected_action\":\"ALLOW\"},\"kind\":\"offline_preparation\",\"measurements\":null,\"schema_version\":1,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90}},\"run\":{\"attempt\":1,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:46.132672Z\",\"deadline_at\":\"2026-10-13T09:50:46.132672Z\",\"event_count\":5,\"failure_code\":null,\"finished_at\":\"2026-10-13T09:45:47.119489Z\",\"generation\":2,\"id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"mode\":\"OFFLINE\",\"ordinal\":2,\"request_id\":\"4aa0568e-ef22-4741-99bc-d96b4b6d7926\",\"scenario_digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":2,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"started_at\":\"2026-10-13T09:45:47.103978Z\",\"state\":\"SUCCEEDED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:47.119489Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.415263+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\"Second captured OFFLINE definition; no live device activity.\",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":2},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"},\"unexpected\":true}",
+      "sha256": "d0de15d0a43de7a8cc05a76baec6519f98b897811d2c0f25c9a8ef810e6b596c",
+      "context": {
+        "method": "GET",
+        "status": 200,
+        "kind": "detail",
+        "id": "daba0ecd-0186-4bc7-ac0c-89430ad5312d"
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "wrong-method-10",
+      "raw": "{\"result\":{\"asset_status\":\"NOT_DECLARED\",\"checks\":[\"SNAPSHOT_INTEGRITY\",\"POLICY_CONSISTENCY\",\"REQUIREMENTS_COMPILED\"],\"declared_limits\":{\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"defense_verdict\":null,\"digest\":\"6724ec2d868e58a22bb445a37d23d70493f3f18eddd25842c70984101c584488\",\"evaluation\":\"NOT_EVALUATED\",\"evidence_requirements\":[{\"availability\":\"NOT_INGESTED\",\"role\":\"ingress_pcap\"},{\"availability\":\"NOT_INGESTED\",\"role\":\"egress_pcap\"},{\"availability\":\"NOT_INGESTED\",\"role\":\"service_probe\"}],\"expected_policy\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"expected_action\":\"ALLOW\"},\"kind\":\"offline_preparation\",\"measurements\":null,\"schema_version\":1,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90}},\"run\":{\"attempt\":1,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:46.132672Z\",\"deadline_at\":\"2026-10-13T09:50:46.132672Z\",\"event_count\":5,\"failure_code\":null,\"finished_at\":\"2026-10-13T09:45:47.119489Z\",\"generation\":2,\"id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"mode\":\"OFFLINE\",\"ordinal\":2,\"request_id\":\"4aa0568e-ef22-4741-99bc-d96b4b6d7926\",\"scenario_digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":2,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"started_at\":\"2026-10-13T09:45:47.103978Z\",\"state\":\"SUCCEEDED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:47.119489Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.415263+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\"Second captured OFFLINE definition; no live device activity.\",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":2},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"}}",
+      "sha256": "143701fa6ad9005d239b1478a88814e490024443924ea5a11a5a697df0faa6aa",
+      "context": {
+        "method": "POST",
+        "status": 200,
+        "kind": "detail",
+        "id": "daba0ecd-0186-4bc7-ac0c-89430ad5312d"
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "wrong-status-10",
+      "raw": "{\"result\":{\"asset_status\":\"NOT_DECLARED\",\"checks\":[\"SNAPSHOT_INTEGRITY\",\"POLICY_CONSISTENCY\",\"REQUIREMENTS_COMPILED\"],\"declared_limits\":{\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"defense_verdict\":null,\"digest\":\"6724ec2d868e58a22bb445a37d23d70493f3f18eddd25842c70984101c584488\",\"evaluation\":\"NOT_EVALUATED\",\"evidence_requirements\":[{\"availability\":\"NOT_INGESTED\",\"role\":\"ingress_pcap\"},{\"availability\":\"NOT_INGESTED\",\"role\":\"egress_pcap\"},{\"availability\":\"NOT_INGESTED\",\"role\":\"service_probe\"}],\"expected_policy\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"expected_action\":\"ALLOW\"},\"kind\":\"offline_preparation\",\"measurements\":null,\"schema_version\":1,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90}},\"run\":{\"attempt\":1,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:46.132672Z\",\"deadline_at\":\"2026-10-13T09:50:46.132672Z\",\"event_count\":5,\"failure_code\":null,\"finished_at\":\"2026-10-13T09:45:47.119489Z\",\"generation\":2,\"id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"mode\":\"OFFLINE\",\"ordinal\":2,\"request_id\":\"4aa0568e-ef22-4741-99bc-d96b4b6d7926\",\"scenario_digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":2,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"started_at\":\"2026-10-13T09:45:47.103978Z\",\"state\":\"SUCCEEDED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:47.119489Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.415263+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\"Second captured OFFLINE definition; no live device activity.\",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":2},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"}}",
+      "sha256": "143701fa6ad9005d239b1478a88814e490024443924ea5a11a5a697df0faa6aa",
+      "context": {
+        "method": "GET",
+        "status": 204,
+        "kind": "detail",
+        "id": "daba0ecd-0186-4bc7-ac0c-89430ad5312d"
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "unknown-root-11",
+      "raw": "{\"after\":0,\"items\":[{\"at\":\"2026-10-13T09:45:46.132672Z\",\"attempt\":0,\"generation\":0,\"reason\":null,\"seq\":1,\"state\":\"QUEUED\",\"type\":\"QUEUED\"},{\"at\":\"2026-10-13T09:45:47.103978Z\",\"attempt\":1,\"generation\":1,\"reason\":null,\"seq\":2,\"state\":\"RUNNING\",\"type\":\"CLAIMED\"},{\"at\":\"2026-10-13T09:45:47.109302Z\",\"attempt\":1,\"generation\":1,\"reason\":null,\"seq\":3,\"state\":\"RUNNING\",\"type\":\"SNAPSHOT_VERIFIED\"},{\"at\":\"2026-10-13T09:45:47.114218Z\",\"attempt\":1,\"generation\":1,\"reason\":null,\"seq\":4,\"state\":\"RUNNING\",\"type\":\"MANIFEST_COMPILED\"},{\"at\":\"2026-10-13T09:45:47.119489Z\",\"attempt\":1,\"generation\":2,\"reason\":null,\"seq\":5,\"state\":\"SUCCEEDED\",\"type\":\"SUCCEEDED\"}],\"limit\":16,\"next_after\":null,\"run_id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"schema_version\":1,\"total\":5,\"unexpected\":true}",
+      "sha256": "57fe6d83fb19efc14b7d2b8b20c67a4169d1fd566c2fabf98ec58d824b1d6003",
+      "context": {
+        "method": "GET",
+        "status": 200,
+        "kind": "events",
+        "id": "daba0ecd-0186-4bc7-ac0c-89430ad5312d",
+        "after": 0,
+        "limit": 16
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "wrong-method-11",
+      "raw": "{\"after\":0,\"items\":[{\"at\":\"2026-10-13T09:45:46.132672Z\",\"attempt\":0,\"generation\":0,\"reason\":null,\"seq\":1,\"state\":\"QUEUED\",\"type\":\"QUEUED\"},{\"at\":\"2026-10-13T09:45:47.103978Z\",\"attempt\":1,\"generation\":1,\"reason\":null,\"seq\":2,\"state\":\"RUNNING\",\"type\":\"CLAIMED\"},{\"at\":\"2026-10-13T09:45:47.109302Z\",\"attempt\":1,\"generation\":1,\"reason\":null,\"seq\":3,\"state\":\"RUNNING\",\"type\":\"SNAPSHOT_VERIFIED\"},{\"at\":\"2026-10-13T09:45:47.114218Z\",\"attempt\":1,\"generation\":1,\"reason\":null,\"seq\":4,\"state\":\"RUNNING\",\"type\":\"MANIFEST_COMPILED\"},{\"at\":\"2026-10-13T09:45:47.119489Z\",\"attempt\":1,\"generation\":2,\"reason\":null,\"seq\":5,\"state\":\"SUCCEEDED\",\"type\":\"SUCCEEDED\"}],\"limit\":16,\"next_after\":null,\"run_id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"schema_version\":1,\"total\":5}",
+      "sha256": "bcc9df34d66fa5a407d56e8b7eceb70560c8b2e32ece2d9d1bca38c4892b08a0",
+      "context": {
+        "method": "POST",
+        "status": 200,
+        "kind": "events",
+        "id": "daba0ecd-0186-4bc7-ac0c-89430ad5312d",
+        "after": 0,
+        "limit": 16
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "wrong-status-11",
+      "raw": "{\"after\":0,\"items\":[{\"at\":\"2026-10-13T09:45:46.132672Z\",\"attempt\":0,\"generation\":0,\"reason\":null,\"seq\":1,\"state\":\"QUEUED\",\"type\":\"QUEUED\"},{\"at\":\"2026-10-13T09:45:47.103978Z\",\"attempt\":1,\"generation\":1,\"reason\":null,\"seq\":2,\"state\":\"RUNNING\",\"type\":\"CLAIMED\"},{\"at\":\"2026-10-13T09:45:47.109302Z\",\"attempt\":1,\"generation\":1,\"reason\":null,\"seq\":3,\"state\":\"RUNNING\",\"type\":\"SNAPSHOT_VERIFIED\"},{\"at\":\"2026-10-13T09:45:47.114218Z\",\"attempt\":1,\"generation\":1,\"reason\":null,\"seq\":4,\"state\":\"RUNNING\",\"type\":\"MANIFEST_COMPILED\"},{\"at\":\"2026-10-13T09:45:47.119489Z\",\"attempt\":1,\"generation\":2,\"reason\":null,\"seq\":5,\"state\":\"SUCCEEDED\",\"type\":\"SUCCEEDED\"}],\"limit\":16,\"next_after\":null,\"run_id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"schema_version\":1,\"total\":5}",
+      "sha256": "bcc9df34d66fa5a407d56e8b7eceb70560c8b2e32ece2d9d1bca38c4892b08a0",
+      "context": {
+        "method": "GET",
+        "status": 204,
+        "kind": "events",
+        "id": "daba0ecd-0186-4bc7-ac0c-89430ad5312d",
+        "after": 0,
+        "limit": 16
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "rehashed-fabrication-48",
+      "raw": "{\"result\":{\"asset_status\":\"NOT_DECLARED\",\"checks\":[\"SNAPSHOT_INTEGRITY\",\"POLICY_CONSISTENCY\",\"REQUIREMENTS_COMPILED\"],\"declared_limits\":{\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"defense_verdict\":null,\"digest\":\"f0a234451cda0f9fc8b8a74b6736edb1e80dd009df6f08d82af3fed32d19e0a4\",\"evaluation\":\"NOT_EVALUATED\",\"evidence_requirements\":[{\"availability\":\"NOT_INGESTED\",\"role\":\"ingress_pcap\"},{\"availability\":\"NOT_INGESTED\",\"role\":\"egress_pcap\"},{\"availability\":\"NOT_INGESTED\",\"role\":\"service_probe\"}],\"expected_policy\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"expected_action\":\"ALLOW\"},\"kind\":\"offline_preparation\",\"measurements\":0,\"schema_version\":1,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90}},\"run\":{\"attempt\":1,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:46.132672Z\",\"deadline_at\":\"2026-10-13T09:50:46.132672Z\",\"event_count\":5,\"failure_code\":null,\"finished_at\":\"2026-10-13T09:45:47.119489Z\",\"generation\":2,\"id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"mode\":\"OFFLINE\",\"ordinal\":2,\"request_id\":\"4aa0568e-ef22-4741-99bc-d96b4b6d7926\",\"scenario_digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":2,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"started_at\":\"2026-10-13T09:45:47.103978Z\",\"state\":\"SUCCEEDED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:47.119489Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.415263+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\"Second captured OFFLINE definition; no live device activity.\",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":2},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"}}",
+      "sha256": "10c079d46a690c938bb8733b772d2ea3ad741f48e2f3f3f4a38538ce7abe2a92",
+      "context": {
+        "method": "GET",
+        "status": 200,
+        "kind": "detail",
+        "id": "daba0ecd-0186-4bc7-ac0c-89430ad5312d"
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "rehashed-fabrication-49",
+      "raw": "{\"result\":{\"asset_status\":\"NOT_DECLARED\",\"checks\":[\"SNAPSHOT_INTEGRITY\",\"POLICY_CONSISTENCY\",\"REQUIREMENTS_COMPILED\"],\"declared_limits\":{\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"defense_verdict\":null,\"digest\":\"93fc47dc57289fb129d85c621f487ecbbd4ee86a9e750876a3955c0b3e994357\",\"evaluation\":\"NOT_EVALUATED\",\"evidence_requirements\":[{\"availability\":\"NOT_INGESTED\",\"role\":\"ingress_pcap\"},{\"availability\":\"NOT_INGESTED\",\"role\":\"egress_pcap\"},{\"availability\":\"NOT_INGESTED\",\"role\":\"service_probe\"}],\"expected_policy\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"expected_action\":\"ALLOW\"},\"kind\":\"offline_preparation\",\"measurements\":{\"pps\":1},\"schema_version\":1,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90}},\"run\":{\"attempt\":1,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:46.132672Z\",\"deadline_at\":\"2026-10-13T09:50:46.132672Z\",\"event_count\":5,\"failure_code\":null,\"finished_at\":\"2026-10-13T09:45:47.119489Z\",\"generation\":2,\"id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"mode\":\"OFFLINE\",\"ordinal\":2,\"request_id\":\"4aa0568e-ef22-4741-99bc-d96b4b6d7926\",\"scenario_digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":2,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"started_at\":\"2026-10-13T09:45:47.103978Z\",\"state\":\"SUCCEEDED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:47.119489Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.415263+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\"Second captured OFFLINE definition; no live device activity.\",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":2},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"}}",
+      "sha256": "acafc7221752079ac8f6f7ac584442493e55cb6578cbe44cdeca52afcbb4b1e4",
+      "context": {
+        "method": "GET",
+        "status": 200,
+        "kind": "detail",
+        "id": "daba0ecd-0186-4bc7-ac0c-89430ad5312d"
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    },
+    {
+      "label": "rehashed-fabrication-50",
+      "raw": "{\"result\":{\"asset_status\":\"NOT_DECLARED\",\"checks\":[\"SNAPSHOT_INTEGRITY\",\"POLICY_CONSISTENCY\",\"REQUIREMENTS_COMPILED\"],\"declared_limits\":{\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"defense_verdict\":\"PASS\",\"digest\":\"81a47fac64d802c1d44f7117f3d8107e4e78dd64690c4fca841de3d27cf780e3\",\"evaluation\":\"NOT_EVALUATED\",\"evidence_requirements\":[{\"availability\":\"NOT_INGESTED\",\"role\":\"ingress_pcap\"},{\"availability\":\"NOT_INGESTED\",\"role\":\"egress_pcap\"},{\"availability\":\"NOT_INGESTED\",\"role\":\"service_probe\"}],\"expected_policy\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"expected_action\":\"ALLOW\"},\"kind\":\"offline_preparation\",\"measurements\":null,\"schema_version\":1,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90}},\"run\":{\"attempt\":1,\"cancel_requested_at\":null,\"created_at\":\"2026-10-13T09:45:46.132672Z\",\"deadline_at\":\"2026-10-13T09:50:46.132672Z\",\"event_count\":5,\"failure_code\":null,\"finished_at\":\"2026-10-13T09:45:47.119489Z\",\"generation\":2,\"id\":\"daba0ecd-0186-4bc7-ac0c-89430ad5312d\",\"mode\":\"OFFLINE\",\"ordinal\":2,\"request_id\":\"4aa0568e-ef22-4741-99bc-d96b4b6d7926\",\"scenario_digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"scenario_id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"scenario_version\":2,\"snapshot_digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"started_at\":\"2026-10-13T09:45:47.103978Z\",\"state\":\"SUCCEEDED\",\"task\":\"offline_manifest_v1\",\"updated_at\":\"2026-10-13T09:45:47.119489Z\"},\"schema_version\":1,\"snapshot\":{\"digest\":\"670c1e294cba6d760b396aba4800661fe36d81ecff000d6e0b014ab17938e593\",\"scenario\":{\"catalog_version\":\"1.0.0\",\"created_at\":\"2026-10-13T09:45:45.415263+00:00\",\"definition\":{\"delivery_expectation\":\"ALLOW\",\"detection_required\":false,\"dut_version\":\" declared firmware \",\"evidence_requirements\":[\"ingress_pcap\",\"egress_pcap\",\"service_probe\"],\"expected_action\":\"ALLOW\",\"ip_version\":4,\"name\":\"I3 captured bilingual 7ffa6cd8-19af-44f0-8ef8-bad12d0ed027\",\"objective\":\"Second captured OFFLINE definition; no live device activity.\",\"pcap_asset\":null,\"policy_version\":\"policy-1\",\"profile_id\":\"tcpreplay-policy\",\"protocol\":\"TCP\",\"sink_id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"stop_conditions\":{\"management_loss\":true,\"max_cpu_pct\":null,\"max_legitimate_loss_pct\":1,\"max_memory_pct\":null,\"max_service_latency_ms\":100,\"max_sessions\":null},\"success_criteria\":{\"detection_deadline_ms\":null,\"maximum_delivery_pct\":100,\"minimum_delivery_pct\":90},\"target_id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"traffic_budget\":{\"duration_seconds\":10,\"max_bps\":1000,\"max_bytes\":10000,\"max_connections\":1,\"max_packets\":100,\"max_pps\":10}},\"digest\":\"c7b3c5d171c3fe87b9781dcc32c3ce4b88251ebb454a528013ae5a5d26dbbea8\",\"execution_enabled\":false,\"id\":\"9b004a98-633d-4e22-bc88-6ff8f7ba5e3c\",\"profile_snapshot\":{\"description\":{\"en\":\"Planning template: operator-owned capture, isolated DUT/SINK, bounded rate and duration, explicit stop/rollback criteria. No capture loaded or packets emitted.\",\"ko\":\"계획 템플릿: 운영자 소유 캡처, 격리된 DUT/SINK, 속도·시간 제한 및 명시적 중지·복구 기준이 필요합니다. 캡처를 로드하거나 패킷을 전송하지 않습니다.\"},\"engine\":\"tcpreplay\",\"id\":\"tcpreplay-policy\",\"layer\":\"L2–L4\",\"name\":{\"en\":\"Packet replay policy check\",\"ko\":\"패킷 재생 정책 점검\"},\"status\":\"template\"},\"sink_snapshot\":{\"address\":\"192.0.2.62\",\"created_at\":\"2026-10-13T09:45:45.319341+00:00\",\"id\":\"aaed8220-37ad-4ffa-b480-eec7a2d91624\",\"kind\":\"SINK\",\"name\":\"I3 SINK metadata\",\"status\":\"draft\"},\"status\":\"definition\",\"target_snapshot\":{\"address\":\"192.0.2.61\",\"created_at\":\"2026-10-13T09:45:45.300124+00:00\",\"id\":\"f0027cb5-4b6a-4351-8207-0d144ea246ec\",\"kind\":\"DUT\",\"name\":\"I3 DUT metadata\",\"status\":\"draft\"},\"version\":2},\"schema_version\":1,\"source_revision\":2,\"task\":\"offline_manifest_v1\"}}",
+      "sha256": "d598e5478df21259af5265c9ffff63022d6cc334db13d073e8bb3c4fb7d0a103",
+      "context": {
+        "method": "GET",
+        "status": 200,
+        "kind": "detail",
+        "id": "daba0ecd-0186-4bc7-ac0c-89430ad5312d"
+      },
+      "expected": "REJECT",
+      "provenance": "SYNTHETIC_CONSUMER_NEGATIVE"
+    }
+  ]
+}
