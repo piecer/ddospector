@@ -106,8 +106,11 @@ Independent format references (facts, not copied implementation):
 
 Use the existing private PostgreSQL, not a SQLite fallback. Plan a separate
 `ddospector_evidence_v1` namespace with explicit versioned migration so original
-`aiddos_runs_v1` readiness and Run data remain unchanged. Cap retained pairs at 16,
-one MiB per side, metadata/report sizes and list cardinality explicitly. Raw
+`aiddos_runs_v1` readiness and Run data remain unchanged. Cap retained pairs at 16.
+The first HTTP workflow admits 64 KiB per side within the existing 256 KiB JSON
+body limit; the pure parser retains its broader 1 MiB defensive ceiling. See
+`docs/PHASE2_TRANSPORT.md` for the pre-integration transport/storage contract.
+Bound metadata/report sizes and list cardinality explicitly. Raw
 PCAPs and metadata must commit atomically; failed admission must not consume a
 bundle. Replays of an identical request identity must not create another bundle.
 No silent migration of existing operator workspaces on ordinary open.
