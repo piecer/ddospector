@@ -10,6 +10,12 @@ UI-first implementation of the project in `PLAN.md`. The historical plan is pres
 
 ## S02 manual-review checkpoint
 
+The immediate delivery goal has changed to a **human-supervised, single-worker,
+single-scenario OFFLINE run in a project-owned local environment**. Automatic
+recovery and multiworker operation are deferred, not accepted. The current scope
+and implementation checklist are in `docs/PHASE1_SUPERVISED_OFFLINE.md`; the
+checkpoint description below is historical and does not certify this new goal.
+
 This checkout includes the OFFLINE Runs UI and its candidate API/worker implementation
 for manual review. It is **not a completed S02 release**. At the user's request,
 backend and real-browser integration acceptance are deferred for this checkpoint.
