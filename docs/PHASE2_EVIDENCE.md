@@ -99,10 +99,33 @@ Independent format references (facts, not copied implementation):
 
 | Slice | Deliverable | Status |
 |---|---|---|
-| P2-00 | Real synthetic PCAP files, bounded parser and independent offline-reader checks | In progress |
+| P2-00 | Real synthetic PCAP files, bounded parser and independent offline-reader checks | Accepted for this file-only scope |
 | P2-01 | Immutable paired evidence registration, original download, bounded metadata and Run linkage | Pending |
 | P2-02 | Explicit single evaluator, deterministic criterion, immutable derived report | Pending |
 | P2-03 | Existing Evidence UI integration, EN/KO JSON/HTML report, real browser workflow | Pending |
+
+### P2-00 operational acceptance
+
+The generator CLI and bounded parser are implemented. `make test-evidence`
+collects their regression suite, including directory/file substitution and partial
+output preservation. Three deterministic pairs produce six PCAP files; the
+complete pair has matching duplicate multiplicities, the violation pair omits a
+duplicate, and the unknown pair explicitly lacks complete-coverage authority.
+These are generated packet records, not real DUT or session measurements.
+
+The CLI requires Linux `renameat2(RENAME_NOREPLACE)`. It builds in a private sibling
+directory, retains directory/file descriptors, verifies actual bytes and named
+identity, and publishes without replacing an existing destination. A failure
+before publication retains private staging and reports its expected location;
+late failures preserve diagnostic material without deleting replacement paths.
+The initial private acquisition namespace is trusted. Final validation is a
+bounded observation, not an atomic concurrent-writer snapshot or a promise of
+immutability after completion. Importers must rehash bytes and must not interpret
+a retained manifest or fixture expectation as successful analysis.
+
+Independent review closed the two initial output-custody defects on the repaired
+candidate. This acceptance does not implement evidence registration, an evaluator,
+reports, browser integration, automatic recovery or transmission.
 
 Use the existing private PostgreSQL, not a SQLite fallback. Plan a separate
 `ddospector_evidence_v1` namespace with explicit versioned migration so original
