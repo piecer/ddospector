@@ -50,3 +50,10 @@ phase1-open:
 	.venv/bin/python tools/phase1_local.py open --workspace "$$PHASE1_WORKSPACE"
 phase1-worker:
 	.venv/bin/python tools/phase1_local.py worker --workspace "$$PHASE1_WORKSPACE" --run-id "$$PHASE1_RUN_ID"
+
+.PHONY: phase2-local test-phase2-storage
+phase2-local: export PHASE1_WORKSPACE := $(WORKSPACE)
+phase2-local:
+	.venv/bin/python tools/phase1_local.py create --workspace "$$PHASE1_WORKSPACE" --evidence
+test-phase2-storage:
+	uv run --frozen pytest tests/evidence tests/api/test_evidence_transport.py tests/api/test_evidence_admission.py tests/api/test_boundary.py tests/tooling/test_evidence_fresh_setup.py tests/tooling/test_phase1_local.py tests/tooling/test_phase2_storage_targets.py tests/runs/test_evidence_postgres.py -q -o junit_family=legacy

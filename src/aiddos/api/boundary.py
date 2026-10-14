@@ -6,6 +6,7 @@ Non-browser requests without Origin are allowed when Host is loopback.
 
 import asyncio
 import re
+import threading
 import time
 
 from starlette.responses import Response
@@ -16,6 +17,8 @@ from .errors import DraftError, error_response
 MAX_BODY_BYTES = 256 * 1024
 MAX_BODY_FRAMES = 4096
 BODY_TIMEOUT_SECONDS = 5.0
+# Shared by all app instances; no queued body readers or per-loop locks.
+_EVIDENCE_UPLOAD = threading.BoundedSemaphore(1)
 ALLOWED_ORIGINS = frozenset(
     f"http://{host}:{port}"
     for host in ("localhost", "127.0.0.1", "[::1]")
@@ -96,6 +99,7 @@ class DevelopmentBoundary:
             await self.app(scope, receive, send)
             return
         origin = None
+        evidence_permit = False
 
         async def protected_send(message):
             if message["type"] == "http.response.start":
@@ -136,16 +140,25 @@ class DevelopmentBoundary:
             offline = scope["path"] == "/api/v1/offline-runs" or scope["path"].startswith(
                 "/api/v1/offline-runs/"
             )
+            evidence = scope["path"] == "/api/v1/evidence" or scope["path"].startswith(
+                "/api/v1/evidence/"
+            )
+            if evidence and scope["method"] not in {"GET", "HEAD", "POST"}:
+                raise DraftError("METHOD_NOT_ALLOWED")
             limit = 1024 if offline else MAX_BODY_BYTES
             excess = "RUN_BODY_TOO_LARGE" if offline else "BODY_TOO_LARGE"
             if (
-                offline
+                (offline or evidence)
                 and scope["method"] in {"GET", "HEAD"}
                 and ("transfer-encoding" in headers or headers.get("content-length", "0") != "0")
             ):
                 raise DraftError("INVALID_FRAMING")
             if scope["method"] not in {"GET", "HEAD"}:
                 expected_length = body_headers(headers, limit, excess)
+                if evidence and scope["method"] == "POST":
+                    evidence_permit = _EVIDENCE_UPLOAD.acquire(blocking=False)
+                    if not evidence_permit:
+                        raise DraftError("EVIDENCE_BUSY")
                 body = bytearray()
                 try:
                     async with asyncio.timeout(BODY_TIMEOUT_SECONDS):
@@ -181,8 +194,11 @@ class DevelopmentBoundary:
                     return await receive()
 
                 downstream_receive = replay
-            if offline:
+            if offline or evidence:
                 scope["s02_deadline"] = time.monotonic() + 5.0
             await self.app(scope, downstream_receive, protected_send)
         except DraftError as exc:
             await error_response(exc.code)(scope, receive, protected_send)
+        finally:
+            if evidence_permit:
+                _EVIDENCE_UPLOAD.release()

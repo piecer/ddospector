@@ -188,6 +188,9 @@ def parser():
     for verb in ("create", "open", "worker"):
         sub = commands.add_parser(verb)
         sub.add_argument("--workspace", type=Path, required=True)
+        if verb == "create":
+            sub.add_argument("--evidence", action="store_true",
+                             help="Install evidence storage in this fresh workspace only")
         if verb == "worker":
             sub.add_argument("--run-id", required=True)
         else:
@@ -360,6 +363,14 @@ def serve(args, stopping):
                     )
                     if migration.wait(timeout=15) != 0:
                         raise h.Blocked("MIGRATION_FAILED_DATA_RETAINED")
+                    if getattr(args, "evidence", False):
+                        evidence = native.launch(
+                            "evidence-migration",
+                            [str(ROOT / ".venv/bin/python"), "-m", "ddospector.evidence.migrate"],
+                            {"DDOSPECTOR_RUN_DB_SOCKET": str(owner.socket)},
+                        )
+                        if evidence.wait(timeout=15) != 0:
+                            raise h.Blocked("EVIDENCE_MIGRATION_FAILED_DATA_RETAINED")
                 else:
                     owner.call("start", owner.cid)
                     started = True

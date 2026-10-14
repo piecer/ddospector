@@ -3,6 +3,16 @@
 from starlette.responses import JSONResponse
 
 ERRORS = {
+    "EVIDENCE_NOT_READY": (503, "Evidence storage requires a fresh create --evidence workspace."),
+    "EVIDENCE_NOT_FOUND": (404, "No such evidence bundle or request."),
+    "EVIDENCE_RUN_NOT_READY": (409, "Evidence requires a valid succeeded OFFLINE run."),
+    "EVIDENCE_IDEMPOTENCY_CONFLICT": (409, "This request ID is bound to different evidence."),
+    "EVIDENCE_RETENTION_FULL": (
+        409, "Evidence retention is full; existing records were preserved."
+    ),
+    "EVIDENCE_STATE_CORRUPT": (503, "Retained evidence is invalid; no repair was performed."),
+    "EVIDENCE_CAPTURE_TOO_LARGE": (413, "Evidence capture exceeds the 65536-byte limit."),
+    "EVIDENCE_BUSY": (429, "Another evidence upload is in progress."),
     "RUN_BODY_TOO_LARGE": (413, "Offline run request exceeds the 1024-byte limit."),
     "RUN_DB_NOT_CONFIGURED": (503, "Offline run storage is not configured."),
     "RUN_DB_NOT_READY": (

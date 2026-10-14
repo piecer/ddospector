@@ -61,6 +61,9 @@ validator. Reject unknown/duplicate query fields and unknown JSON keys.
 - POST root: closed JSON `{request_id, run_id, ingress, egress}`.
   Each side is exactly `{name, base64}`. Names are 1–128 characters, at most 256
   UTF-8 bytes, no control characters or lone surrogates, preserved verbatim.
+  Character count means Unicode code points. Reject U+0000–001F, U+007F–009F,
+  unpaired U+D800–DFFF, and bidi controls U+202A–202E/U+2066–2069; do not trim,
+  normalize or rewrite accepted names or identifiers.
   Names are display metadata, never filesystem paths or download headers.
   Validate encoded length before base64 decoding; require canonical standard
   base64 and decoded length in 1–65,536. Compute length/SHA256 server-side.
@@ -91,6 +94,15 @@ These are derived from original pair digests, never caller flags.
 Detail is exactly `{schema_version:1,evidence:Summary,report:null|Report}`.
 Report's closed schema is frozen separately before P2-02; initially no report
 exists. Do not accept arbitrary unvalidated JSON in the future report slot.
+
+Storage metadata is at most 4096 canonical UTF-8 bytes per bundle. Reserve a
+32768-byte maximum immutable report body for P2-02; no public endpoint accepts a
+report body. P2-01 responses have `report:null` and REGISTERED state; an unexpected
+stored report is refused until a closed report validator is implemented. JSON
+list/detail response ceilings are 65536 bytes, with no truncation. Bound fields
+and collection counts before serialization; enforce exact-byte ceilings too.
+Timestamps use the existing UTC microsecond `timestamp()` representation. Digests
+are exactly 64 lowercase hexadecimal characters; integer fields reject booleans.
 
 ## PostgreSQL ownership, atomicity and immutability
 

@@ -100,7 +100,7 @@ Independent format references (facts, not copied implementation):
 | Slice | Deliverable | Status |
 |---|---|---|
 | P2-00 | Real synthetic PCAP files, bounded parser and independent offline-reader checks | Accepted for this file-only scope |
-| P2-01 | Immutable paired evidence registration, original download, bounded metadata and Run linkage | Pending |
+| P2-01 | Immutable paired evidence registration, original download, bounded metadata and Run linkage | Backend implemented; final workflow acceptance remains in P2-03 |
 | P2-02 | Explicit single evaluator, deterministic criterion, immutable derived report | Pending |
 | P2-03 | Existing Evidence UI integration, EN/KO JSON/HTML report, real browser workflow | Pending |
 
@@ -127,7 +127,17 @@ Independent review closed the two initial output-custody defects on the repaired
 candidate. This acceptance does not implement evidence registration, an evaluator,
 reports, browser integration, automatic recovery or transmission.
 
-Use the existing private PostgreSQL, not a SQLite fallback. Plan a separate
+### P2-01 backend scope
+
+Registration and verified original downloads are implemented in the separate
+evidence namespace. `make phase2-local WORKSPACE=/absolute/new-workspace` opts a
+fresh workspace into evidence provisioning; ordinary Phase-1 create/open behavior
+does not migrate existing data. `make test-phase2-storage` selects the bounded
+API/storage regression and one owned PostgreSQL case, not the deferred W2 suite.
+See `docs/PHASE2_STORAGE.md` for the implemented API and remaining acceptance.
+No evaluator or Evidence UI workflow is implied by backend registration.
+
+Use the existing private PostgreSQL, not a SQLite fallback. Use a separate
 `ddospector_evidence_v1` namespace with explicit versioned migration so original
 `aiddos_runs_v1` readiness and Run data remain unchanged. Cap retained pairs at 16.
 The first HTTP workflow admits 64 KiB per side within the existing 256 KiB JSON

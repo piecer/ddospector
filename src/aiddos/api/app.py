@@ -12,6 +12,7 @@ from aiddos.startup import startup_setting
 from .boundary import DevelopmentBoundary
 from .construction import serialized
 from .errors import DraftError, error_response
+from .evidence import evidence_router
 from .models import (
     AgentProfile,
     AgentProfileInput,
@@ -125,6 +126,7 @@ def _compose_app(store, scenarios, runs) -> FastAPI:
 
     application.include_router(scenarios)
     application.include_router(runs)
+    application.include_router(evidence_router())
     return application
 
 
