@@ -8,7 +8,29 @@ AI-powered open-source framework for automated DDoS defense testing, mitigation 
 
 UI-first implementation of the project in `PLAN.md`. The historical plan is preserved. The initial delivery focuses on the complete layout/menu and real local draft workflows, **not the live test platform**. The description above states the project direction, not completed LIVE capabilities. Naming and compatibility are documented in `docs/NAMING.md`.
 
-## S02 manual-review checkpoint
+## Phase 1: supervised OFFLINE trial
+
+The approved first milestone is implemented and verified: a human-supervised
+local workspace, one explicitly selected OFFLINE worker invocation, and actual
+stored results in the English/Korean UI. Normal shutdown retains data; reopening
+is explicit. This is preparation, not traffic generation or a defense verdict.
+
+After the prerequisites in `docs/PHASE1_LOCAL.md`, use a new durable directory:
+
+```sh
+make phase1-local WORKSPACE="$HOME/p1-local"
+# Separate terminal: replace the placeholder with the UUID copied from the UI:
+make phase1-worker WORKSPACE="$HOME/p1-local" RUN_ID='<exact-run-id>'
+# After normal Ctrl-C shutdown, reopen retained data:
+make phase1-open WORKSPACE="$HOME/p1-local"
+```
+
+Scope and evidence: `docs/PHASE1_ACCEPTANCE.md` and
+`docs/PHASE1_SUPERVISED_OFFLINE.md`. Automatic recovery, multiworker operation and
+the original full S02 acceptance remain deferred. Existing workspaces use `open`,
+not `create`; never delete data or use the legacy daemon to force progress.
+
+## Historical S02 manual-review checkpoint
 
 The immediate delivery goal has changed to a **human-supervised, single-worker,
 single-scenario OFFLINE run in a project-owned local environment**. Automatic
@@ -60,17 +82,22 @@ AI settings manage multiple model configuration drafts without activating a prov
 
 ## Deliberate boundaries
 
-LIVE run admission, model inference, MCP connection/handshake, traffic generation, instrument control, approvals, verdicts and evidence capture are unavailable. The legacy LIVE execution endpoint remains denied. The new OFFLINE Runs route reads actual run storage; it shows an unavailable state when storage is absent, not fabricated empty history. Its candidate backend integration remains unaccepted.
+LIVE run admission, model inference, MCP connection/handshake, traffic generation, instrument control, approvals, verdicts and evidence capture are unavailable. The legacy LIVE execution endpoint remains denied. The OFFLINE Runs route reads actual run storage; it shows an unavailable state when storage is absent, not fabricated empty history. The supervised Phase-1 path is accepted; full original S02 integration remains unaccepted.
 
-Local drafts are stored in `.local/ui-drafts.json` (override `DDOSPECTOR_UI_STATE_PATH`; legacy `AIDDOS_UI_STATE_PATH` remains supported). This single-process JSON store is separate from the candidate PostgreSQL OFFLINE run store. No automatic database provisioning or draft migration is performed. Keep drafts private and back them up before experimenting. Never put credentials into target addresses, MCP URLs or Skill instructions; no secrets workflow is implemented. Corrupt existing state must be surfaced, not reset silently.
+The ordinary API stores drafts in `.local/ui-drafts.json` (override `DDOSPECTOR_UI_STATE_PATH`; legacy `AIDDOS_UI_STATE_PATH` remains supported). This single-process JSON store is separate from PostgreSQL OFFLINE run storage. Ordinary API startup does not provision a database or migrate drafts. Explicit Phase-1 `create` provisions its own database and keeps drafts inside the new private workspace; it does not copy existing drafts. Keep drafts private and back them up before experimenting. Never put credentials into target addresses, MCP URLs or Skill instructions; no secrets workflow is implemented. Corrupt existing state must be surfaced, not reset silently.
 
 S01 scenario histories use a separate file beside the effective draft path, with `.scenarios.json` appended to its filename. The registry holds at most 100 scenario identities and 10 immutable versions per identity. Target/profile snapshots and SHA256 bind each definition; the hash is consistency checking, not authenticated provenance. PCAP fields are declared metadata only. Stale or unacknowledged saves preserve a read-only draft with explicit GET retry, close and discard/reopen controls; no write is automatically replayed.
 
 Scenario storage failures retain at most one 16 MiB managed candidate plus a fixed 4 KiB recovery receipt and deny further saves. Valid history stays readable; GET retry and closing/discarding an editor do not clear storage quarantine. A fresh process may resume a fully verified CLEAN registry with an empty holding directory without a ticket. Other failures require explicit offline inspection and bounded no-overwrite archival, with `--accept-current` available for reviewed incomplete material. See `docs/SCENARIO_STORAGE_RECOVERY.md` for English/Korean commands, one-use startup handoff, interruption handling and the separate per-invocation archive bound. This is not automatic replay, deletion or a power-loss guarantee.
 
-This build is for loopback development. It has no production login, RBAC, shared/multiprocess store or approved remote deployment. Do not bind it to a public interface or expose it through a tunnel. MCP endpoints are metadata only and are never fetched by draft registration/context preview.
+This build is for loopback development. It has no production login, RBAC or approved shared/remote deployment. The draft registry supports one API process; Phase 1 supports one explicitly selected worker. Do not bind it to a public interface or expose it through a tunnel. MCP endpoints are metadata only and are never fetched by draft registration/context preview.
 
 ## Verification
+
+For the current Phase-1 scope, run `make test-phase1`, `make test-web`,
+`make lint` and `make build`. The dedicated real-browser/operator procedure is
+documented in `docs/PHASE1_LOCAL.md`; the full old S02/W2 targets are not replaced
+or silently marked passed. The checkpoint description below is historical.
 
 For this S02 checkpoint, Web unit tests, lint, type checking and build are the
 included verification scope. Run `make setup`, `make test-web`, then the Web lint,

@@ -64,10 +64,14 @@ reported as full S02 or as a production/HA deployment certification.
 
 | ID | Deliverable | Required evidence | Status |
 |---|---|---|---|
-| P1-01 | Scope and roadmap priority | Exact approved choices; historical contract preserved | Defined |
-| P1-02 | Explicit one-shot selected-run worker | RED→GREEN tests for ID admission, exclusive local ownership, one selected first attempt, no queue draining/recovery/reconnect; existing pure regressions | Pending |
-| P1-03 | Owned local environment and one scenario | Actual PostgreSQL, separate API and one-shot worker; UI creation/readback; independent stored-result comparison; no external transmission | Pending |
-| P1-04 | Operator handoff | Repeatable commands, honest interruption limitation, independent scoped review, final relevant lint/build/tests and local commits | Pending |
+| P1-01 | Scope and roadmap priority | Exact approved choices; historical contract preserved | Accepted — 124c6df |
+| P1-02 | Explicit one-shot selected-run worker | RED→GREEN tests for ID admission, exclusive local ownership, one selected first attempt, no queue draining/recovery/reconnect; existing pure regressions | Accepted — 6e2959c |
+| P1-03 | Owned local environment and one scenario | Actual PostgreSQL, separate API and one-shot worker; UI creation/readback; independent stored-result comparison; no external target transmission | Accepted — 662ee18 and final integrated normal gate |
+| P1-04 | Operator handoff | Repeatable commands, honest interruption limitation, independent scoped review, final relevant lint/build/tests and local commits | Accepted — PHASE1_ACCEPTANCE.md / PHASE1_LOCAL.md |
+
+The approved Phase-1 milestone is complete. Exact scope, executed evidence and
+remaining limitations are recorded in `PHASE1_ACCEPTANCE.md`. The original full
+S02 contract remains unaccepted and deferred; this status does not replace it.
 
 Develop and commit each finished small slice after its necessary checks. A
 standalone documentation change requires consistency/link/diff checks, not a

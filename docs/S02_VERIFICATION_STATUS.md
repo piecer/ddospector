@@ -1,5 +1,10 @@
 # S02 verification status
 
+The original full S02 remains **unaccepted/deferred**. The separately approved
+supervised single-run OFFLINE Phase 1 is complete; see `PHASE1_ACCEPTANCE.md` and
+`PHASE1_LOCAL.md`. The checkpoint evidence below predates that scope change and
+is preserved as historical S02 evidence, not the current Phase-1 acceptance list.
+
 ## Current checkpoint
 
 Full S02 is **not accepted**, but the known error-classification, retry-focus,
