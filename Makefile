@@ -7,9 +7,13 @@ setup:
 	npm --prefix web ci
 runs-migrate:
 	.venv/bin/python -m ddospector.runs.migrate
-.PHONY: runs-migrate worker
-worker:
-	.venv/bin/python -m ddospector.runs.worker
+.PHONY: runs-migrate worker worker-once test-phase1
+worker: worker-once
+worker-once: export RUN_ID := $(RUN_ID)
+worker-once:
+	.venv/bin/python -m ddospector.runs.worker --run-id "$$RUN_ID"
+test-phase1:
+	uv run --frozen pytest tests/runs/test_supervised_worker.py tests/runs/test_phase1_postgres.py tests/runs/test_offline_failures.py tests/runs/test_offline_manifest.py tests/tooling -q
 api:
 	.venv/bin/python -m uvicorn ddospector.api.app:app --host 127.0.0.1 --port 5180
 web:

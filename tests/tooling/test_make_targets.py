@@ -38,3 +38,21 @@ def test_canonical_lint_includes_tooling():
     ruff = next(line for line in commands.splitlines() if "ruff check" in line)
     assert "tests/tooling" in ruff.split()
     assert {"src", "tests/api", "tests/runs", "tools"} <= set(ruff.split())
+
+
+def test_default_worker_requires_an_explicit_run_id():
+    command = dry_run("worker")
+    assert '--run-id "$RUN_ID"' in command
+
+
+def test_phase1_target_collects_scoped_tests_without_fault_campaign():
+    result = subprocess.run(
+        ["/usr/bin/make", "--no-print-directory", "--dry-run", "test-phase1"],
+        cwd=ROOT, capture_output=True, text=True, timeout=5,
+        env={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"},
+    )
+    assert result.returncode == 0, result.stderr
+    names = ("test_supervised_worker.py", "test_phase1_postgres.py", "test_offline_failures.py")
+    for name in names:
+        assert name in result.stdout
+    assert "test_worker_lifecycle.py" not in result.stdout

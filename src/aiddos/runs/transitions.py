@@ -5,6 +5,7 @@ from uuid import uuid4
 from aiddos.api.errors import DraftError
 from aiddos.api.scenarios import canonical
 
+from .contracts import identifier
 from .repository import begin, commit, quota, timestamp
 
 
@@ -126,18 +127,23 @@ async def recover(op):
         await commit(op, mutation=bool(changed))
 
 
-async def claim(op):
+async def claim(op, *, run_id=None):
+    if run_id is not None:
+        identifier(run_id)
     await begin(op)
     counts = await quota(op, lock=True)
-    if counts[2] >= 2:
+    if counts[2] >= (2 if run_id is None else 1):
         await commit(op)
         return None
+    selection = "" if run_id is None else "AND j.run_id=%s AND j.attempt=0 "
     rows = await op.execute(
         "SELECT j.run_id,i.snapshot,i.request,i.request_digest,i.snapshot_digest,i.request_id "
         "FROM aiddos_runs_v1.jobs j JOIN aiddos_runs_v1.inputs i "
         "ON i.run_id=j.run_id WHERE j.state='QUEUED' AND j.attempt<3 "
-        "AND j.deadline_at>clock_timestamp() ORDER BY i.ordinal LIMIT 1 "
-        "FOR UPDATE OF j SKIP LOCKED"
+        + selection
+        + "AND j.deadline_at>clock_timestamp() ORDER BY i.ordinal LIMIT 1 "
+        "FOR UPDATE OF j SKIP LOCKED",
+        None if run_id is None else (run_id,),
     )
     if not rows:
         await commit(op)

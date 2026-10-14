@@ -1,6 +1,8 @@
 """Separate bounded OFFLINE coordinator; only this task performs SQL."""
 
+import argparse
 import asyncio
+import fcntl
 import os
 import signal
 import threading
@@ -9,11 +11,13 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
 from uuid import uuid4
 
+from aiddos.api.errors import DraftError
 from aiddos.api.scenarios import canonical
 from aiddos.startup import startup_setting
 
 from . import offline, schema, transitions
 from .config import driver, parameters
+from .contracts import identifier
 from .worker_connection import ConnectionOwner, Stopping, classify, diagnostic
 
 
@@ -30,7 +34,7 @@ class Watchdog(Exception):
     """The computation has exhausted its frozen five-second allowance."""
 
 
-async def run():
+async def run(*, run_id=None):
     stop = asyncio.Event()
     stop_at = None
 
@@ -49,6 +53,7 @@ async def run():
     work_stop = threading.Event()
     ready = False
     final_grace = None
+    lock_fd = None
 
     def quiescent():
         return work is None or work.done()
@@ -163,6 +168,10 @@ async def run():
     owner.compute = compute
     try:
         kwargs = parameters(startup_setting("RUN_DB_SOCKET"))
+        # Lock the existing directory inode: no lock-file creation, deletion or adoption.
+        lock_fd = os.open(kwargs["host"], os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        lock_mode = fcntl.LOCK_SH if run_id is None else fcntl.LOCK_EX
+        fcntl.flock(lock_fd, lock_mode | fcntl.LOCK_NB)
         pg = driver()
         await acquire(owner)
         ready = True
@@ -183,11 +192,18 @@ async def run():
                     await lookup(owner, reconcile_id)
                     await commit(owner)
                     reconcile_id = None
-                owner.phase = "RECOVERY"
-                await transitions.recover(owner)
+                if run_id is None:
+                    owner.phase = "RECOVERY"
+                    await transitions.recover(owner)
                 owner.phase = "CLAIM"
-                owned = await transitions.claim(owner)
+                owned = (
+                    await transitions.claim(owner)
+                    if run_id is None
+                    else await transitions.claim(owner, run_id=run_id)
+                )
                 if owned is None:
+                    if run_id is not None:
+                        return 69
                     await pause(1)
                     continue
                 owner.affected = owned["run_id"]
@@ -200,6 +216,8 @@ async def run():
                     )
                     owner.phase = "PROGRESS"
                     if await transitions.publish(owner, owned, 1) is False:
+                        if run_id is not None:
+                            return 1
                         continue
                     result = await compute(
                         lambda snapshot=snapshot: offline.compile_manifest(
@@ -211,24 +229,37 @@ async def run():
                         raise PureFailure("RESULT_LIMIT_EXCEEDED")
                     owner.phase = "PROGRESS"
                     if await transitions.publish(owner, owned, 2) is False:
+                        if run_id is not None:
+                            return 1
                         continue
                     owner.phase = "COMPLETE"
-                    await transitions.publish(owner, owned, 3, result)
+                    completed = await transitions.publish(owner, owned, 3, result)
+                    if run_id is not None:
+                        return 1 if completed is False else 0
                 except PureFailure as error:
                     owner.phase = "FAILURE"
                     await transitions.publish(owner, owned, 0, failure=error.code)
+                    if run_id is not None:
+                        return 1
                 except ControlRequested:
                     await settle_control()
                     owner.phase = "CANCEL_ACK"
                     await transitions.publish(owner, owned, 0)
+                    if run_id is not None:
+                        return 1
             except transitions.StaleClaim:
                 owned = None
                 await settle_control(stale=True)
+                if run_id is not None:
+                    return 75
                 await pause(1)
             except (Stopping, Watchdog):
                 raise
             except Exception as error:
                 primary = classify(error, owner)
+                if run_id is not None:
+                    await dispose(owner, primary=primary)
+                    return 75
                 if primary == "COMMIT_UNCERTAIN":
                     reconcile_id = owner.affected
                 owned = None
@@ -246,9 +277,9 @@ async def run():
                 )
                 if not transient or not await reconnect():
                     return 75
-        return 0
+        return 130 if run_id is not None else 0
     except Stopping:
-        return 0
+        return 130 if run_id is not None else 0
     except Watchdog:
         return 75
     except Exception as error:
@@ -265,10 +296,22 @@ async def run():
         pool.shutdown(wait=False, cancel_futures=True)
         stop_wait.cancel()
         await asyncio.gather(stop_wait, return_exceptions=True)
+        if lock_fd is not None:
+            os.close(lock_fd)
+
+
+def selected_id(value):
+    try:
+        return identifier(value)
+    except DraftError:
+        raise argparse.ArgumentTypeError("expected an unchanged lowercase UUIDv4 Run ID") from None
 
 
 def main():
-    return asyncio.run(run())
+    parser = argparse.ArgumentParser(description="Bounded OFFLINE worker")
+    parser.add_argument("--run-id", type=selected_id, help="supervise exactly one new queued Run")
+    args = parser.parse_args()
+    return asyncio.run(run(run_id=args.run_id))
 
 
 if __name__ == "__main__":
