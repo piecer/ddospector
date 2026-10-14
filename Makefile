@@ -38,3 +38,13 @@ build:
 	npm --prefix web run build
 test-e2e:
 	npm --prefix web run test:e2e
+
+.PHONY: phase1-local phase1-open phase1-worker
+phase1-local phase1-open phase1-worker: export PHASE1_WORKSPACE := $(WORKSPACE)
+phase1-worker: export PHASE1_RUN_ID := $(RUN_ID)
+phase1-local:
+	.venv/bin/python tools/phase1_local.py create --workspace "$$PHASE1_WORKSPACE"
+phase1-open:
+	.venv/bin/python tools/phase1_local.py open --workspace "$$PHASE1_WORKSPACE"
+phase1-worker:
+	.venv/bin/python tools/phase1_local.py worker --workspace "$$PHASE1_WORKSPACE" --run-id "$$PHASE1_RUN_ID"
