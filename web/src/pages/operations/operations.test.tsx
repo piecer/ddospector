@@ -11,6 +11,8 @@ import userEvent from "@testing-library/user-event";
 import type { ComponentType } from "react";
 import type { PageProps, WorkspaceSnapshot } from "../../lib/contracts";
 import { api } from "../../lib/api";
+import { evidenceAPI } from "../evidence/client";
+import { runAPI } from "../runs/transport";
 import { workspaceFixture } from "../../test/fixtures";
 
 import * as pages from "./index";
@@ -240,13 +242,11 @@ async function fillCampaign() {
 describe("campaign recovery", () => {
   it("keeps the draft editable when the API rejects saving and permits a retry", async () => {
     const input = props(readyWorkspace());
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValue(
-        new Response(JSON.stringify({ message: "Draft rejected" }), {
-          status: 409,
-        }),
-      );
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ message: "Draft rejected" }), {
+        status: 409,
+      }),
+    );
     const CampaignsPage = page("CampaignsPage");
     render(<CampaignsPage {...input} />);
     const dialog = await fillCampaign();
@@ -269,17 +269,15 @@ describe("campaign recovery", () => {
 
   it("distinguishes a committed draft from a failed refresh without inviting duplicate submission", async () => {
     const input = props(readyWorkspace());
-    const create = vi
-      .spyOn(api, "createCampaign")
-      .mockResolvedValue({
-        id: "created",
-        name: "Review policy",
-        objective: "A bounded lab review",
-        target_id: "target-1",
-        profile_id: "profile-1",
-        status: "draft",
-        created_at: "",
-      });
+    const create = vi.spyOn(api, "createCampaign").mockResolvedValue({
+      id: "created",
+      name: "Review policy",
+      objective: "A bounded lab review",
+      target_id: "target-1",
+      profile_id: "profile-1",
+      status: "draft",
+      created_at: "",
+    });
     vi.mocked(input.refresh)
       .mockRejectedValueOnce(new Error("offline"))
       .mockResolvedValue(undefined);
@@ -332,25 +330,83 @@ describe("RunsPage", () => {
     "reads real OFFLINE history separately while retaining LIVE denial and no fabricated telemetry (%s)",
     async (locale) => {
       const input = props(workspaceFixture(), locale);
-      vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => new Response(JSON.stringify(
-        String(url).startsWith("/api/v1/offline-runs?")
-          ? {schema_version:1,after:0,through:0,limit:20,total:0,items:[],next_after:null}
-          : {revision:0,total:0,offset:0,limit:20,items:[],execution_enabled:false}
-      )));
+      vi.spyOn(globalThis, "fetch").mockImplementation(
+        async (url) =>
+          new Response(
+            JSON.stringify(
+              String(url).startsWith("/api/v1/offline-runs?")
+                ? {
+                    schema_version: 1,
+                    after: 0,
+                    through: 0,
+                    limit: 20,
+                    total: 0,
+                    items: [],
+                    next_after: null,
+                  }
+                : {
+                    revision: 0,
+                    total: 0,
+                    offset: 0,
+                    limit: 20,
+                    items: [],
+                    execution_enabled: false,
+                  },
+            ),
+          ),
+      );
       const RunsPage = page("RunsPage");
       render(<RunsPage {...input} />);
-      expect(screen.getByRole("heading", {level:1,name:locale==="ko"?"실행":"Runs"})).toBeVisible();
-      expect(await screen.findByRole("heading", {name:locale==="ko"?"아직 OFFLINE 실행 없음":"No OFFLINE runs yet"})).toBeVisible();
-      const reason=locale==="ko"?"서버에서 라이브 실행이 비활성화되어 있습니다. 캠페인 초안은 실행되지 않습니다.":"Live execution is disabled on the server. Campaign drafts do not start runs.";
-      const live=screen.getByRole("button", {name:locale==="ko"?"실행 시작":"Start run"});
-      expect(live).toBeDisabled();expect(live).toHaveAccessibleDescription(reason);
-      expect(screen.getByRole("button", {name:locale==="ko"?"OFFLINE 준비 시작":"Start OFFLINE preparation"})).toBeDisabled();
+      expect(
+        screen.getByRole("heading", {
+          level: 1,
+          name: locale === "ko" ? "실행" : "Runs",
+        }),
+      ).toBeVisible();
+      expect(
+        await screen.findByRole("heading", {
+          name:
+            locale === "ko" ? "아직 OFFLINE 실행 없음" : "No OFFLINE runs yet",
+        }),
+      ).toBeVisible();
+      const reason =
+        locale === "ko"
+          ? "서버에서 라이브 실행이 비활성화되어 있습니다. 캠페인 초안은 실행되지 않습니다."
+          : "Live execution is disabled on the server. Campaign drafts do not start runs.";
+      const live = screen.getByRole("button", {
+        name: locale === "ko" ? "실행 시작" : "Start run",
+      });
+      expect(live).toBeDisabled();
+      expect(live).toHaveAccessibleDescription(reason);
+      expect(
+        screen.getByRole("button", {
+          name:
+            locale === "ko" ? "OFFLINE 준비 시작" : "Start OFFLINE preparation",
+        }),
+      ).toBeDisabled();
       expect(screen.getByText("NOT_EVALUATED")).toBeVisible();
-      expect(screen.getByText(locale==="ko"?"측정값과 방어 판정은 null입니다. 캡처 패킷이나 장비 증거를 가져오지 않았습니다.":"Measurements and defense verdict remain null. No captured packets or device evidence have been ingested.")).toBeVisible();
-      await userEvent.click(await screen.findByRole("button", {name:locale==="ko"?"시나리오 라이브러리 열기":"Open scenario library"}));
+      expect(
+        screen.getByText(
+          locale === "ko"
+            ? "측정값과 방어 판정은 null입니다. 캡처 패킷이나 장비 증거를 가져오지 않았습니다."
+            : "Measurements and defense verdict remain null. No captured packets or device evidence have been ingested.",
+        ),
+      ).toBeVisible();
+      await userEvent.click(
+        await screen.findByRole("button", {
+          name:
+            locale === "ko"
+              ? "시나리오 라이브러리 열기"
+              : "Open scenario library",
+        }),
+      );
       expect(input.navigate).toHaveBeenCalledWith("profiles");
       expect(screen.queryByRole("table")).not.toBeInTheDocument();
-      expect(vi.mocked(globalThis.fetch).mock.calls.every(([,options])=>options?.method==="GET")).toBe(true);
+      expect(
+        vi
+          .mocked(globalThis.fetch)
+          .mock.calls.every(([, options]) => options?.method === "GET"),
+      ).toBe(true);
     },
   );
 });
@@ -428,38 +484,28 @@ describe("EvidencePage", () => {
           name: locale === "ko" ? "증거" : "Evidence",
         }),
       ).toBeVisible();
+      // Evidence is now API-backed. Unknown/unavailable must not claim empty.
       expect(
-        screen.getByRole("heading", {
-          name:
-            locale === "ko"
-              ? "수집된 자료가 없습니다"
-              : "No artifacts collected",
-        }),
-      ).toBeVisible();
+        screen.queryByText(
+          locale === "ko" ? "보관된 증거가 없습니다." : "No retained evidence.",
+        ),
+      ).not.toBeInTheDocument();
       expect(
         screen.getByRole("button", {
-          name:
-            locale === "ko" ? "증거 묶음 내보내기" : "Export evidence bundle",
+          name: locale === "ko" ? "원본 등록" : "Register originals",
         }),
       ).toBeDisabled();
       expect(
-        screen.getByRole("button", {
-          name:
-            locale === "ko" ? "증거 묶음 내보내기" : "Export evidence bundle",
+        screen.queryByRole("button", {
+          name: locale === "ko" ? "JSON 내보내기" : "Export JSON",
         }),
-      ).toHaveAccessibleDescription(
-        locale === "ko"
-          ? "보관된 실행 자료가 없으며 증거 내보내기는 아직 구현되지 않았습니다."
-          : "There are no retained run artifacts, and evidence export is not implemented.",
-      );
+      ).not.toBeInTheDocument();
       expect(
         screen.getByRole("heading", {
-          name:
-            locale === "ko"
-              ? "출처 및 무결성 요건"
-              : "Provenance & integrity requirements",
+          name: locale === "ko" ? "증거 쌍 등록" : "Register paired evidence",
         }),
       ).toBeVisible();
+      expect(screen.getByText(/NOT_EVALUATED ·/)).toBeVisible();
       expect(
         screen.getByText(
           locale === "ko"
@@ -684,6 +730,14 @@ describe("workspace refresh states", () => {
             }),
         )
         .mockResolvedValue(undefined);
+      if (name === "EvidencePage") {
+        vi.spyOn(evidenceAPI, "list").mockImplementation(
+          () => new Promise(() => {}),
+        );
+        vi.spyOn(runAPI, "list").mockImplementation(
+          () => new Promise(() => {}),
+        );
+      }
       const Page = page(name);
       render(<Page {...input} />);
       await userEvent.click(
@@ -840,17 +894,15 @@ describe("campaign input boundaries", () => {
     ["long objective", "Policy review", "x".repeat(2001)],
   ])("rejects %s before sending a request", async (_case, name, objective) => {
     const input = props(readyWorkspace());
-    const create = vi
-      .spyOn(api, "createCampaign")
-      .mockResolvedValue({
-        id: "unexpected",
-        name,
-        objective,
-        target_id: "target-1",
-        profile_id: "profile-1",
-        status: "draft",
-        created_at: "",
-      });
+    const create = vi.spyOn(api, "createCampaign").mockResolvedValue({
+      id: "unexpected",
+      name,
+      objective,
+      target_id: "target-1",
+      profile_id: "profile-1",
+      status: "draft",
+      created_at: "",
+    });
     const CampaignsPage = page("CampaignsPage");
     render(<CampaignsPage {...input} />);
     await userEvent.click(screen.getByRole("button", { name: "New campaign" }));
@@ -878,17 +930,15 @@ describe("campaign input boundaries", () => {
 
   it("rechecks target and profile membership against refreshed props before saving", async () => {
     const input = props(readyWorkspace());
-    const create = vi
-      .spyOn(api, "createCampaign")
-      .mockResolvedValue({
-        id: "unexpected",
-        name: "Review",
-        objective: "Review policy",
-        target_id: "target-1",
-        profile_id: "profile-1",
-        status: "draft",
-        created_at: "",
-      });
+    const create = vi.spyOn(api, "createCampaign").mockResolvedValue({
+      id: "unexpected",
+      name: "Review",
+      objective: "Review policy",
+      target_id: "target-1",
+      profile_id: "profile-1",
+      status: "draft",
+      created_at: "",
+    });
     const CampaignsPage = page("CampaignsPage");
     const view = render(<CampaignsPage {...input} />);
     await userEvent.click(screen.getByRole("button", { name: "New campaign" }));

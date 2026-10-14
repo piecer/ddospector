@@ -14,8 +14,16 @@ Evaluation is explicit through
 `make phase2-evaluate WORKSPACE=... EVIDENCE_ID=...` with original running-workspace
 custody. `make test-phase2-evaluation` is the scoped backend gate.
 This synthetic capture-record criterion is not DUT, session, service or defense
-acceptance. P2-03 UI/EN-KO export and real retained TCP/browser/ordinary-open
-workflow acceptance remain pending; no full Phase-2 completion is claimed.
+acceptance. P2-02 is committed at `546b82ca1285b5fd5d644f730ff9b90f51626c7c`. Evidence UI
+and client-side EN/KO exports now have independent frontend acceptance and are
+integrated without changing accepted runtime/test/fixture bytes. UI B1/B2 are
+CLOSED; round-2 was a legitimate mock correction, not weakened assertions. See
+[PHASE2_UI.md](PHASE2_UI.md) for the frozen acceptance and provenance. Historical
+actual-producer Evidence fixtures are not fresh current-backend runs. Conservative
+failed-POST pending (N1) remains unchanged: GET-only resolution, no automatic
+retry or silent receipt clearing. Actual P2-03 browser → API → PostgreSQL →
+explicit CLI evaluator → exports → ordinary-open acceptance remains PENDING.
+No full Phase-2 or DUT acceptance is claimed; a commit does not close that gate.
 
 ## Deliberately small upload budget
 

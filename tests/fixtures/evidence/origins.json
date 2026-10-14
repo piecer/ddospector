@@ -1,0 +1,62 @@
+[
+  {
+    "file": "run-before.body",
+    "origin": "/home/piecer/dev/src/aiddostesting/.hermes/artifacts/phase2/evaluation-author/final/owned-pg-case-test_evaluation_real_owned_postgresql/aiddos-i0-60e35f55ccd1fabb12355b263f7fa1db/evaluation-normal/run-before.body",
+    "sha256": "5b76c2b4eb59a8e354186465099230e82961200c82681a5d0e3bfb0f6c9584e6",
+    "bytes": 4120
+  },
+  {
+    "file": "complete-detail.body",
+    "origin": "/home/piecer/dev/src/aiddostesting/.hermes/artifacts/phase2/evaluation-author/final/owned-pg-case-test_evaluation_real_owned_postgresql/aiddos-i0-60e35f55ccd1fabb12355b263f7fa1db/evaluation-normal/complete-detail.body",
+    "sha256": "b2a2594f732ce096bfc4d57a3ed8952c05833cbdcfaa6a0f82d3acfe617deb06",
+    "bytes": 2394
+  },
+  {
+    "file": "violation-detail.body",
+    "origin": "/home/piecer/dev/src/aiddostesting/.hermes/artifacts/phase2/evaluation-author/final/owned-pg-case-test_evaluation_real_owned_postgresql/aiddos-i0-60e35f55ccd1fabb12355b263f7fa1db/evaluation-normal/violation-detail.body",
+    "sha256": "25369df9342ec159de65ea788e6431224abe7fa4e70cb5281e7330b7fe0ff846",
+    "bytes": 2390
+  },
+  {
+    "file": "unknown-detail.body",
+    "origin": "/home/piecer/dev/src/aiddostesting/.hermes/artifacts/phase2/evaluation-author/final/owned-pg-case-test_evaluation_real_owned_postgresql/aiddos-i0-60e35f55ccd1fabb12355b263f7fa1db/evaluation-normal/unknown-detail.body",
+    "sha256": "5c2bb0dbba4a4b05807d553bc823ae6b95ee2cfd02cfe584454b9534f2bb6ce5",
+    "bytes": 2389
+  },
+  {
+    "file": "complete-registered.body",
+    "origin": "/home/piecer/dev/src/aiddostesting/.hermes/artifacts/phase2/evaluation-author/final/owned-pg-case-test_evaluation_real_owned_postgresql/aiddos-i0-60e35f55ccd1fabb12355b263f7fa1db/evaluation-normal/complete-registered.body",
+    "sha256": "10157d9c4cfd7c09708c75b68fd0f54cb5f971877ed11207c89232939cc1ec67",
+    "bytes": 719
+  },
+  {
+    "file": "violation-registered.body",
+    "origin": "/home/piecer/dev/src/aiddostesting/.hermes/artifacts/phase2/evaluation-author/final/owned-pg-case-test_evaluation_real_owned_postgresql/aiddos-i0-60e35f55ccd1fabb12355b263f7fa1db/evaluation-normal/violation-registered.body",
+    "sha256": "b3bdd804962a901b6e71275fdb901ab8c6725ae2bfab1534ae39bf3a051141b2",
+    "bytes": 719
+  },
+  {
+    "file": "unknown-registered.body",
+    "origin": "/home/piecer/dev/src/aiddostesting/.hermes/artifacts/phase2/evaluation-author/final/owned-pg-case-test_evaluation_real_owned_postgresql/aiddos-i0-60e35f55ccd1fabb12355b263f7fa1db/evaluation-normal/unknown-registered.body",
+    "sha256": "9c69c025abc01a2e47de15fb0c9ac99af028bf75cde957f102bcd520d9e4267f",
+    "bytes": 706
+  },
+  {
+    "file": "analyzed-list.body",
+    "origin": "/home/piecer/dev/src/aiddostesting/.hermes/artifacts/phase2/evaluation-author/final/owned-pg-case-test_evaluation_real_owned_postgresql/aiddos-i0-60e35f55ccd1fabb12355b263f7fa1db/evaluation-normal/analyzed-list.body",
+    "sha256": "6087d6c4bf8fe233e374db504563b6d21c3a86fb2a5137b3ca0c110cf6ac5754",
+    "bytes": 2043
+  },
+  {
+    "file": "full-list.body",
+    "origin": "/home/piecer/dev/src/aiddostesting/.hermes/artifacts/phase2/evaluation-author/final/owned-pg-case-test_evidence_registration_real_owned_postgresql/aiddos-i0-712f293128643972db7ec3463a340964/evidence-normal/full-list.body",
+    "sha256": "8ab706ce5894c39fcb4a724bbd50949c6204e3309cb9dde76a6b660a04f69dbe",
+    "bytes": 16704
+  },
+  {
+    "file": "not-found.body",
+    "origin": "/home/piecer/dev/src/aiddostesting/.hermes/artifacts/phase2/evaluation-author/final/owned-pg-case-test_evidence_registration_real_owned_postgresql/aiddos-i0-712f293128643972db7ec3463a340964/evidence-normal/not-found.body",
+    "sha256": "9633b5bb168dd8b882b4d96129663024ec6b276e64c44e6e8572bcb1c38566a9",
+    "bytes": 77
+  }
+]

@@ -151,8 +151,16 @@ the original running workspace supervisor. It does not migrate or start a worksp
 
 SATISFIED concerns only the synthetic capture-record criterion, not DUT behavior,
 TCP sessions, service availability, defense success or whole-scenario compliance.
-P2-03 Evidence UI, EN/KO export, retained TCP/browser workflow and ordinary reopen
-remain pending. Integration and any later commit do not close those obligations.
+P2-02 is committed at `546b82ca1285b5fd5d644f730ff9b90f51626c7c`. Evidence UI
+and client-side EN/KO exports now have independent frontend acceptance and are
+integrated without changing accepted runtime/test/fixture bytes. UI B1/B2 are
+CLOSED; round-2 was a legitimate mock correction, not weakened assertions. See
+[PHASE2_UI.md](PHASE2_UI.md) for the frozen acceptance and provenance. Historical
+actual-producer Evidence fixtures are not fresh current-backend runs. Conservative
+failed-POST pending (N1) remains unchanged: GET-only resolution, no automatic
+retry or silent receipt clearing. Actual P2-03 browser → API → PostgreSQL →
+explicit CLI evaluator → exports → ordinary-open acceptance remains PENDING.
+No full Phase-2 or DUT acceptance is claimed; a commit does not close that gate.
 
 Use the existing private PostgreSQL, not a SQLite fallback. Use a separate
 `ddospector_evidence_v1` namespace with explicit versioned migration so original
