@@ -3,6 +3,20 @@
 This freezes registration boundaries before integration. It does not claim any
 endpoint is implemented yet. P2-00 parser limits remain unchanged.
 
+The preceding introduction and P2-01 placeholder-report clauses preserve the
+historical contract. Current status: P2-01 registration/readback and the P2-02
+evaluation backend are implemented and independently accepted. The closed
+[P2-02 evaluation contract](PHASE2_EVALUATION.md) supersedes only the temporary
+report:null/REGISTERED-only behavior: validated retained reports can now produce
+ANALYZED and Detail.report. HTTP still accepts no evaluation/report submission.
+Evaluation is explicit through
+`python -m ddospector.evidence.evaluate --evidence-id UUID` or
+`make phase2-evaluate WORKSPACE=... EVIDENCE_ID=...` with original running-workspace
+custody. `make test-phase2-evaluation` is the scoped backend gate.
+This synthetic capture-record criterion is not DUT, session, service or defense
+acceptance. P2-03 UI/EN-KO export and real retained TCP/browser/ordinary-open
+workflow acceptance remain pending; no full Phase-2 completion is claimed.
+
 ## Deliberately small upload budget
 
 For this first generated-PCAP workflow, the HTTP service accepts **1–65,536 raw

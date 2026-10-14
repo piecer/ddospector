@@ -4,6 +4,14 @@ This slice implements registration and readback only. It does not evaluate TCP
 forwarding, claim valid PCAP parsing, show a DUT result, or add UI/report export.
 The original completed Run remains an OFFLINE preparation result.
 
+Current status: P2-01 storage and the separately implemented P2-02 evaluation
+backend have independent acceptance. The P2-01-only statements below describe
+that slice's historical boundary. P2-02 now validates immutable reports under the
+closed [evaluation contract](PHASE2_EVALUATION.md); it does not turn a synthetic
+record criterion into a DUT/session/service/defense PASS. Use the explicit
+`python -m ddospector.evidence.evaluate --evidence-id UUID` command, or the owned
+running-workspace `make phase2-evaluate WORKSPACE=... EVIDENCE_ID=...` helper.
+
 ## Fresh-only provisioning
 
 Use an explicitly new, private, durable workspace:
@@ -105,6 +113,8 @@ paths, restoration controls and unchanged generic DB error handling.
 Use `make test-phase2-storage` for the scoped storage gate, alongside canonical
 API/web/lint/build checks and source-bound normal-wire fixture freshness. The final
 retained fresh-workspace TCP/browser/ordinary-open gate remains pending; this
-ASGI/PG proof does not replace it. Criterion evaluation and UI/report integration
-remain P2-02/P2-03. Full S02,
+ASGI/PG proof does not replace it. The P2-02 evaluation backend is implemented and
+independently accepted; `make test-phase2-evaluation` selects its scoped gate.
+P2-03 Evidence UI, EN/KO export and retained TCP/browser/ordinary-open acceptance
+remain pending. Full S02,
 W2, HA, multiworker, live capture/replay, DUT traffic and AI/MCP remain deferred.

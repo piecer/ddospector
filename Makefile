@@ -57,3 +57,11 @@ phase2-local:
 	.venv/bin/python tools/phase1_local.py create --workspace "$$PHASE1_WORKSPACE" --evidence
 test-phase2-storage:
 	uv run --frozen pytest tests/evidence tests/api/test_evidence_transport.py tests/api/test_evidence_admission.py tests/api/test_boundary.py tests/tooling/test_evidence_fresh_setup.py tests/tooling/test_phase1_local.py tests/tooling/test_phase2_storage_targets.py tests/runs/test_evidence_postgres.py -q -o junit_family=legacy
+
+.PHONY: phase2-evaluate test-phase2-evaluation
+phase2-evaluate: export PHASE1_WORKSPACE := $(WORKSPACE)
+phase2-evaluate: export PHASE2_EVIDENCE_ID := $(EVIDENCE_ID)
+phase2-evaluate:
+	.venv/bin/python tools/phase1_local.py evaluate --workspace "$$PHASE1_WORKSPACE" --evidence-id "$$PHASE2_EVIDENCE_ID"
+test-phase2-evaluation:
+	uv run --frozen pytest tests/evidence tests/api/test_evaluation_readonly.py tests/api/test_evidence_transport.py tests/api/test_evidence_admission.py tests/api/test_boundary.py tests/tooling/test_evidence_fresh_setup.py tests/tooling/test_phase1_local.py tests/tooling/test_phase2_storage_targets.py tests/tooling/test_evaluation_operator.py tests/runs/test_evidence_postgres.py tests/runs/test_evaluation_postgres.py -q -o junit_family=legacy

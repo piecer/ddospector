@@ -185,14 +185,14 @@ def stop_pg(owner):
 def parser():
     command = argparse.ArgumentParser(description=__doc__)
     commands = command.add_subparsers(dest="command", required=True)
-    for verb in ("create", "open", "worker"):
+    for verb in ("create", "open", "worker", "evaluate"):
         sub = commands.add_parser(verb)
         sub.add_argument("--workspace", type=Path, required=True)
         if verb == "create":
             sub.add_argument("--evidence", action="store_true",
                              help="Install evidence storage in this fresh workspace only")
-        if verb == "worker":
-            sub.add_argument("--run-id", required=True)
+        if verb in {"worker", "evaluate"}:
+            sub.add_argument("--run-id" if verb == "worker" else "--evidence-id", required=True)
         else:
             sub.add_argument("--web-port", type=int, choices=(5175, 5182), default=5175)
     return command
@@ -432,6 +432,9 @@ def serve(args, stopping):
 
 def worker(args, stopping):
     workspace = args.workspace
+    evaluating = getattr(args, "command", "worker") == "evaluate"
+    kind = "evaluate" if evaluating else "worker"
+    selected = args.evidence_id if evaluating else args.run_id
     with locked(workspace / "activity.lock", exclusive=False):
         state = json.loads((workspace / "workspace.json").read_text())
         supervisor = state.get("supervisor", {})
@@ -444,17 +447,17 @@ def worker(args, stopping):
         owner = retained_pg(workspace, state)
         if owner.metadata()["Status"] != "running":
             raise h.Blocked("OWNED_DATABASE_NOT_RUNNING")
-        output = session_output(workspace, "worker")
+        output = session_output(workspace, kind)
         native = NativeChildren(output, clean_environment(workspace))
         try:
             child = native.launch(
-                "worker",
+                kind,
                 [
                     str(ROOT / ".venv/bin/python"),
                     "-m",
-                    "ddospector.runs.worker",
-                    "--run-id",
-                    args.run_id,
+                    "ddospector.evidence.evaluate" if evaluating else "ddospector.runs.worker",
+                    "--evidence-id" if evaluating else "--run-id",
+                    selected,
                 ],
                 {"DDOSPECTOR_RUN_DB_SOCKET": str(owner.socket)},
             )
@@ -468,7 +471,7 @@ def worker(args, stopping):
                 json.dumps(
                     {
                         "worker_exit": code,
-                        "run_id": args.run_id,
+                        "evidence_id" if evaluating else "run_id": selected,
                         "evidence": str(output),
                         "result": "inspect actual UI/API",
                     }
@@ -491,8 +494,9 @@ def main():
     for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
         signal.signal(sig, stop)
     try:
-        if args.command == "worker" and not re.fullmatch(
-            r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}", args.run_id
+        if args.command in {"worker", "evaluate"} and not re.fullmatch(
+            r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}",
+            args.run_id if args.command == "worker" else args.evidence_id
         ):
             raise h.Blocked("EXACT_LOWERCASE_UUID4_REQUIRED")
         check_location(args.workspace)
@@ -507,7 +511,7 @@ def main():
             save_state(args.workspace, {"format": 1, "root": str(ROOT), "phase": "NEW"})
         return (
             worker(args, lambda: stopped)
-            if args.command == "worker"
+            if args.command in {"worker", "evaluate"}
             else serve(args, lambda: stopped)
         )
     except Exception as error:

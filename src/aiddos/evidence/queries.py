@@ -5,8 +5,8 @@ from aiddos.api.scenarios import canonical
 from aiddos.runs.repository import begin, commit
 
 from .contracts import MAX_PAIRS, MAX_RESPONSE
-from .repository import PROJECTION, check_storage, quota, selected
-from .validation import check, detail, metadata
+from .repository import PROJECTION, check_storage, quota, saved_report, selected
+from .validation import check, detail, metadata, public_summary
 
 
 async def list_evidence(op, socket):
@@ -16,7 +16,12 @@ async def list_evidence(op, socket):
     rows = await op.execute("SELECT " + PROJECTION + " FROM ddospector_evidence_v1.bundles "
                             "ORDER BY ordinal LIMIT 17")
     check(len(rows) == count and len(rows) <= MAX_PAIRS)
-    items = [metadata(row) for row in rows]
+    items = []
+    for row in rows:
+        value = metadata(row)
+        report = await saved_report(op, value)
+        items.append(public_summary(value, report))
+        del report  # Retain only compact summaries, never all decoded reports.
     check([item["ordinal"] for item in items] == list(range(1, count + 1)))
     body = canonical({"schema_version": 1, "items": items, "total": count})
     check(len(body) <= MAX_RESPONSE)
@@ -31,6 +36,7 @@ async def get(op, socket, value, *, by_request=False, side=None):
     found = await selected(op, value, by_request=by_request)
     if found is None:
         raise DraftError("EVIDENCE_NOT_FOUND")
-    body = detail(found[0]) if side is None else found[1 if side == "ingress" else 2]
+    report = await saved_report(op, found[0], full=True)
+    body = detail(found[0], report) if side is None else found[1 if side == "ingress" else 2]
     await commit(op)
     return 200, body

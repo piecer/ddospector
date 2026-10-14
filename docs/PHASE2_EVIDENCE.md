@@ -101,7 +101,7 @@ Independent format references (facts, not copied implementation):
 |---|---|---|
 | P2-00 | Real synthetic PCAP files, bounded parser and independent offline-reader checks | Accepted for this file-only scope |
 | P2-01 | Immutable paired evidence registration, original download, bounded metadata and Run linkage | Backend implemented; final workflow acceptance remains in P2-03 |
-| P2-02 | Explicit single evaluator, deterministic criterion, immutable derived report | Pending |
+| P2-02 | Explicit single evaluator, deterministic criterion, immutable derived report | Backend implemented and independently accepted; integration gates tracked separately |
 | P2-03 | Existing Evidence UI integration, EN/KO JSON/HTML report, real browser workflow | Pending |
 
 ### P2-00 operational acceptance
@@ -135,7 +135,24 @@ fresh workspace into evidence provisioning; ordinary Phase-1 create/open behavio
 does not migrate existing data. `make test-phase2-storage` selects the bounded
 API/storage regression and one owned PostgreSQL case, not the deferred W2 suite.
 See `docs/PHASE2_STORAGE.md` for the implemented API and remaining acceptance.
-No evaluator or Evidence UI workflow is implied by backend registration.
+Registration alone implies neither evaluation nor Evidence UI workflow acceptance.
+
+### Current P2-02 backend status
+
+The separately reviewed P2-02 backend implements the explicit one-shot evaluator,
+closed immutable report codec, and validated report readback. Independent review
+closed the pre-serialization validation and evaluator-retirement blockers (B1/B2).
+See [PHASE2_EVALUATION.md](PHASE2_EVALUATION.md) for the closed contract and operator
+semantics. The public operation is
+`python -m ddospector.evidence.evaluate --evidence-id UUID`, or
+`make phase2-evaluate WORKSPACE=/absolute/owned-workspace EVIDENCE_ID=UUID` under
+the original running workspace supervisor. It does not migrate or start a workspace.
+`make test-phase2-evaluation` is the scoped backend gate, not full Phase-2 acceptance.
+
+SATISFIED concerns only the synthetic capture-record criterion, not DUT behavior,
+TCP sessions, service availability, defense success or whole-scenario compliance.
+P2-03 Evidence UI, EN/KO export, retained TCP/browser workflow and ordinary reopen
+remain pending. Integration and any later commit do not close those obligations.
 
 Use the existing private PostgreSQL, not a SQLite fallback. Use a separate
 `ddospector_evidence_v1` namespace with explicit versioned migration so original

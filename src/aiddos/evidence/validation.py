@@ -100,9 +100,18 @@ def originals(value, ingress, egress):
         check(descriptor(value[side]["name"], raw) == value[side])
 
 
-def detail(value):
-    # Validate typed scalars BEFORE serialization even for server-constructed summaries.
+def public_summary(value, report=None):
     checked = summary_value(value)
-    body = canonical({"schema_version": 1, "evidence": checked, "report": None})
+    if report is None:
+        return checked
+    from .report import bind
+    bind(report, checked)
+    return {**checked, "analysis_state": "ANALYZED"}
+
+
+def detail(value, report=None):
+    # Validate typed scalars BEFORE serialization even for server-constructed summaries.
+    checked = public_summary(value, report)
+    body = canonical({"schema_version": 1, "evidence": checked, "report": report})
     check(len(body) <= MAX_RESPONSE)
     return body
