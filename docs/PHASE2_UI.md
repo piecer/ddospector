@@ -79,7 +79,10 @@ API selection/list scheduling projections are disclosed in the fixture README.
 No controlled-route result claims a live backend integration.
 
 Independent frontend review is complete. Actual P2-03 browser → API → PostgreSQL →
-explicit CLI evaluator → exports → ordinary-open acceptance remains PENDING.
+explicit CLI evaluator → exports → ordinary-open acceptance passed on 2026-10-17
+(KST), using the integrated `e7335f4` product revision. Three retained outcomes,
+EN/KO exports, original-byte downloads and normal stop/open/stop were verified.
+See [PHASE2_ACCEPTANCE.md](PHASE2_ACCEPTANCE.md) for source-bound receipts and limits.
 The ten positive Evidence corpus responses remain historical actual-producer
 fixtures with their original provenance, not fresh current-backend executions.
 N1 conservative failed-POST pending behavior is unchanged and nonblocking: no

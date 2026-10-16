@@ -112,8 +112,9 @@ paths, restoration controls and unchanged generic DB error handling.
 
 Use `make test-phase2-storage` for the scoped storage gate, alongside canonical
 API/web/lint/build checks and source-bound normal-wire fixture freshness. The final
-retained fresh-workspace TCP/browser/ordinary-open gate remains pending; this
-ASGI/PG proof does not replace it. The P2-02 evaluation backend is implemented and
+retained fresh-workspace TCP/browser/ordinary-open gate passed separately on
+2026-10-17 (KST); this ASGI/PG proof did not replace it. See
+[PHASE2_ACCEPTANCE.md](PHASE2_ACCEPTANCE.md). The P2-02 evaluation backend is implemented and
 independently accepted; `make test-phase2-evaluation` selects its scoped gate.
 P2-02 is committed at `546b82ca1285b5fd5d644f730ff9b90f51626c7c`. Evidence UI
 and client-side EN/KO exports now have independent frontend acceptance and are
@@ -123,6 +124,6 @@ CLOSED; round-2 was a legitimate mock correction, not weakened assertions. See
 actual-producer Evidence fixtures are not fresh current-backend runs. Conservative
 failed-POST pending (N1) remains unchanged: GET-only resolution, no automatic
 retry or silent receipt clearing. Actual P2-03 browser → API → PostgreSQL →
-explicit CLI evaluator → exports → ordinary-open acceptance remains PENDING.
-No full Phase-2 or DUT acceptance is claimed; a commit does not close that gate. Full S02,
+explicit CLI evaluator → exports → ordinary-open acceptance is complete for the
+approved synthetic FILES ONLY scope, not real DUT defense. Full S02,
 W2, HA, multiworker, live capture/replay, DUT traffic and AI/MCP remain deferred.

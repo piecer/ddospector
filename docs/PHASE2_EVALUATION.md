@@ -135,7 +135,8 @@ placeholder semantics change, not generic assertions or warning filters.
 Use normal owned PG fixture/networknone/privateUDS/cached image; no DB/worker
 outage/restart/kill fault campaign. Parent does final API/Web/corpus refresh,
 independent review and local commit. Final real Evidence UI/EN-KO export/open
-acceptance remains P2-03. No shared skill edits; lessons stay project-local.
+acceptance is recorded separately in [PHASE2_ACCEPTANCE.md](PHASE2_ACCEPTANCE.md).
+No shared skill edits; lessons stay project-local.
 
 ## P2-02 operator notes
 
@@ -161,5 +162,6 @@ before admission, use a fresh global basetemp per run, and set junit_family=lega
 when record_property is collected. A caller cancellation must await actual
 Operation retirement before releasing the common socket-directory flock.
 
-Browser, EN/KO export, retained TCP/open workflow and whole Phase-2 acceptance
-remain P2-03; this result evaluates only the frozen partial capture criterion.
+Browser, EN/KO export and retained TCP/open workflow passed P2-03 on 2026-10-17
+(KST). Phase 2 is accepted only for its synthetic FILES ONLY scope; the evaluator
+still evaluates only the frozen partial capture criterion, not DUT effectiveness.

@@ -95,14 +95,17 @@ Independent format references (facts, not copied implementation):
 `https://www.rfc-editor.org/rfc/rfc791`,
 `https://www.rfc-editor.org/rfc/rfc9293.html`.
 
-## Remaining slices — detailed transport schema before integration
+## Accepted slices — FILES ONLY scope
 
 | Slice | Deliverable | Status |
 |---|---|---|
 | P2-00 | Real synthetic PCAP files, bounded parser and independent offline-reader checks | Accepted for this file-only scope |
-| P2-01 | Immutable paired evidence registration, original download, bounded metadata and Run linkage | Backend implemented; final workflow acceptance remains in P2-03 |
-| P2-02 | Explicit single evaluator, deterministic criterion, immutable derived report | Backend implemented and independently accepted; integration gates tracked separately |
-| P2-03 | Existing Evidence UI integration, EN/KO JSON/HTML report, real browser workflow | Pending |
+| P2-01 | Immutable paired evidence registration, original download, bounded metadata and Run linkage | Accepted, including the retained P2-03 workflow |
+| P2-02 | Explicit single evaluator, deterministic criterion, immutable derived report | Independently accepted; explicit evaluation/reuse verified in P2-03 |
+| P2-03 | Existing Evidence UI integration, EN/KO JSON/HTML report, real browser workflow | Accepted 2026-10-17 (KST); normal/create and retained ordinary-open PASS |
+
+See [PHASE2_ACCEPTANCE.md](PHASE2_ACCEPTANCE.md) for the exact exercised revision,
+Run/evidence identities, actual receipts, retained workspace and exclusions.
 
 ### P2-00 operational acceptance
 
@@ -159,8 +162,9 @@ CLOSED; round-2 was a legitimate mock correction, not weakened assertions. See
 actual-producer Evidence fixtures are not fresh current-backend runs. Conservative
 failed-POST pending (N1) remains unchanged: GET-only resolution, no automatic
 retry or silent receipt clearing. Actual P2-03 browser → API → PostgreSQL →
-explicit CLI evaluator → exports → ordinary-open acceptance remains PENDING.
-No full Phase-2 or DUT acceptance is claimed; a commit does not close that gate.
+explicit CLI evaluator → exports → ordinary-open acceptance passed on 2026-10-17
+(KST). Phase 2 is complete for the approved synthetic FILES ONLY scope; this is
+not DUT-defense or full original-campaign acceptance. See the acceptance record.
 
 Use the existing private PostgreSQL, not a SQLite fallback. Use a separate
 `ddospector_evidence_v1` namespace with explicit versioned migration so original

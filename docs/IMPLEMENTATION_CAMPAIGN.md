@@ -1,12 +1,19 @@
 # 기능 1–12 순차 구현 정본
 
-## 다음 승인 목표 — 합성 PCAP 기반 OFFLINE 증거·판정
+## 2차 목표 완료 — 합성 PCAP 기반 OFFLINE 증거·판정
 
 사용자가 1차 완료 후 증거 등록→단일 규칙 판정→UI/보고서의 2차 목표를 승인했고,
 PCAP은 직접 생성하도록 요청했다. 현재 진행 정본은 `docs/PHASE2_EVIDENCE.md`다.
 파일만 생성하며 송신·실장비 접속·W2 재개는 하지 않는다. 합성 자료의 판정과 실제
 DUT 검증을 구분하고, 기존 준비 Run 결과는 덮어쓰지 않는다. 아래 1차 완료와
 원래 S02/S03–S12 보류 이력은 그대로 보존한다.
+
+**2026-10-17(KST): 승인된 Phase 2 FILES ONLY 범위 완료.** 구현 revision
+`e7335f4`에서 실제 UI→API→PostgreSQL→명시 평가→영한 내보내기와 동일 저장소
+정상 stop/open/stop을 통과했다. 세 합성 자료의 결과는 SATISFIED/VIOLATED/UNKNOWN,
+원래 Run은 NOT_EVALUATED/null을 유지한다. 전용 환경은 STOPPED이며 데이터는
+보존했다. 정확한 Run·증거·검증 출처·운영 안내는 `docs/PHASE2_ACCEPTANCE.md`를
+따른다. 이는 실제 DUT 방어효능 수용이나 보류된 다음 단계의 실행 승인이 아니다.
 
 ## 현재 우선순위 변경 — 감독형 OFFLINE 1차 목표
 
