@@ -24,6 +24,16 @@ baseline 실행·실제 DUT 수용은 미구현/미수용이다. 독립 리뷰�
 closed 오류·FD 종료·무통신 계약을 수용했다. 기존 evidence 238개 및 전체 tooling
 67개도 확인했으며, 통합 gate와 commit readback은 `.hermes/artifacts/phase3/`에
 기록한다. tooling의 소유 loopback fixture는 실제 DUT 시험이 아니다.
+
+**P3-01a: 로컬 소유권 구현 · 독립 구현 검토 통과.** 별도 명시 승인 profile hash와
+private directory의 단일 사용 claim, 최대 3회 동기 attempt, cooperative stop 및
+single-finalizer retirement library를 추가했다. 계약은
+`docs/PHASE3_SESSION_OWNER.md`다. 기존 CLI/API 자동 activation, HTTP/capture,
+실제 DUT 및 자율 Agent/LLM/MCP 실행은 추가하지 않는다. runtime COMPLETED는
+서비스 PASS가 아니다. 통합 gate와 commit readback은
+`.hermes/artifacts/phase3/session-owner/`에 기록한다. 기존 Phase 1/2 및 S02/W2
+실행·보정 한도는 그대로 유지한다.
+
 P3-00 scoped gate는 `make test-phase3-config`; 기본 test 집계와 Python Ruff에도
 연결했다. 기존 full W2/실측 시험/Phase 1·2 환경을 재개하거나 과거 한도를
 초기화하지 않는다. 아래 완료·보류 이력과 기존 runs/evidence/API/UI 의미는 보존한다.

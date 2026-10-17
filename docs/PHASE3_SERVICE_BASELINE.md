@@ -165,3 +165,12 @@ HTTP(S) GET baseline이다. 범위는 BASELINE_ONLY이며 baseline 성공만으�
 예산 없는 후속 통신을 자동 시작하지 않는다. 후속 실행기의 설계 상한인 header
 16384 bytes, body 32768 bytes, diagnostic 4096 bytes는 **현재 집행되지 않는다**.
 현장 topology·권한·인증서·센서·패킷/바이트 한도와 실제 DUT 수용은 배포 시 결합한다.
+
+## P3-01a 로컬 소유권 구현
+
+P3-01a는 `ddospector.lab.session`의 명시적 library로 single-use admission,
+bounded synchronous attempt, cooperative stop/retirement를 제공한다.
+독립 구현 검토를 통과했으며 상세 계약은 `PHASE3_SESSION_OWNER.md`를 따른다.
+통합 검증·commit readback은 `.hermes/artifacts/phase3/session-owner/`에 기록한다.
+이는 위 P3-00 CLI의 무통신·baseline 실행 미지원 판정을 바꾸지 않는다. CLI/API가
+새 모듈을 자동 import하지 않으며 HTTP/capture/실제 DUT/Agent 실행은 여전히 후속 gate다.
