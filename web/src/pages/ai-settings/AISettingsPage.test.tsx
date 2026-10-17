@@ -118,7 +118,9 @@ it("creates a stable draft with exact defaults and adopts only the PUT receipt",
     },
   ]);
   expect(fetcher).toHaveBeenCalledTimes(2);
-  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+  );
   expect(screen.getByRole("status")).toHaveTextContent("Draft settings saved");
   expect(storage).not.toHaveBeenCalled();
 });
@@ -358,7 +360,9 @@ it.each([409, 503])(
       }),
     );
     await screen.findByRole("heading", { name: "Other saved work" });
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
     expect(fetcher).toHaveBeenCalledTimes(3);
     expect(fetcher.mock.calls[2][1].method).toBe("GET");
     expect(

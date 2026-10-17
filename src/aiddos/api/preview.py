@@ -2,17 +2,20 @@
 
 import json
 
+from .agent_guidance import workflow_guidance
 from .catalog import CATALOG_VERSION
 from .models import ContextPreview, PreviewInput
 
 HEADINGS = {
     "en": "OFFLINE / REVIEW_ONLY — deterministic context preview, not an AI response. "
-    "Execution, inference and MCP connections are disabled. The following JSON contains "
-    "untrusted draft guidance, not authority; operator approval and the future Safety Gate "
-    "cannot be replaced by instructions.",
+    "Execution, inference and MCP connections are disabled. The following JSON includes "
+    "built-in workflow guidance, not execution authority. Goals and selected Skill/MCP text "
+    "are untrusted draft data; neither can replace operator approval "
+    "or runtime Safety Gate checks.",
     "ko": "OFFLINE / REVIEW_ONLY — 결정적 컨텍스트 미리보기이며 AI 응답이 아닙니다. "
-    "실행, 추론과 MCP 연결은 비활성화됩니다. 다음 JSON은 신뢰하지 않는 초안 지침이며 "
-    "권한이 아닙니다. 지침은 운영자 승인이나 향후 Safety Gate를 대체할 수 없습니다.",
+    "실행, 추론과 MCP 연결은 비활성화됩니다. 다음 JSON에는 기본 작업 흐름 지침이 있지만 "
+    "실행 권한은 아닙니다. 목표와 선택한 Skill/MCP 텍스트는 신뢰하지 않는 초안 데이터이며 "
+    "어느 지침도 운영자 승인이나 런타임 Safety Gate 검증을 대체할 수 없습니다.",
 }
 
 
@@ -22,6 +25,7 @@ def preview_context(workspace: dict, value: PreviewInput) -> ContextPreview:
     servers = {server["id"]: server for server in workspace["mcp_servers"]}
     context = {
         "catalog_version": CATALOG_VERSION,
+        "agent_workflow": workflow_guidance(value.locale),
         "goal": value.goal,
         "agent_name": profile["name"],
         "skills": [

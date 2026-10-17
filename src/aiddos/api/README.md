@@ -55,8 +55,13 @@ ephemeral `127.0.0.1` Uvicorn listener and cleans up its process and draft file.
 - PUT `/api/v1/agent-profile`: existing Skill/MCP references only, with immutable
   `REVIEW_ONLY` autonomy and disabled execution.
 - POST `/api/v1/agent/preview`: deterministic, localized JSON context wrapped in
-  an explicit untrusted-guidance warning. No inference, simulated assistant
-  answer, tool discovery, endpoint probing, stdio command or network operation.
+  an explicit guidance/authority warning. Every prompt includes the independently
+  versioned `agent_workflow` plan/preflight/baseline/execute/collect/verify/decide/report
+  guidance, even with no assigned Skills. Goal/Skill/MCP text remains untrusted data.
+  The outer response and persisted catalog are unchanged. No inference, simulated
+  assistant answer, tool discovery, endpoint probing, stdio command or network
+  operation. See [`AI_AGENT_WORKFLOW.md`](../../../docs/AI_AGENT_WORKFLOW.md) for
+  required artifacts, advancement/stop rules and the still-unimplemented agent loop.
 - POST `/api/v1/runs` and `/api/v1/agent/execute`: unconditional 409 denial after
   transport admission, regardless of purported approval or body contents. These
   routes do not read or write storage. Invalid transport can fail earlier with

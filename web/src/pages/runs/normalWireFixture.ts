@@ -7,7 +7,7 @@ import type { Context } from "./client";
 export const normalWireRoot = resolve(import.meta.dirname, "../../../..");
 const bytes = readFileSync(resolve(normalWireRoot, "tests/fixtures/runs/normal-wire.json"));
 assert.equal(createHash("sha256").update(bytes).digest("hex"),
-  "bd09049bbd6c5ae9f41cefe0e906ae3fad63598ffb2764974d7bcd976ca033ca");
+  "fea7985c0351fd9368b3a109f736341f61dabc2c3d2b092a1d5d4aa7d7b91e51");
 type Row = {
   label: string;
   raw: string;

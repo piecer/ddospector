@@ -1,5 +1,14 @@
 # 기능 1–12 순차 구현 정본
 
+## 제품 AI Agent 작업 지침 보강
+
+사용자의 자율 계획·실행·검증 지침 요청에 따라, 별도 버전의 EN/KO 기본 작업 흐름을
+기존 Agent 컨텍스트 미리보기에 항상 포함한다. 계획/영수증/증거 검증 요구와
+승인 범위 내 다음 진행·대기·중지 규칙은 `docs/AI_AGENT_WORKFLOW.md`를 따른다.
+이는 지침과 컨텍스트 조합의 구현이며 실제 모델 호출·tool broker·자율 실행 루프의
+수용이 아니다. REVIEW_ONLY와 실행 거절은 유지하며 기존 Skill/catalog/시나리오
+버전 및 P3-00 baseline 실행 미구현 상태를 바꾸지 않는다.
+
 ## Phase 3 첫 슬라이스 — 배포 설정과 무통신 preflight
 
 **P3-00: `INDEPENDENTLY_ACCEPTED`.** 통제된 격리망에서 정상 서비스
