@@ -1,5 +1,24 @@
 # 기능 1–12 순차 구현 정본
 
+## Phase 3 첫 슬라이스 — 배포 설정과 무통신 preflight
+
+**P3-00: `INDEPENDENTLY_ACCEPTED`.** 통제된 격리망에서 정상 서비스
+확인부터 시작한다는 사용자 승인에 따라 closed profile/template와 실제 공개
+`python -m ddospector.lab preflight --config /absolute/profile.json` CLI를 구현했다.
+현장 값은 다른 폐쇄망 배포 시 입력하며 현재 주소·topology를 추정하지 않는다.
+구현 범위·출력·오류/FD 종료 계약은 `docs/PHASE3_SERVICE_BASELINE.md`를 따른다.
+
+현장 수용만 연기하며 로컬 구현을 중단하지 않는다. 현재 CLI는 설정 검증만 하고
+DNS/socket/추가 child/서비스 요청을 수행하지 않는다. 성공도
+`CONFIG_VALID_NO_NETWORK`이며 site 검증과 baseline 실행 지원은 false다.
+baseline 실행·실제 DUT 수용은 미구현/미수용이다. 독립 리뷰는 신규 289개 시험과
+closed 오류·FD 종료·무통신 계약을 수용했다. 기존 evidence 238개 및 전체 tooling
+67개도 확인했으며, 통합 gate와 commit readback은 `.hermes/artifacts/phase3/`에
+기록한다. tooling의 소유 loopback fixture는 실제 DUT 시험이 아니다.
+P3-00 scoped gate는 `make test-phase3-config`; 기본 test 집계와 Python Ruff에도
+연결했다. 기존 full W2/실측 시험/Phase 1·2 환경을 재개하거나 과거 한도를
+초기화하지 않는다. 아래 완료·보류 이력과 기존 runs/evidence/API/UI 의미는 보존한다.
+
 ## 2차 목표 완료 — 합성 PCAP 기반 OFFLINE 증거·판정
 
 사용자가 1차 완료 후 증거 등록→단일 규칙 판정→UI/보고서의 2차 목표를 승인했고,
