@@ -5,13 +5,14 @@ description = "AI-Powered DDoS Defense Validation Framework"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "fastapi>=0.115,<1",
+  "httpx2>=2.13,<3",
   "psycopg[binary]>=3.2,<4",
   "pydantic>=2.10,<3",
   "uvicorn>=0.34,<1",
 ]
 
 [dependency-groups]
-dev = ["pytest>=8,<10", "httpx2>=2.13,<3", "ruff>=0.11,<1"]
+dev = ["pytest>=8,<10", "ruff>=0.11,<1"]
 
 [build-system]
 requires = ["hatchling>=1.27,<2"]
@@ -21,7 +22,7 @@ build-backend = "hatchling.build"
 packages = ["src/ddospector", "src/aiddos"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests/api", "tests/runs"]
+testpaths = ["tests/api", "tests/chat", "tests/runs"]
 addopts = "-ra -p no:cacheprovider --basetemp=.venv/pytest-tmp"
 filterwarnings = ["error"]
 

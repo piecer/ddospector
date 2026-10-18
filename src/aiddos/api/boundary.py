@@ -147,8 +147,11 @@ class DevelopmentBoundary:
                 raise DraftError("METHOD_NOT_ALLOWED")
             limit = 1024 if offline else MAX_BODY_BYTES
             excess = "RUN_BODY_TOO_LARGE" if offline else "BODY_TOO_LARGE"
+            chat = scope["path"].startswith("/api/v1/chat/")
+            if chat:
+                limit, excess = 32768, "CHAT_BODY_TOO_LARGE"
             if (
-                (offline or evidence)
+                (offline or evidence or chat)
                 and scope["method"] in {"GET", "HEAD"}
                 and ("transfer-encoding" in headers or headers.get("content-length", "0") != "0")
             ):

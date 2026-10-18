@@ -1,0 +1,76 @@
+.chat-panel,
+.chat-panel .panel-body,
+.chat-panel form {
+  min-width: 0;
+}
+.chat-panel .panel-body {
+  display: grid;
+  gap: 16px;
+}
+.chat-panel p {
+  margin: 0;
+}
+.chat-history {
+  display: grid;
+  gap: 8px;
+  max-height: 18rem;
+  overflow-y: auto;
+}
+.chat-history button {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: start;
+  min-width: 0;
+}
+.chat-binding {
+  display: grid;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+.chat-panel .button-row {
+  flex-wrap: wrap;
+}
+.chat-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.chat-transcript {
+  min-width: 0;
+  max-height: 34rem;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 16px;
+}
+.chat-transcript article + article {
+  border-top: 1px solid var(--border);
+  margin-top: 24px;
+  padding-top: 16px;
+}
+.chat-transcript h3 {
+  font-size: 13px;
+  margin: 12px 0 8px;
+  color: var(--muted);
+}
+.chat-transcript small {
+  display: block;
+  margin-top: 12px;
+}
+.chat-panel textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 100px;
+}
+.chat-panel form {
+  display: grid;
+  gap: 12px;
+}
+.chat-panel form > button {
+  justify-self: start;
+}
+.chat-panel .dialog {
+  max-width: calc(100vw - 32px);
+}

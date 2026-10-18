@@ -42,7 +42,7 @@ describe("DDoSpector branding", () => {
       "DDoSpector",
     );
     expect(screen.getByText("LIVE execution locked")).toBeInTheDocument();
-    expect(screen.getByText("Drafts only · No test traffic")).toBeInTheDocument();
+    expect(screen.getByText("OFFLINE test traffic · Chat requires consent")).toBeInTheDocument();
     expect(screen.getByText("OFFLINE", { exact: true })).toBeInTheDocument();
   });
 

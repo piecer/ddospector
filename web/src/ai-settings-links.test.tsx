@@ -29,7 +29,14 @@ describe("AI model settings entry points", () => {
           }),
         );
         expect(navigate).toHaveBeenCalledExactlyOnceWith("ai-settings");
-        expect(fetch).not.toHaveBeenCalled();
+        if (Page === AgentPage) {
+          expect(
+            fetch.mock.calls.map(([url, options]) => [url, options.method]),
+          ).toEqual([
+            ["/api/v1/chat/runtime", "GET"],
+            ["/api/v1/chat/sessions", "GET"],
+          ]);
+        } else expect(fetch).not.toHaveBeenCalled();
       },
     );
   }

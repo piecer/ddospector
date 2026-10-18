@@ -2,6 +2,27 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AgentPage } from "./index";
+// Only the new read-only metadata GETs are isolated; legacy writes stay real.
+vi.mock("./chat-client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./chat-client")>();
+  return {
+    ...actual,
+    chatClient: {
+      ...actual.chatClient,
+      runtime: vi
+        .fn()
+        .mockRejectedValue(new Error("Synthetic chat metadata unavailable")),
+      sessions: vi.fn().mockResolvedValue([]),
+    },
+  };
+});
+function openAssignment() {
+  fireEvent.click(
+    screen.getByText(
+      /Assignment and deterministic preview|할당 및 결정적 미리보기/,
+    ),
+  );
+}
 import { api } from "../../lib/api";
 import { aiFixture, jsonResponse } from "./testFixtures";
 
@@ -28,6 +49,7 @@ describe("Agent instruction assignment", () => {
       view.rerender(<AgentPage {...props} data={data} />);
     });
     const view = render(<AgentPage {...props} />);
+    openAssignment();
     fireEvent.change(screen.getByLabelText("Agent name"), {
       target: { value: profile.name },
     });
@@ -48,6 +70,7 @@ describe("Agent instruction assignment", () => {
 
   it("includes requirements and safety guidance when inspecting an assigned Skill", async () => {
     render(<AgentPage {...aiFixture()} />);
+    openAssignment();
     await userEvent.click(screen.getAllByText("Read instructions")[0]);
     expect(screen.getByText("synthetic_capability")).toBeVisible();
     expect(screen.getByText("synthetic_review")).toBeVisible();
@@ -59,6 +82,7 @@ describe("Agent instruction assignment", () => {
   it("adopts refreshed saved data without silently replacing an unsaved user draft", async () => {
     const props = aiFixture();
     const { rerender } = render(<AgentPage {...props} />);
+    openAssignment();
     const updated = {
       ...props.data,
       agent_profile: {
@@ -113,19 +137,18 @@ describe("Agent instruction assignment", () => {
       props.data.agent_profile.mcp_server_ids = ["synthetic-mcp"];
       const prompt =
         "Synthetic context only.\n<strong>Do not execute.</strong>";
-      const fetchMock = vi
-        .fn()
-        .mockResolvedValue(
-          jsonResponse({
-            origin: "deterministic_context_preview",
-            execution_enabled: false,
-            prompt,
-            skill_ids: ["synthetic-policy"],
-            mcp_server_ids: ["synthetic-mcp"],
-          }),
-        );
+      const fetchMock = vi.fn().mockResolvedValue(
+        jsonResponse({
+          origin: "deterministic_context_preview",
+          execution_enabled: false,
+          prompt,
+          skill_ids: ["synthetic-policy"],
+          mcp_server_ids: ["synthetic-mcp"],
+        }),
+      );
       vi.stubGlobal("fetch", fetchMock);
       render(<AgentPage {...props} locale={locale} />);
+      openAssignment();
       expect(
         screen.getByText(
           locale === "en"
@@ -178,6 +201,7 @@ describe("Agent instruction assignment", () => {
       );
     vi.stubGlobal("fetch", fetchMock);
     render(<AgentPage {...props} locale="ko" />);
+    openAssignment();
     fireEvent.change(screen.getByLabelText("에이전트 이름"), {
       target: { value: "실패 시 보존할 이름" },
     });
@@ -210,17 +234,16 @@ describe("Agent instruction assignment", () => {
       skill_ids: [],
       mcp_server_ids: [],
     };
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(
-        jsonResponse({
-          ...expected,
-          autonomy: "REVIEW_ONLY",
-          execution_enabled: false,
-        }),
-      );
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        ...expected,
+        autonomy: "REVIEW_ONLY",
+        execution_enabled: false,
+      }),
+    );
     vi.stubGlobal("fetch", fetchMock);
     render(<AgentPage {...props} />);
+    openAssignment();
     fireEvent.change(screen.getByLabelText("Agent name"), {
       target: { value: expected.name },
     });
@@ -257,6 +280,7 @@ describe("Agent instruction assignment", () => {
       const fetchMock = vi.fn();
       vi.stubGlobal("fetch", fetchMock);
       render(<AgentPage {...aiFixture()} />);
+      openAssignment();
       fireEvent.change(screen.getByLabelText("Agent name"), {
         target: { value: name },
       });
@@ -273,6 +297,7 @@ describe("Agent instruction assignment", () => {
     props.data.skills = [];
     props.data.mcp_servers = [];
     render(<AgentPage {...props} />);
+    openAssignment();
     expect(screen.getByText("No Skills available")).toBeVisible();
     expect(screen.getByText("No registered MCP servers")).toBeVisible();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
@@ -293,17 +318,16 @@ describe("Agent instruction assignment", () => {
       skill_ids: ["synthetic-policy"],
       mcp_server_ids: ["synthetic-mcp"],
     };
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(
-        jsonResponse({
-          ...expected,
-          autonomy: "REVIEW_ONLY",
-          execution_enabled: false,
-        }),
-      );
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        ...expected,
+        autonomy: "REVIEW_ONLY",
+        execution_enabled: false,
+      }),
+    );
     vi.stubGlobal("fetch", fetchMock);
     render(<AgentPage {...props} />);
+    openAssignment();
     fireEvent.change(screen.getByLabelText("Agent name"), {
       target: { value: expected.name },
     });
@@ -342,7 +366,7 @@ describe("Agent instruction assignment", () => {
     expect(screen.getByRole("button", { name: "Connect MCP" })).toBeDisabled();
     expect(
       screen.getByText(
-        /LIVE execution, LLM inference, and MCP connection are unavailable/,
+        /This assignment and preview do not perform LLM inference/,
       ),
     ).toBeVisible();
   });

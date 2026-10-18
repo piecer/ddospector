@@ -14,15 +14,92 @@ test.beforeAll(async ({ request }) => {
   });
 });
 
-function diagnostics(page: Page) {
+function diagnostics(page: Page, expectUnconfiguredStorage = false) {
   const errors: string[] = [];
+  const consoleErrors: { text: string; url: string }[] = [];
+  const failedResponses: { url: string; status: number; body: unknown }[] = [];
+  const pending: Promise<void>[] = [];
   const requests: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => {
-    if (message.type() === "error") errors.push(message.text());
+    if (message.type() === "error")
+      consoleErrors.push({ text: message.text(), url: message.location().url });
+  });
+  page.on("response", (response) => {
+    if (response.status() < 400) return;
+    pending.push(
+      (async () => {
+        try {
+          failedResponses.push({
+            url: response.url(),
+            status: response.status(),
+            body: await response.json(),
+          });
+        } catch {
+          errors.push(`Unreadable failed response: ${response.url()}`);
+        }
+      })(),
+    );
   });
   page.on("request", (request) => requests.push(request.url()));
-  return { errors, requests };
+  return {
+    requests,
+    async assertHealthy() {
+      await Promise.all(pending);
+      expect(errors).toEqual([]);
+      if (!expectUnconfiguredStorage) {
+        expect(failedResponses).toEqual([]);
+        expect(consoleErrors).toEqual([]);
+        return;
+      }
+      // This suite provisions no PG/evidence workspace. Account for each exact
+      // unavailable response and console record; never ignore arbitrary 503s.
+      const expected: Record<string, { code: string; message: string }> = {
+        "/api/v1/offline-runs": {
+          code: "RUN_DB_NOT_CONFIGURED",
+          message: "Offline run storage is not configured.",
+        },
+        "/api/v1/evidence": {
+          code: "RUN_DB_NOT_CONFIGURED",
+          message: "Offline run storage is not configured.",
+        },
+      };
+      expect(
+        new Set(failedResponses.map((entry) => new URL(entry.url).pathname)),
+      ).toEqual(new Set(Object.keys(expected)));
+      for (const entry of failedResponses) {
+        const url = new URL(entry.url);
+        expect(url.origin).toBe("http://127.0.0.1:5175");
+        expect(entry.status).toBe(503);
+        expect(entry.body).toEqual(expected[url.pathname]);
+      }
+      expect(consoleErrors.map((entry) => entry.url).sort()).toEqual(
+        failedResponses.map((entry) => entry.url).sort(),
+      );
+      for (const entry of consoleErrors)
+        expect(entry.text).toBe(
+          "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+        );
+    },
+  };
+}
+async function assertUnavailableStorage(page: Page, id: string) {
+  if (id === "runs")
+    await expect(
+      page.getByText(
+        /Offline run storage is not configured\.|OFFLINE 실행 저장소가 구성되지 않았습니다\./,
+      ),
+    ).toBeVisible();
+  if (id === "evidence") {
+    const unavailable = page.getByRole("alert").filter({
+      hasText:
+        /The operation could not be validated or storage is unavailable\.|작업을 검증할 수 없거나 저장소를 사용할 수 없습니다\./,
+    });
+    // Both the completed-Run selector and evidence repository need the absent PG.
+    await expect(unavailable).toHaveCount(2);
+    await expect(unavailable.nth(0)).toBeVisible();
+    await expect(unavailable.nth(1)).toBeVisible();
+  }
 }
 async function assertNoDocumentOverflow(page: Page) {
   const geometry = await page.evaluate(() => ({
@@ -40,6 +117,7 @@ async function navigate(page: Page, id: string) {
   await page.getByRole("navigation").locator(`a[href="/${id}"]`).click();
   await expect(page).toHaveURL(new RegExp("/" + id + "$"));
   await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+  await assertUnavailableStorage(page, id);
 }
 async function shot(page: Page, info: TestInfo, name: string) {
   await page.screenshot({
@@ -51,7 +129,7 @@ async function shot(page: Page, info: TestInfo, name: string) {
 test("all 15 actual menu routes render from the real API", async ({
   page,
 }, info) => {
-  const observed = diagnostics(page);
+  const observed = diagnostics(page, true);
   await page.goto("/overview");
   await expect(
     page.getByRole("heading", { name: "Validation workspace" }),
@@ -65,7 +143,7 @@ test("all 15 actual menu routes render from the real API", async ({
     ).toHaveAttribute("aria-current", "page");
     await assertNoDocumentOverflow(page);
   }
-  expect(observed.errors).toEqual([]);
+  await observed.assertHealthy();
   expect(
     observed.requests.filter(
       (url) => !url.startsWith("http://127.0.0.1:5175/"),
@@ -76,7 +154,7 @@ test("all 15 actual menu routes render from the real API", async ({
 test("Korean language persists and every page remains accessible", async ({
   page,
 }, info) => {
-  const observed = diagnostics(page);
+  const observed = diagnostics(page, true);
   await page.goto("/overview");
   await page
     .getByRole("combobox", { name: "Interface language" })
@@ -95,6 +173,7 @@ test("Korean language persists and every page remains accessible", async ({
       .locator(`a[href="/${route.id}"]`)
       .click();
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await assertUnavailableStorage(page, route.id);
     await assertNoDocumentOverflow(page);
   }
   await page.goto("/overview");
@@ -102,14 +181,14 @@ test("Korean language persists and every page remains accessible", async ({
     page.getByRole("heading", { name: "검증 워크스페이스" }),
   ).toBeVisible();
   await shot(page, info, "overview-ko-1440");
-  expect(observed.errors).toEqual([]);
+  await observed.assertHealthy();
 });
 
 for (const width of [1024, 390]) {
   test(`all pages reflow without document overflow at ${width}px`, async ({
     page,
   }, info) => {
-    const observed = diagnostics(page);
+    const observed = diagnostics(page, true);
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/overview");
     await expect(
@@ -123,7 +202,7 @@ for (const width of [1024, 390]) {
     await shot(page, info, `overview-en-${width}`);
     await navigate(page, "agent");
     await shot(page, info, `agent-en-${width}`);
-    expect(observed.errors).toEqual([]);
+    await observed.assertHealthy();
   });
 }
 
@@ -156,7 +235,7 @@ test("keyboard page search focuses input and navigates; native dialogs restore f
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(add).toBeFocused();
-  expect(observed.errors).toEqual([]);
+  await observed.assertHealthy();
 });
 
 test("real target, MCP, Skill, assignment, context and campaign drafts persist without execution", async ({
@@ -226,6 +305,7 @@ test("real target, MCP, Skill, assignment, context and campaign drafts persist w
   ).toBeVisible();
 
   await navigate(page, "agent");
+  await page.locator("details.chat-assignment > summary").click();
   await page
     .getByRole("checkbox", { name: `Assign ${skillName}`, exact: true })
     .check();
@@ -265,6 +345,7 @@ test("real target, MCP, Skill, assignment, context and campaign drafts persist w
   );
   await shot(page, info, "agent-with-real-drafts-1440");
   await page.reload();
+  await page.locator("details.chat-assignment > summary").click();
   await expect(
     page.getByRole("checkbox", { name: `Assign ${skillName}`, exact: true }),
   ).toBeChecked();
@@ -322,7 +403,7 @@ test("real target, MCP, Skill, assignment, context and campaign drafts persist w
   await page.setViewportSize({ width: 390, height: 900 });
   await assertNoDocumentOverflow(page);
   await shot(page, info, "campaign-draft-390");
-  expect(observed.errors).toEqual([]);
+  await observed.assertHealthy();
   expect(observed.requests.some((url) => url.includes(":59999"))).toBe(false);
 });
 
@@ -392,7 +473,7 @@ test("deep links, history and unknown routes behave deliberately", async ({
   await expect(
     page.getByRole("heading", { name: "Validation workspace" }),
   ).toBeVisible();
-  expect(observed.errors).toEqual([]);
+  await observed.assertHealthy();
 });
 
 test("representative real pages pass automated accessibility checks", async ({

@@ -2,6 +2,27 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AgentPage } from "./index";
+// Only the new read-only metadata GETs are isolated; legacy writes stay real.
+vi.mock("./chat-client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./chat-client")>();
+  return {
+    ...actual,
+    chatClient: {
+      ...actual.chatClient,
+      runtime: vi
+        .fn()
+        .mockRejectedValue(new Error("Synthetic chat metadata unavailable")),
+      sessions: vi.fn().mockResolvedValue([]),
+    },
+  };
+});
+function openAssignment() {
+  fireEvent.click(
+    screen.getByText(
+      /Assignment and deterministic preview|할당 및 결정적 미리보기/,
+    ),
+  );
+}
 import { aiFixture, jsonResponse } from "./testFixtures";
 
 const syntheticPreview = {
@@ -22,6 +43,7 @@ describe("Deterministic context boundaries", () => {
       const fetchMock = vi.fn();
       vi.stubGlobal("fetch", fetchMock);
       render(<AgentPage {...aiFixture()} />);
+      openAssignment();
       expect(screen.getByLabelText("Review goal")).toHaveAttribute(
         "maxlength",
         "2000",
@@ -49,6 +71,7 @@ describe("Deterministic context boundaries", () => {
       );
     vi.stubGlobal("fetch", fetchMock);
     render(<AgentPage {...props} />);
+    openAssignment();
     fireEvent.change(screen.getByLabelText("Review goal"), {
       target: { value: "Synthetic first goal" },
     });
@@ -100,6 +123,7 @@ describe("Deterministic context boundaries", () => {
       ),
     );
     const { rerender } = render(<AgentPage {...props} />);
+    openAssignment();
     fireEvent.change(screen.getByLabelText("Review goal"), {
       target: { value: "Synthetic pending goal" },
     });
@@ -135,6 +159,7 @@ describe("Deterministic context boundaries", () => {
         .mockResolvedValue(jsonResponse({ ...syntheticPreview, ...override })),
     );
     render(<AgentPage {...aiFixture()} />);
+    openAssignment();
     fireEvent.change(screen.getByLabelText("Review goal"), {
       target: { value: "Synthetic review goal" },
     });

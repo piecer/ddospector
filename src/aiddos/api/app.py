@@ -1,5 +1,6 @@
 """FastAPI application wiring."""
 
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -10,6 +11,8 @@ from aiddos.runs.lifetime import lifespan
 from aiddos.startup import startup_setting
 
 from .boundary import DevelopmentBoundary
+from .chat import chat_router
+from .chat_runtime import ChatRuntime
 from .construction import serialized
 from .errors import DraftError, error_response
 from .evidence import evidence_router
@@ -49,9 +52,21 @@ def create_app(*, state_path: str | Path | None = None) -> FastAPI:
 
 @serialized
 def _compose_app(store, scenarios, runs) -> FastAPI:
+    chat = ChatRuntime(store)
+
+    @asynccontextmanager
+    async def combined_lifespan(app):
+        async with lifespan(app):
+            try:
+                yield
+            finally:
+                await chat.close()
+
     application = FastAPI(
-        docs_url=None, redoc_url=None, openapi_url=None, redirect_slashes=False, lifespan=lifespan
+        docs_url=None, redoc_url=None, openapi_url=None, redirect_slashes=False,
+        lifespan=combined_lifespan
     )
+    application.state.chat = chat
     application.add_middleware(DevelopmentBoundary)
 
     @application.exception_handler(Exception)
@@ -125,6 +140,7 @@ def _compose_app(store, scenarios, runs) -> FastAPI:
         return error_response("AGENT_EXECUTION_NOT_AVAILABLE")
 
     application.include_router(scenarios)
+    application.include_router(chat_router(chat))
     application.include_router(runs)
     application.include_router(evidence_router())
     return application

@@ -591,7 +591,7 @@ it("renders Korean controls, manual identifiers and the complete long endpoint",
   await screen.findByRole("heading", { name: "검토 모델" });
   expect(screen.getByText(longModel)).toBeVisible();
   expect(screen.getByText(longURL)).toBeVisible();
-  expect(screen.getByText(/실행한 적 없음/)).toBeVisible();
+  expect(screen.getByText(/저장해도 모델을 테스트하거나 실행하지 않습니다/)).toBeVisible();
   await userEvent.click(screen.getByRole("button", { name: "편집 검토 모델" }));
   expect(
     screen.getByRole("dialog", { name: "모델 프로필 편집" }),
@@ -698,7 +698,7 @@ it("distinguishes a loading read from authoritative empty settings", async () =>
   await act(async () => read.resolve(response(empty())));
   expect(screen.getByRole("heading", { name: "AI settings" })).toBeVisible();
   expect(screen.getByText("No model profiles yet")).toBeVisible();
-  expect(screen.getByText(/Never executed/)).toBeVisible();
+  expect(screen.getByText(/Saving settings does not test or run a model/)).toBeVisible();
   expect(fetcher).toHaveBeenCalledWith(
     "/api/v1/ai-settings",
     expect.objectContaining({ method: "GET" }),

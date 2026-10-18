@@ -1,8 +1,9 @@
 .DEFAULT_GOAL := help
-.PHONY: help setup api web test test-api test-web test-tooling test-runs test-evidence test-phase3-config lint build test-e2e
+.PHONY: help setup api web test test-api test-chat test-web test-tooling test-runs test-evidence test-phase3-config lint build test-e2e
 help:
 	@printf '%s\n' 'DDoSpector · local UI workspace' '  make setup     Locked Python and web dependencies' '  make api       Local API on 127.0.0.1:5180' '  make web       UI on 127.0.0.1:5173 (separate terminal)' '  make test      API and UI unit/integration suites' '  make lint      Ruff, ESLint and TypeScript checks' '  make build     Production UI build' '  make test-e2e  Real Chromium + isolated API/browser state'
 	@printf '%s\n' '  make test-phase3-config  Zero-network deployment-profile and CLI tests'
+	@printf '%s\n' '  make test-chat   Chat API and owned local-provider protocol tests'
 setup:
 	uv sync --frozen
 	npm --prefix web ci
@@ -19,9 +20,11 @@ api:
 	.venv/bin/python -m uvicorn ddospector.api.app:app --host 127.0.0.1 --port 5180
 web:
 	npm --prefix web run dev
-test: test-api test-web test-tooling test-runs test-evidence test-phase3-config
+test: test-api test-chat test-web test-tooling test-runs test-evidence test-phase3-config
 test-api:
 	uv run --frozen pytest tests/api -q
+test-chat:
+	uv run --frozen pytest tests/chat -q
 test-web:
 	npm --prefix web test
 test-tooling:
@@ -36,7 +39,7 @@ test-runs:
 	uv run --frozen pytest tests/runs -q --junitxml=implementation-evidence/test-runs-$$id.xml
 	@printf '%s\n' 'I0 + I1 admission tests. Worker/remaining API/Node parity/Runs UI/full S02 E2E: OPEN.'
 lint:
-	uv run --frozen ruff check src tests/api tests/runs tests/tooling tests/evidence tests/lab tools
+	uv run --frozen ruff check src tests/api tests/chat tests/runs tests/tooling tests/evidence tests/lab tools
 	npm --prefix web run lint
 	npm --prefix web run typecheck
 build:

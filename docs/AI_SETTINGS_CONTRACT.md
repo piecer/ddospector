@@ -4,6 +4,14 @@ Status: configuration implementation and independent acceptance complete. Fresh 
 
 ## Configuration scope
 
+This document governs the legacy configuration/preview endpoints, not the separate
+CHAT-01 text-chat runtime. See `CHAT_CONTRACT.md` for explicit chat-session consent,
+supported local providers, durable conversations and runtime capability/status.
+The stored `execution_enabled=false` and `connection_status=not_tested` fields
+describe configuration drafts; they are not a measurement of an active chat.
+Saving a profile still performs no inference, and all legacy denial endpoints below
+remain denied. CHAT-01 does not resolve credential environment references.
+
 Included: multiple named profiles; protocol is distinct from vendor; manual model ID and Base URL; explicit default; independent streaming/context/output/thinking/effort controls; profile-level connect/empty/stream retry overrides.
 
 Unavailable: plaintext API-key storage, arbitrary proxy/session headers, runtime provider activation, health claims, model discovery, connection/completion tests, automatic failover, global retry/pool machinery, or autonomous task execution. Connection tests and model discovery are disabled in the UI and denied by the server.

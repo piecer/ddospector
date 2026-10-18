@@ -5,6 +5,7 @@ import type { RouteId } from "./lib/navigation";
 import { navigation, routeFromPath } from "./lib/navigation";
 import { api } from "./lib/api";
 import { choose, text } from "./lib/i18n";
+import { AgentPage } from "./pages/ai/AgentPage";
 import { WorkspaceShell } from "./components/WorkspaceShell";
 import { Button, Notice, PageHeader, Panel } from "./components/ui";
 export type ApplicationProps = {
@@ -130,6 +131,14 @@ export function Application({ pages }: ApplicationProps) {
             </Button>
           </Panel>
         </div>
+      ) : route === "agent" ? (
+        <AgentPage
+          data={data}
+          locale={locale}
+          navigate={navigate}
+          refresh={refresh}
+          mutationsEnabled={connection === "ready"}
+        />
       ) : data ? (
         <>
           {connection === "error" && (

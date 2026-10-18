@@ -294,8 +294,8 @@ export function WorkspaceShell({
             </span>
             <span>
               {c(
-                "Drafts only · No test traffic",
-                "초안 전용 · 시험 트래픽 없음",
+                "OFFLINE test traffic · Chat requires consent",
+                "OFFLINE 시험 트래픽 · 대화는 별도 승인 필요",
               )}
             </span>
           </footer>

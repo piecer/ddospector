@@ -174,8 +174,8 @@ export function AISettingsPage({ locale }: PageProps) {
         title={t("AI settings", "AI 설정")}
         eyebrow={t("AI & governance", "AI 및 거버넌스")}
         description={t(
-          "Named model drafts for a review-only workspace. Protocol and vendor are separate choices.",
-          "검토 전용 워크스페이스의 모델 초안입니다. 프로토콜은 공급자와 별개입니다.",
+          "Named model settings. Saving is draft-only; Agent chat requires separate destination consent.",
+          "이름으로 관리하는 모델 설정입니다. 저장은 초안 전용이며 에이전트 대화에는 별도 대상 승인이 필요합니다.",
         )}
         actions={
           <Button
@@ -194,8 +194,8 @@ export function AISettingsPage({ locale }: PageProps) {
       />
       <Notice tone="warning">
         {t(
-          "Draft configuration only · Not tested · Never executed. Saving does not activate a provider.",
-          "초안 설정 전용 · 테스트 안 됨 · 실행한 적 없음. 저장해도 공급자가 활성화되지 않습니다.",
+          "Saving settings does not test or run a model. Chat requires separate consent in Agent.",
+          "저장해도 모델을 테스트하거나 실행하지 않습니다. 대화에는 에이전트 화면에서 별도 승인이 필요합니다.",
         )}
       </Notice>
       {saved && (

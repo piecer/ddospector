@@ -82,7 +82,14 @@ AI settings manage multiple model configuration drafts without activating a prov
 
 ## Deliberate boundaries
 
-LIVE run admission, model inference, MCP connection/handshake, traffic generation, instrument control, approvals, verdicts and evidence capture are unavailable. The legacy LIVE execution endpoint remains denied. The OFFLINE Runs route reads actual run storage; it shows an unavailable state when storage is absent, not fabricated empty history. The supervised Phase-1 path is accepted; full original S02 integration remains unaccepted.
+The separate CHAT-01 text-chat contract is documented in `docs/CHAT_CONTRACT.md`.
+It uses explicit session consent and a supported local, unauthenticated
+Chat Completions model; saving configuration or previewing instructions still
+does not activate inference. Runtime readiness and conversation results come
+from `/api/v1/chat`, not the legacy draft capability flags. Settings tools and
+multi-step approvals are later CHAT stages, not capabilities inferred from model text.
+
+LIVE run admission, MCP connection/handshake, traffic generation, instrument control, operational approvals, full defense verdicts and live evidence capture remain unavailable. The legacy LIVE execution endpoint remains denied. The OFFLINE Runs route reads actual run storage; it shows an unavailable state when storage is absent, not fabricated empty history. The supervised Phase-1 path is accepted; full original S02 integration remains unaccepted.
 
 The ordinary API stores drafts in `.local/ui-drafts.json` (override `DDOSPECTOR_UI_STATE_PATH`; legacy `AIDDOS_UI_STATE_PATH` remains supported). This single-process JSON store is separate from PostgreSQL OFFLINE run storage. Ordinary API startup does not provision a database or migrate drafts. Explicit Phase-1 `create` provisions its own database and keeps drafts inside the new private workspace; it does not copy existing drafts. Keep drafts private and back them up before experimenting. Never put credentials into target addresses, MCP URLs or Skill instructions; no secrets workflow is implemented. Corrupt existing state must be surfaced, not reset silently.
 

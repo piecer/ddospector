@@ -95,6 +95,7 @@ test("an older save readback cannot unlock a still-open unrelated campaign draft
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
   await page.getByRole("navigation").locator('a[href="/agent"]').click();
+  await page.locator("details.chat-assignment > summary").click();
   await expect(
     page.getByRole("button", { name: "Save assignment", exact: true }),
   ).toBeDisabled();
