@@ -86,8 +86,13 @@ The separate CHAT-01 text-chat contract is documented in `docs/CHAT_CONTRACT.md`
 It uses explicit session consent and a supported local, unauthenticated
 Chat Completions model; saving configuration or previewing instructions still
 does not activate inference. Runtime readiness and conversation results come
-from `/api/v1/chat`, not the legacy draft capability flags. Settings tools and
-multi-step approvals are later CHAT stages, not capabilities inferred from model text.
+from `/api/v1/chat`, not the legacy draft capability flags. Text-only chat remains
+the default. The separately consented CHAT-02A companion path is specified in
+`docs/CHAT_TOOLS_CONTRACT.md`: native Agent/Skill reads and one exactly approved
+Agent name/Skill-assignment write, with conflict checks, audit and stored readback.
+Provider settings, MCP assignments and execution are not writable by these tools.
+Target/Skill creation and scenario saves remain CHAT-02B; multi-step planning is
+CHAT-03. None of these permissions can be inferred from model or Skill text.
 
 LIVE run admission, MCP connection/handshake, traffic generation, instrument control, operational approvals, full defense verdicts and live evidence capture remain unavailable. The legacy LIVE execution endpoint remains denied. The OFFLINE Runs route reads actual run storage; it shows an unavailable state when storage is absent, not fabricated empty history. The supervised Phase-1 path is accepted; full original S02 integration remains unaccepted.
 

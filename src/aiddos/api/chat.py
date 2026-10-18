@@ -52,7 +52,7 @@ def chat_router(runtime):
     @router.get("/runtime")
     async def get_runtime(request: Request):
         query(request)
-        return response(runtime_view(runtime.draft.ai_snapshot()))
+        return response(runtime_view(await runtime.metadata_snapshot()))
 
     @router.post("/sessions")
     async def create_session(request: Request):

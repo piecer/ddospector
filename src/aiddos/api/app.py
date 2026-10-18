@@ -13,6 +13,7 @@ from aiddos.startup import startup_setting
 from .boundary import DevelopmentBoundary
 from .chat import chat_router
 from .chat_runtime import ChatRuntime
+from .chat_tool_routes import tool_router
 from .construction import serialized
 from .errors import DraftError, error_response
 from .evidence import evidence_router
@@ -141,6 +142,7 @@ def _compose_app(store, scenarios, runs) -> FastAPI:
 
     application.include_router(scenarios)
     application.include_router(chat_router(chat))
+    application.include_router(tool_router(chat))
     application.include_router(runs)
     application.include_router(evidence_router())
     return application

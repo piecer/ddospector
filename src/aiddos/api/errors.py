@@ -3,6 +3,17 @@
 from starlette.responses import JSONResponse
 
 ERRORS = {
+    "CHAT_TOOL_GRANT_CONFLICT": (409, "This grant request is bound to different input."),
+    "CHAT_TOOL_GRANT_INVALID": (409, "This tool grant is invalid, revoked or expired."),
+    "CHAT_TOOL_APPROVAL_CONFLICT": (
+        409, "This decision conflicts with the retained tool proposal."
+    ),
+    "CHAT_TOOL_CONFLICT": (409, "Configuration changed; review a new proposal."),
+    "CHAT_TOOL_WRITE_FENCED": (409, "Tool writes are fenced; inspect and explicitly reconcile."),
+    "CHAT_TOOL_DENIED": (403, "The proposed tool operation was not authorized."),
+    "CHAT_TOOL_LIMIT": (413, "Tool processing exceeded a resource limit."),
+    "CHAT_TOOL_PROTOCOL": (502, "The provider returned an unsupported tool response."),
+    "CHAT_TOOL_UNCERTAIN": (503, "Tool write outcome is uncertain; it was not retried."),
     "CHAT_INVALID_REQUEST": (422, "Invalid chat request."),
     "CHAT_NOT_CONFIGURED": (409, "No chat profile is selected."),
     "CHAT_UNSUPPORTED_PROFILE": (409, "This profile is not supported for local chat."),

@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import type { PageProps } from "../../lib/contracts";
 import { choose } from "../../lib/i18n";
 import { Button, PageHeader } from "../../components/ui";
@@ -14,6 +15,12 @@ export function AgentPage({
   data?: PageProps["data"] | null;
   mutationsEnabled?: boolean;
 }) {
+  const assignment = useRef<HTMLDetailsElement>(null);
+  const viewSaved = () => {
+    if (!assignment.current) return;
+    assignment.current.open = true;
+    assignment.current.querySelector<HTMLInputElement>("input")?.focus();
+  };
   const t = (en: string, ko: string) => choose(locale, en, ko);
   return (
     <div className="page-stack ai-page">
@@ -21,8 +28,8 @@ export function AgentPage({
         eyebrow={t("AI & governance", "AI 및 거버넌스")}
         title={t("Agent", "에이전트")}
         description={t(
-          "Talk to your approved local model. Settings and device actions remain outside chat authority.",
-          "승인한 로컬 모델과 대화하세요. 대화에는 설정 변경이나 장치 작업 권한이 없습니다.",
+          "Talk to your approved local model. Agent settings require explicit read/propose consent and separate exact write approval. Device actions remain unavailable.",
+          "승인한 로컬 모델과 대화하세요. 에이전트 설정에는 명시적 읽기/제안 동의와 별도 저장 승인이 필요합니다. 장치 작업은 불가능합니다.",
         )}
         actions={
           <Button onClick={() => navigate("ai-settings")}>
@@ -30,10 +37,15 @@ export function AgentPage({
           </Button>
         }
       />
-      <ChatPanel locale={locale} mutationsEnabled={mutationsEnabled} />
+      <ChatPanel
+        locale={locale}
+        mutationsEnabled={mutationsEnabled}
+        onSaved={refresh}
+        onViewSaved={viewSaved}
+      />
       {data && (
         <fieldset className="page-fieldset" disabled={!mutationsEnabled}>
-          <details className="chat-assignment">
+          <details className="chat-assignment" ref={assignment}>
             <summary>
               {t(
                 "Assignment and deterministic preview",

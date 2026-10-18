@@ -4,6 +4,7 @@ import json
 import os
 import stat
 import tempfile
+from collections.abc import Callable
 from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
@@ -96,7 +97,9 @@ class DraftStore:
         except OSError:
             raise DraftError("STATE_UNAVAILABLE") from None
 
-    def _write(self, state: DraftState) -> None:
+    def _write(
+        self, state: DraftState, *, publication_guard: Callable[[], None] | None = None
+    ) -> None:
         if state.audit_total > 9007199254740991:
             raise DraftError("AUDIT_LIMIT_REACHED")
         state.audit = state.audit[-500:]
@@ -110,6 +113,8 @@ class DraftStore:
                 stream.write(state.model_dump_json())
                 stream.flush()
                 os.fsync(stream.fileno())
+            if publication_guard is not None:
+                publication_guard()
             os.replace(temporary, self.path)
             published = True
             directory = os.open(self.path.parent, os.O_RDONLY | os.O_DIRECTORY)
@@ -192,27 +197,70 @@ class DraftStore:
             self._write(state)
             return entity
 
-    def save_agent_profile(self, value: AgentProfileInput) -> AgentProfile:
+    def validate_agent_profile(self, state: DraftState, value: AgentProfileInput) -> AgentProfile:
+        """Shared business validation; caller holds the draft lock for this state."""
+        catalog = initial_workspace()
+        skill_ids = {item["id"] for item in catalog["skills"]} | {s.id for s in state.skills}
+        mcp_ids = {server.id for server in state.mcp_servers}
+        if not set(value.skill_ids) <= skill_ids or not set(value.mcp_server_ids) <= mcp_ids:
+            raise DraftError("INVALID_REFERENCE")
+        return AgentProfile(
+            **value.model_dump(),
+            autonomy=state.agent_profile.autonomy,
+            execution_enabled=state.agent_profile.execution_enabled,
+        )
+
+    def save_agent_profile(
+        self,
+        value: AgentProfileInput,
+        *,
+        expected_draft_revision: int | None = None,
+        publication_guard: Callable[[], None] | None = None,
+    ) -> AgentProfile:
         with self.lock:
             state = self._read()
-            catalog = initial_workspace()
-            skill_ids = {item["id"] for item in catalog["skills"]} | {s.id for s in state.skills}
-            mcp_ids = {server.id for server in state.mcp_servers}
-            if not set(value.skill_ids) <= skill_ids or not set(value.mcp_server_ids) <= mcp_ids:
-                raise DraftError("INVALID_REFERENCE")
-            profile = AgentProfile(**value.model_dump())
-            state.agent_profile = profile
-            state.audit.append(
-                AuditEvent(
-                    id=str(uuid4()),
-                    action="agent_profile.updated",
-                    entity_id="agent-profile",
-                    created_at=timestamp(),
-                )
+            if expected_draft_revision is not None and state.audit_total != expected_draft_revision:
+                raise DraftError("CHAT_TOOL_CONFLICT")
+            return self._save_agent_profile(state, value, publication_guard)
+
+    def _save_agent_profile(self, state, value, publication_guard):
+        profile = self.validate_agent_profile(state, value)
+        state.agent_profile = profile
+        state.audit.append(
+            AuditEvent(
+                id=str(uuid4()),
+                action="agent_profile.updated",
+                entity_id="agent-profile",
+                created_at=timestamp(),
             )
-            state.audit_total += 1
+        )
+        state.audit_total += 1
+        if publication_guard is None:
             self._write(state)
-            return profile
+        else:
+            self._write(state, publication_guard=publication_guard)
+        return profile
+
+    def save_agent_profile_receipt(
+        self,
+        value: AgentProfileInput,
+        *,
+        expected_draft_revision: int,
+        publication_guard: Callable[[], None],
+    ) -> tuple[AgentProfile, AuditEvent]:
+        """Publish once and verify the exact image/audit before releasing the lock."""
+        with self.lock:
+            state = self._read()
+            if state.audit_total != expected_draft_revision:
+                raise DraftError("CHAT_TOOL_CONFLICT")
+            self._save_agent_profile(state, value, publication_guard)
+            try:
+                actual = self._read()
+                if actual.model_dump() != state.model_dump():
+                    raise DraftError("STATE_COMMIT_UNCERTAIN")
+            except Exception:
+                raise DraftError("STATE_COMMIT_UNCERTAIN") from None
+            return actual.agent_profile, actual.audit[-1]
 
     def create_skill(self, value: SkillInput) -> Skill:
         with self.lock:

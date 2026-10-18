@@ -92,6 +92,7 @@ class ChatStorage:
             self.db.execute("PRAGMA foreign_keys=ON")
             if fresh:
                 with self.db:
+                    self.db.execute("BEGIN IMMEDIATE")
                     for sql in SCHEMA.values():
                         self.db.execute(sql)
                     self.db.execute(f"PRAGMA application_id={APPLICATION_ID}")
@@ -101,6 +102,11 @@ class ChatStorage:
             self.db.execute("PRAGMA journal_mode=DELETE")
             page_size = self.db.execute("PRAGMA page_size").fetchone()[0]
             self.db.execute(f"PRAGMA max_page_count={16 * 1024 * 1024 // page_size}")
+            if self.db.execute("PRAGMA user_version").fetchone()[0] == 1:
+                from .chat_tool_storage import migrate
+
+                migrate(self)
+                self.validate()
             self.recover()
             return True
         except DraftError:
@@ -111,15 +117,18 @@ class ChatStorage:
             raise DraftError("CHAT_STORAGE_ERROR") from None
 
     def validate(self):
-        if (
-            self.db.execute("PRAGMA application_id").fetchone()[0] != APPLICATION_ID
-            or self.db.execute("PRAGMA user_version").fetchone()[0] != 1
-        ):
+        from .chat_tool_storage import TOOL_SCHEMA
+
+        version = self.db.execute("PRAGMA user_version").fetchone()[0]
+        if self.db.execute("PRAGMA application_id").fetchone()[
+            0
+        ] != APPLICATION_ID or version not in (1, 2):
             raise ValueError
         rows = self.db.execute(
             "SELECT name, sql FROM sqlite_master WHERE sql IS NOT NULL"
         ).fetchall()
-        if dict(rows) != SCHEMA or self.db.execute("PRAGMA quick_check").fetchall() != [("ok",)]:
+        schema = SCHEMA if version == 1 else SCHEMA | TOOL_SCHEMA
+        if dict(rows) != schema or self.db.execute("PRAGMA quick_check").fetchall() != [("ok",)]:
             raise ValueError
         sessions = {}
         for identifier, request, commitment, profile, raw in self.db.execute(
@@ -187,8 +196,15 @@ class ChatStorage:
                 "active_turn_id"
             ] != pending.get(sid):
                 raise ValueError
+        if version == 2:
+            from .chat_tool_storage import ToolLedger
+
+            ToolLedger(self).validate()
 
     def recover(self):
+        from .chat_tool_storage import ToolLedger
+
+        ToolLedger(self).recover()
         turns = [json.loads(row[0]) for row in self.db.execute("SELECT data FROM turns")]
         pending = [turn for turn in turns if turn["status"] not in TERMINAL]
         if not pending:
@@ -263,6 +279,17 @@ class ChatStorage:
 
     @storage_read
     def replay(self, table, request_id, commitment):
+        if table not in {"sessions", "turns"}:
+            raise ValueError("Unknown replay table")
+        if (
+            table == "turns"
+            and self.db.execute(
+                "SELECT 1 FROM tool_bindings WHERE key=(SELECT id FROM turns WHERE request_id=?)",
+                (request_id,),
+            ).fetchone()
+            is not None
+        ):
+            raise DraftError("CHAT_IDEMPOTENCY_CONFLICT")
         row = self.db.execute(
             f"SELECT commitment, data FROM {table} WHERE request_id=?", (request_id,)
         ).fetchone()
@@ -315,23 +342,26 @@ class ChatStorage:
 
     def add_turn(self, session, turn, commitment):
         with self.transaction():
-            # Reserve the full possible assistant output for the sole active turn.
-            if self.text_bytes() + len(turn["user_text"].encode()) + 65536 > 8388608:
-                raise DraftError("CHAT_RETENTION_FULL")
-            self.db.execute(
-                "INSERT INTO turns VALUES (?,?,?,?,?,?)",
-                (
-                    turn["id"],
-                    turn["request_id"],
-                    session["id"],
-                    turn["sequence"],
-                    encoded(commitment).decode(),
-                    encoded(turn).decode(),
-                ),
-            )
-            self.db.execute(
-                "UPDATE sessions SET data=? WHERE id=?", (encoded(session).decode(), session["id"])
-            )
+            self._insert_turn(session, turn, commitment)
+
+    def _insert_turn(self, session, turn, commitment):
+        """Caller owns transaction, including any companion binding/reservation."""
+        if self.text_bytes() + len(turn["user_text"].encode()) + 65536 > 8388608:
+            raise DraftError("CHAT_RETENTION_FULL")
+        self.db.execute(
+            "INSERT INTO turns VALUES (?,?,?,?,?,?)",
+            (
+                turn["id"],
+                turn["request_id"],
+                session["id"],
+                turn["sequence"],
+                encoded(commitment).decode(),
+                encoded(turn).decode(),
+            ),
+        )
+        self.db.execute(
+            "UPDATE sessions SET data=? WHERE id=?", (encoded(session).decode(), session["id"])
+        )
 
     def update_turn(self, turn):
         with self.transaction():

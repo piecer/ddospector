@@ -7,8 +7,27 @@ import {
   ChatRequestError,
   observeTurn,
 } from "./chat-client";
+import { toolClient } from "./chat-tool-client";
+import { readChatMetadata } from "./chat-metadata";
+import type { ToolGrant } from "./chat-tool-types";
 import { terminal, validText } from "./chat-wire";
-export function useChat(locale: Locale, mutationsEnabled: boolean) {
+type Submission = {
+  session: ChatSession;
+  request: string;
+  text: string;
+  grantRequest?: string;
+  grant?: ToolGrant;
+  dispatched?: boolean;
+};
+export function useChat(
+  locale: Locale,
+  mutationsEnabled: boolean,
+  toolsAllowed = false,
+) {
+  const authority = useRef({ mutationsEnabled, toolsAllowed });
+  authority.current = { mutationsEnabled, toolsAllowed };
+  const [toolTurns, setToolTurns] = useState<string[]>([]);
+  const [viewEpoch, setViewEpoch] = useState(0);
   const [runtime, setRuntime] = useState<ChatRuntime | null>(null);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [session, setSession] = useState<ChatSession | null>(null);
@@ -54,6 +73,9 @@ export function useChat(locale: Locale, mutationsEnabled: boolean) {
     session: ChatSession;
     request: string;
     text: string;
+    grantRequest?: string;
+    grant?: ToolGrant;
+    dispatched?: boolean;
   } | null>(null);
   const pendingSession = useRef<{
     request: string;
@@ -68,8 +90,8 @@ export function useChat(locale: Locale, mutationsEnabled: boolean) {
     observer.current = controller;
     try {
       const [r, list] = await Promise.all([
-        chatClient.runtime(controller.signal),
-        chatClient.sessions(controller.signal),
+        readChatMetadata(chatClient.runtime, controller.signal),
+        readChatMetadata(chatClient.sessions, controller.signal),
       ]);
       if (token !== generation.current || controller.signal.aborted) return;
       const creation = pendingSession.current;
@@ -97,6 +119,8 @@ export function useChat(locale: Locale, mutationsEnabled: boolean) {
     } catch {
       if (token === generation.current && !controller.signal.aborted)
         setPhase("read-error");
+      // Retire the sibling GET (including its retry wait) on terminal failure.
+      controller.abort();
     }
   }, [detachObservation]);
   useEffect(() => {
@@ -196,7 +220,7 @@ export function useChat(locale: Locale, mutationsEnabled: boolean) {
       releaseMutation(owner);
     }
   }
-  async function send() {
+  async function send(toolMode = false) {
     if (
       locked.current ||
       pending.current ||
@@ -206,7 +230,8 @@ export function useChat(locale: Locale, mutationsEnabled: boolean) {
       !session ||
       session.active_turn_id ||
       session.sequence >= 64 ||
-      !validText(input, 8192, true)
+      !validText(input, 8192, true) ||
+      (toolMode && !toolsAllowed)
     )
       return;
     const owner = acquireMutation();
@@ -215,15 +240,44 @@ export function useChat(locale: Locale, mutationsEnabled: boolean) {
     const token = generation.current,
       text = input;
     const request = crypto.randomUUID();
-    const submission = { session, request, text };
+    const submission: Submission = {
+      session,
+      request,
+      text,
+      ...(toolMode
+        ? { grantRequest: crypto.randomUUID(), dispatched: false }
+        : {}),
+    };
     pending.current = submission;
     try {
-      const accepted = await chatClient.submit(
-        session.id,
-        request,
-        session.sequence,
-        text,
-      );
+      if (submission.grantRequest) {
+        submission.grant = await toolClient.grant(
+          session,
+          submission.grantRequest,
+          request,
+          text,
+        );
+        if (
+          token !== generation.current ||
+          !authority.current.mutationsEnabled ||
+          !authority.current.toolsAllowed
+        ) {
+          if (token === generation.current) setPhase("grant-recovered");
+          return;
+        }
+      }
+      const accepted = submission.grant
+        ? await toolClient.submit(session, submission.grant, text, () => {
+            if (
+              token !== generation.current ||
+              !authority.current.mutationsEnabled ||
+              !authority.current.toolsAllowed
+            )
+              return false;
+            submission.dispatched = true;
+            return true;
+          })
+        : await chatClient.submit(session.id, request, session.sequence, text);
       // Bound acceptance can retire this request without adopting an old view.
       if (pending.current === submission) pending.current = null;
       if (token !== generation.current) return;
@@ -233,6 +287,7 @@ export function useChat(locale: Locale, mutationsEnabled: boolean) {
         sequence: accepted.sequence,
         active_turn_id: terminal(accepted) ? null : accepted.id,
       });
+      if (toolMode) setToolTurns((old) => [...old, accepted.id]);
       setTurns((old) => [...old, accepted].slice(-2));
       setBefore(undefined);
       setNextBefore(accepted.sequence > 2 ? accepted.sequence - 1 : null);
@@ -262,6 +317,22 @@ export function useChat(locale: Locale, mutationsEnabled: boolean) {
     detachObservation();
     try {
       const { session: saved, request, text } = submission;
+      if (submission.grantRequest && !submission.dispatched) {
+        submission.grant = await toolClient.recoverGrant(
+          saved,
+          submission.grantRequest,
+          request,
+          text,
+        );
+        if (
+          ["revoked", "expired"].includes(submission.grant.status) &&
+          pending.current === submission
+        )
+          pending.current = null;
+        if (token === generation.current)
+          setPhase(pending.current ? "grant-recovered" : "ready");
+        return;
+      }
       const accepted = bindSubmission(
         await chatClient.byRequest(request),
         saved.id,
@@ -278,10 +349,79 @@ export function useChat(locale: Locale, mutationsEnabled: boolean) {
         sequence: accepted.sequence,
         active_turn_id: terminal(accepted) ? null : accepted.id,
       });
+      if (submission.grantRequest) setToolTurns((old) => [...old, accepted.id]);
       setTurns([accepted]);
       setBefore(undefined);
       setNextBefore(accepted.sequence > 1 ? accepted.sequence : null);
       watch(accepted, token, saved.streaming);
+    } catch {
+      if (token === generation.current) setPhase("unknown-send");
+    } finally {
+      releaseMutation(owner);
+    }
+  }
+  async function continueGrant() {
+    const submission = pending.current;
+    if (
+      !submission?.grant ||
+      submission.dispatched ||
+      submission.grant.status !== "pending" ||
+      locked.current ||
+      !authority.current.mutationsEnabled ||
+      !authority.current.toolsAllowed
+    )
+      return;
+    const owner = acquireMutation(),
+      token = ++generation.current;
+    detachObservation();
+    setPhase("sending");
+    const { session: saved, text, grant } = submission;
+    try {
+      const accepted = await toolClient.submit(saved, grant, text, () => {
+        if (
+          token !== generation.current ||
+          !authority.current.mutationsEnabled ||
+          !authority.current.toolsAllowed
+        )
+          return false;
+        submission.dispatched = true;
+        return true;
+      });
+      if (pending.current === submission) pending.current = null;
+      if (token !== generation.current) return;
+      if (inputRef.current === text) setInput("");
+      setSession({
+        ...saved,
+        sequence: accepted.sequence,
+        active_turn_id: terminal(accepted) ? null : accepted.id,
+      });
+      setTurns([accepted]);
+      setToolTurns([accepted.id]);
+      setBefore(undefined);
+      setNextBefore(accepted.sequence > 1 ? accepted.sequence : null);
+      watch(accepted, token, saved.streaming);
+    } catch (error) {
+      if (
+        error instanceof ChatRequestError &&
+        error.definite &&
+        pending.current === submission
+      )
+        pending.current = null;
+      if (token === generation.current)
+        setPhase(pending.current ? "unknown-send" : "rejected");
+    } finally {
+      releaseMutation(owner);
+    }
+  }
+  async function revokeGrant() {
+    const submission = pending.current;
+    if (!submission?.grant || submission.dispatched || locked.current) return;
+    const owner = acquireMutation(),
+      token = generation.current;
+    try {
+      await toolClient.revoke(submission.grant);
+      if (pending.current === submission) pending.current = null;
+      if (token === generation.current) setPhase("ready");
     } catch {
       if (token === generation.current) setPhase("unknown-send");
     } finally {
@@ -295,6 +435,7 @@ export function useChat(locale: Locale, mutationsEnabled: boolean) {
     const controller = new AbortController();
     observer.current = controller;
     reader.current = controller;
+    setToolTurns([]);
     setReading(true);
     stopOwner.current = null;
     setStopping(false);
@@ -305,6 +446,8 @@ export function useChat(locale: Locale, mutationsEnabled: boolean) {
       if (token !== generation.current || controller.signal.aborted) return;
       setSession(page.session);
       setTurns(page.turns);
+      setToolTurns(page.turns.map((t) => t.id));
+      setViewEpoch((v) => v + 1);
       setBefore(cursor);
       setNextBefore(page.next_before_sequence);
       setPhase(cursor === undefined ? "ready" : "history");
@@ -360,6 +503,8 @@ export function useChat(locale: Locale, mutationsEnabled: boolean) {
     }
   }
   return {
+    toolTurns,
+    viewEpoch,
     runtime,
     sessions,
     session,
@@ -379,6 +524,16 @@ export function useChat(locale: Locale, mutationsEnabled: boolean) {
     before,
     nextBefore,
     recoverSubmission,
+    continueGrant,
+    revokeGrant,
+    recoveredGrant:
+      pending.current?.grant && !pending.current.dispatched
+        ? {
+            text: pending.current.text,
+            session: pending.current.session.id,
+            grant: pending.current.grant,
+          }
+        : null,
     errorCode,
     uncertainSession: !!pendingSession.current,
     uncertain: !!pending.current,

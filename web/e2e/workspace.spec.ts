@@ -3,6 +3,10 @@ import type { Page, TestInfo } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { navigation } from "../src/lib/navigation";
 import type { WorkspaceSnapshot, ContextPreview } from "../src/lib/contracts";
+import {
+  unexpectedConsole,
+  type MetadataResponse,
+} from "../src/test/chat-metadata-console";
 
 test.beforeAll(async ({ request }) => {
   const health = await request.get("/api/v1/health", { timeout: 5000 });
@@ -17,7 +21,13 @@ test.beforeAll(async ({ request }) => {
 function diagnostics(page: Page, expectUnconfiguredStorage = false) {
   const errors: string[] = [];
   const consoleErrors: { text: string; url: string }[] = [];
-  const failedResponses: { url: string; status: number; body: unknown }[] = [];
+  const failedResponses: {
+    url: string;
+    status: number;
+    body: unknown;
+    fact: MetadataResponse;
+  }[] = [];
+  const metadataResponses: MetadataResponse[] = [];
   const pending: Promise<void>[] = [];
   const requests: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
@@ -26,14 +36,30 @@ function diagnostics(page: Page, expectUnconfiguredStorage = false) {
       consoleErrors.push({ text: message.text(), url: message.location().url });
   });
   page.on("response", (response) => {
+    const fact: MetadataResponse = {
+      order: metadataResponses.length,
+      url: response.url(),
+      method: response.request().method(),
+      status: response.status(),
+    };
+    metadataResponses.push(fact);
     if (response.status() < 400) return;
     pending.push(
       (async () => {
         try {
+          const body: unknown = await response.json();
+          if (
+            body !== null &&
+            typeof body === "object" &&
+            "code" in body &&
+            typeof body.code === "string"
+          )
+            fact.code = body.code;
           failedResponses.push({
             url: response.url(),
             status: response.status(),
-            body: await response.json(),
+            body,
+            fact,
           });
         } catch {
           errors.push(`Unreadable failed response: ${response.url()}`);
@@ -47,9 +73,41 @@ function diagnostics(page: Page, expectUnconfiguredStorage = false) {
     async assertHealthy() {
       await Promise.all(pending);
       expect(errors).toEqual([]);
+      const remainingResponses = failedResponses.filter((entry) => {
+        const exactBusy =
+          entry.status === 429 &&
+          JSON.stringify(entry.body) ===
+            JSON.stringify({
+              code: "CHAT_BUSY",
+              message: "Chat is busy; no work was queued.",
+            });
+        if (!exactBusy) return true;
+        return (
+          unexpectedConsole(
+            [
+              {
+                url: entry.url,
+                text: "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
+              },
+            ],
+            [
+              entry.fact,
+              ...metadataResponses.filter(
+                (next) => next.order > entry.fact.order && next.status === 200,
+              ),
+            ],
+            "http://127.0.0.1:5175",
+          ).length !== 0
+        );
+      });
+      const remainingConsole = unexpectedConsole(
+        consoleErrors,
+        metadataResponses,
+        "http://127.0.0.1:5175",
+      );
       if (!expectUnconfiguredStorage) {
-        expect(failedResponses).toEqual([]);
-        expect(consoleErrors).toEqual([]);
+        expect(remainingResponses).toEqual([]);
+        expect(remainingConsole).toEqual([]);
         return;
       }
       // This suite provisions no PG/evidence workspace. Account for each exact
@@ -65,18 +123,18 @@ function diagnostics(page: Page, expectUnconfiguredStorage = false) {
         },
       };
       expect(
-        new Set(failedResponses.map((entry) => new URL(entry.url).pathname)),
+        new Set(remainingResponses.map((entry) => new URL(entry.url).pathname)),
       ).toEqual(new Set(Object.keys(expected)));
-      for (const entry of failedResponses) {
+      for (const entry of remainingResponses) {
         const url = new URL(entry.url);
         expect(url.origin).toBe("http://127.0.0.1:5175");
         expect(entry.status).toBe(503);
         expect(entry.body).toEqual(expected[url.pathname]);
       }
-      expect(consoleErrors.map((entry) => entry.url).sort()).toEqual(
-        failedResponses.map((entry) => entry.url).sort(),
+      expect(remainingConsole.map((entry) => entry.url).sort()).toEqual(
+        remainingResponses.map((entry) => entry.url).sort(),
       );
-      for (const entry of consoleErrors)
+      for (const entry of remainingConsole)
         expect(entry.text).toBe(
           "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
         );
@@ -109,6 +167,7 @@ async function assertNoDocumentOverflow(page: Page) {
   expect(geometry.document).toBeLessThanOrEqual(geometry.width + 1);
 }
 async function navigate(page: Page, id: string) {
+  const metadataReady = id === "agent" ? waitForChatMetadata(page) : null;
   const menu = page.getByRole("button", {
     name: "Open navigation",
     exact: true,
@@ -117,7 +176,16 @@ async function navigate(page: Page, id: string) {
   await page.getByRole("navigation").locator(`a[href="/${id}"]`).click();
   await expect(page).toHaveURL(new RegExp("/" + id + "$"));
   await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+  if (metadataReady) await metadataReady;
   await assertUnavailableStorage(page, id);
+}
+function waitForChatMetadata(page: Page) {
+  return page.waitForResponse(
+    (response) =>
+      response.url() === "http://127.0.0.1:5175/api/v1/chat/runtime" &&
+      response.request().method() === "GET" &&
+      response.status() === 200,
+  );
 }
 async function shot(page: Page, info: TestInfo, name: string) {
   await page.screenshot({
@@ -168,11 +236,13 @@ test("Korean language persists and every page remains accessible", async ({
   );
   await expect(page.locator("html")).toHaveAttribute("lang", "ko");
   for (const route of navigation) {
+    const metadataReady = route.id === "agent" ? waitForChatMetadata(page) : null;
     await page
       .getByRole("navigation")
       .locator(`a[href="/${route.id}"]`)
       .click();
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    if (metadataReady) await metadataReady;
     await assertUnavailableStorage(page, route.id);
     await assertNoDocumentOverflow(page);
   }
@@ -344,7 +414,9 @@ test("real target, MCP, Skill, assignment, context and campaign drafts persist w
     false,
   );
   await shot(page, info, "agent-with-real-drafts-1440");
+  const metadataReload = waitForChatMetadata(page);
   await page.reload();
+  await metadataReload;
   await page.locator("details.chat-assignment > summary").click();
   await expect(
     page.getByRole("checkbox", { name: `Assign ${skillName}`, exact: true }),

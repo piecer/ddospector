@@ -1,19 +1,74 @@
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { Locale } from "../../lib/contracts";
 import { choose } from "../../lib/i18n";
 import { Badge, Button, Dialog, Field, Panel } from "../../components/ui";
 import { useChat } from "./useChat";
 import { validText } from "./chat-wire";
+import { useToolAuthority } from "./useToolAuthority";
+import type {
+  DecisionLedger,
+  TranscriptLedger,
+  ToolReadGate,
+} from "./useToolTranscript";
+import type { ToolTranscript } from "./chat-tool-types";
+import { ToolRecords } from "./ToolRecords";
 import "./chat.css";
 export function ChatPanel({
   locale,
   mutationsEnabled = true,
+  onSaved,
+  onViewSaved,
 }: {
   locale: Locale;
   mutationsEnabled?: boolean;
+  onSaved?: () => Promise<void>;
+  onViewSaved?: () => void;
 }) {
   const c = (en: string, ko: string) => choose(locale, en, ko);
-  const chat = useChat(locale, mutationsEnabled);
+  const authority = useToolAuthority(mutationsEnabled);
+  const [toolConsent, setToolConsent] = useState(false);
+  const chat = useChat(locale, mutationsEnabled, authority.canGrant);
+  const send = () => {
+    if (toolConsent && !authority.canGrant) return;
+    if (
+      chat.busy ||
+      chat.uncertain ||
+      !chat.session ||
+      chat.session.active_turn_id ||
+      !validText(chat.input, 8192, true)
+    )
+      return;
+    void chat.send(toolConsent);
+    setToolConsent(false);
+  };
+  const decisions = useRef<DecisionLedger>(new Map());
+  const records = useRef<TranscriptLedger>(new Map());
+  const readGate = useRef<ToolReadGate>({ owner: null, completed: -Infinity });
+  const savedSeen = useRef(new Set<string>());
+  const [savedStale, setSavedStale] = useState(false);
+  const refreshSaved = useCallback(async () => {
+    try {
+      await onSaved?.();
+      setSavedStale(false);
+    } catch {
+      setSavedStale(true);
+    }
+  }, [onSaved]);
+  const observeRecords = useCallback(
+    (record: ToolTranscript) => {
+      authority.observe(record);
+      for (const call of record.calls)
+        if (
+          call.status === "succeeded" &&
+          call.result?.kind === "agent_profile_updated" &&
+          !savedSeen.current.has(call.id)
+        ) {
+          savedSeen.current.add(call.id);
+          void refreshSaved();
+        }
+    },
+    [authority.observe, refreshSaved],
+  );
   const [consent, setConsent] = useState(false);
   const profile = chat.runtime?.profile;
   const status =
@@ -53,6 +108,10 @@ export function ChatPanel({
       "Unable to read chat. Existing text is preserved.",
       "대화를 읽을 수 없습니다. 기존 텍스트는 유지됩니다.",
     ],
+    "grant-recovered": [
+      "Read/propose grant recovered; explicitly continue the captured message or revoke it.",
+      "읽기/제안 권한을 복구했습니다. 원래 메시지 전송을 명시적으로 계속하거나 권한을 취소하세요.",
+    ],
     "unknown-send": [
       "Send outcome unknown. Do not resend; read back first.",
       "전송 결과를 알 수 없습니다. 재전송하지 말고 먼저 다시 읽으세요.",
@@ -65,14 +124,14 @@ export function ChatPanel({
   const message = statuses[status] ?? statuses.ready;
   return (
     <Panel
-      title={c("Chat only", "대화 전용")}
+      title={c("Chat", "대화")}
       className="chat-panel"
-      actions={<Badge>CHAT_ONLY</Badge>}
+      actions={<Badge>{toolConsent ? "READ / PROPOSE" : "CHAT_ONLY"}</Badge>}
     >
       <p>
         {c(
-          "Text chat only. No settings tools, device actions, or MCP execution.",
-          "텍스트 대화 전용입니다. 설정 도구, 장치 작업, MCP 실행은 불가능합니다.",
+          "Text-only by default. Optional next-message Agent/Skill reads and one proposal require explicit consent; writing requires separate exact approval. No device actions or MCP execution.",
+          "기본은 텍스트 전용입니다. 다음 메시지의 에이전트/스킬 읽기와 제안에는 명시적 동의가, 저장에는 별도 승인이 필요합니다. 장치 작업이나 MCP 실행은 불가능합니다.",
         )}
       </p>
       {profile && (
@@ -192,6 +251,39 @@ export function ChatPanel({
           "중지는 로컬 작업과 연결을 종료하지만 원격 생성은 계속될 수 있습니다. 실패하거나 부분 완료된 대화는 기록에 남지만 이후 모델 컨텍스트에서는 제외됩니다. 컨텍스트는 128 KiB로 제한됩니다. 가득 차면 새 대화를 시작하세요. 자동 압축이나 재전송은 없습니다.",
         )}
       </p>
+      {chat.recoveredGrant && (
+        <div>
+          <p>
+            {c(
+              "Recovered exact message / session (not current editor text)",
+              "복구한 원본 메시지 / 세션 (현재 편집기 텍스트 아님)",
+            )}
+          </p>
+          <pre className="chat-text">{chat.recoveredGrant.text}</pre>
+          <p className="chat-text">{chat.recoveredGrant.session}</p>
+          <Button
+            data-testid="chat-tools-grant-continue"
+            disabled={
+              chat.busy ||
+              !authority.canGrant ||
+              chat.recoveredGrant.grant.status !== "pending"
+            }
+            onClick={() => void chat.continueGrant()}
+          >
+            {c(
+              "Continue this exact granted message",
+              "이 권한의 원본 메시지 전송 계속",
+            )}
+          </Button>
+          <Button
+            data-testid="chat-tools-grant-revoke"
+            disabled={chat.busy}
+            onClick={() => void chat.revokeGrant()}
+          >
+            {c("Revoke unused grant", "미사용 권한 취소")}
+          </Button>
+        </div>
+      )}
       {chat.uncertain && (
         <Button
           disabled={chat.busy}
@@ -231,6 +323,18 @@ export function ChatPanel({
               {c(...(statuses[turn.status] ?? statuses.ready))}
               {turn.error_code ? ` · ${turn.error_code}` : ""}
             </small>
+            <ToolRecords
+              turn={turn}
+              locale={locale}
+              enabled={chat.toolTurns.includes(turn.id)}
+              viewEpoch={chat.viewEpoch}
+              canWrite={authority.canWrite}
+              onRecord={observeRecords}
+              onViewSaved={onViewSaved}
+              decisions={decisions.current}
+              records={records.current}
+              readGate={readGate.current}
+            />
           </article>
         ))}
         {!chat.session && (
@@ -258,10 +362,159 @@ export function ChatPanel({
           )}
         </p>
       )}
+      {savedStale && (
+        <div role="status">
+          <p>
+            {c(
+              "Saved, but workspace view is stale. Your unsaved assignment is preserved.",
+              "저장되었지만 워크스페이스 화면이 최신이 아닙니다. 저장하지 않은 할당 초안은 유지됩니다.",
+            )}
+          </p>
+          <Button
+            data-testid="chat-tools-workspace-refresh"
+            onClick={() => void refreshSaved()}
+          >
+            {c(
+              "Retry workspace read (no write)",
+              "워크스페이스 읽기 재시도 (쓰기 없음)",
+            )}
+          </Button>
+        </div>
+      )}
+      {chat.runtime?.supported && (
+        <label className="chat-tool-consent">
+          <input
+            type="checkbox"
+            data-testid="chat-tools-toggle"
+            checked={toolConsent}
+            disabled={
+              !mutationsEnabled ||
+              chat.busy ||
+              chat.uncertain ||
+              !!chat.session?.active_turn_id
+            }
+            onChange={(e) => {
+              setToolConsent(e.target.checked);
+              if (e.target.checked) void authority.refresh();
+            }}
+          />
+          <span>
+            {c(
+              "For the exact next message only: allow reading Agent/Skill configuration and proposing one Agent name / complete Skill-list change. This grants no write authority. A separate exact approval is always required.",
+              "정확히 다음 메시지만: 에이전트/스킬 설정 읽기 및 에이전트 이름/전체 스킬 목록 변경 1건 제안에 동의합니다. 저장 권한은 부여하지 않으며 정확한 변경에 대한 별도 승인이 항상 필요합니다.",
+            )}
+          </span>
+        </label>
+      )}
+      <p data-testid="chat-tools-status" role="status">
+        {authority.fence?.fenced
+          ? c(
+              "Tool writes fenced — prior execution remains uncertain. Consented reads remain available.",
+              "도구 쓰기 차단 — 이전 실행 미확인. 동의한 읽기는 가능합니다.",
+            ) + ` (${authority.fence.generation})`
+          : toolConsent && !authority.canGrant
+            ? c(
+                "Tool authority unavailable. Read configuration status before sending.",
+                "도구 권한을 사용할 수 없습니다. 전송 전에 설정 상태를 읽으세요.",
+              )
+            : c(
+                "No write authority from consent or model prose.",
+                "동의나 모델 문구에는 저장 권한이 없습니다.",
+              )}
+      </p>
+      {authority.fence && (
+        <p data-testid="chat-tools-fence-generation">
+          {c("Fence generation", "차단 세대")} {authority.fence.generation}
+        </p>
+      )}
+      <Button
+        data-testid="chat-tools-reconcile-review"
+        onClick={() => void authority.inspect()}
+        disabled={authority.reconciling}
+      >
+        {c(
+          "Review uncertain execution and current Agent",
+          "미확인 실행 및 현재 에이전트 검토",
+        )}
+      </Button>
+      {authority.review && (
+        <div className="chat-reconcile-review">
+          <h4>
+            {c(
+              "Immutable uncertain operation (not proof of saving)",
+              "변경 불가능한 미확인 작업 (저장 증거 아님)",
+            )}
+          </h4>
+          {authority.review.calls.map((call) => (
+            <pre className="chat-text" key={call.id}>
+              {JSON.stringify(call, null, 2)}
+            </pre>
+          ))}
+          <div data-testid="chat-tools-current-agent">
+            <h4>
+              {c(
+                "Independently refreshed current Agent",
+                "별도로 새로 읽은 현재 에이전트",
+              )}
+            </h4>
+            <p>
+              {c("Current draft revision", "현재 초안 리비전")}{" "}
+              {authority.review.fence.current_draft_revision}
+            </p>
+            <pre className="chat-text">
+              {JSON.stringify(authority.review.agent, null, 2)}
+            </pre>
+          </div>
+          <p>
+            {c(
+              "I acknowledge the prior execution is not proven. This only clears this write fence; prior outcomes remain uncertain and no configuration is rewritten.",
+              "이전 실행이 입증되지 않았음을 확인합니다. 이 쓰기 차단만 해제하며 이전 결과는 미확인으로 유지되고 설정은 다시 저장되지 않습니다.",
+            )}
+          </p>
+          <Button
+            data-testid="chat-tools-reconcile-confirm"
+            disabled={!authority.canReconcile || !!chat.session?.active_turn_id}
+            onClick={() => void authority.acknowledge()}
+          >
+            {c(
+              "Acknowledge uncertainty for this generation/revision",
+              "이 세대/리비전의 불확실성 확인",
+            )}
+          </Button>
+        </div>
+      )}
+      {authority.reviewState === "history-required" && (
+        <p>
+          {c(
+            "Open the uncertain turn in history before acknowledging; current state alone is not proof.",
+            "확인하기 전에 기록에서 미확인 턴을 여세요. 현재 상태만으로는 증명할 수 없습니다.",
+          )}
+        </p>
+      )}
+      {authority.reviewState === "unknown" && (
+        <p>
+          {c(
+            "Reconciliation/read outcome unknown. Read only; do not resubmit.",
+            "조정/읽기 결과 미확인. 다시 전송하지 말고 읽기만 하세요.",
+          )}
+        </p>
+      )}
+      {authority.receipt && (
+        <p>
+          {c(
+            "Historical acknowledgement only; prior outcomes remain uncertain. Cleared generation:",
+            "이전 확인 기록일 뿐이며 결과는 미확인으로 유지됩니다. 해제 세대:",
+          )}{" "}
+          {authority.receipt.generation}
+        </p>
+      )}
+      <Button onClick={() => void authority.refresh()}>
+        {c("Read tool availability / fence", "도구 사용 가능 여부 / 차단 읽기")}
+      </Button>
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          void chat.send();
+          send();
         }}
         aria-label={c("Send a message", "메시지 보내기")}
       >
@@ -295,7 +548,7 @@ export function ChatPanel({
                 e.keyCode !== 229
               ) {
                 e.preventDefault();
-                void chat.send();
+                send();
               }
             }}
           />
@@ -306,6 +559,7 @@ export function ChatPanel({
           data-testid="chat-send"
           disabled={
             !mutationsEnabled ||
+            (toolConsent && !authority.canGrant) ||
             !chat.session ||
             !!chat.session.active_turn_id ||
             chat.session.sequence >= 64 ||

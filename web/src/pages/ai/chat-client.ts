@@ -30,6 +30,7 @@ export class ChatRequestError extends Error {
     super(code);
   }
 }
+export { toolClient } from "./chat-tool-client";
 const base = "/api/v1/chat";
 /** Timers and abort listeners belong to this request, not the server producer. */
 async function request<T>(
@@ -39,6 +40,7 @@ async function request<T>(
   signal: AbortSignal | undefined,
   consume: (r: Response) => Promise<T>,
   ms = 10000,
+  acceptedStatuses?: number[],
 ): Promise<T> {
   const controller = new AbortController();
   const abort = () => controller.abort();
@@ -79,13 +81,14 @@ async function request<T>(
       throw new Error("Chat request failed.");
     }
     const statuses =
-      method === "GET"
+      acceptedStatuses ??
+      (method === "GET"
         ? [200]
         : path === "/sessions"
           ? [200, 201]
           : path.endsWith("/turns")
             ? [200, 202]
-            : [200];
+            : [200]);
     if (!statuses.includes(response.status)) {
       await response.body?.cancel();
       return invalid();
@@ -129,12 +132,14 @@ async function jsonBody(response: Response): Promise<unknown> {
     reader.releaseLock();
   }
 }
-const json = (
+export const chatJSON = (
   path: string,
   method: "GET" | "POST" = "GET",
   body?: unknown,
   signal?: AbortSignal,
-) => request(path, method, body, signal, jsonBody);
+  statuses?: number[],
+) => request(path, method, body, signal, jsonBody, 10000, statuses);
+const json = chatJSON;
 function boundTurn(value: unknown, id: string) {
   const t = parseTurn(value);
   if (t.id !== id) invalid();

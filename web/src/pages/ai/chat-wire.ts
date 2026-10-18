@@ -1,5 +1,6 @@
 import { literalText, pythonSpace } from "../ai-settings/unicode-text";
 import { parseJSON, utf8Length } from "../scenarios/json";
+export { parseToolRuntime } from "./chat-tool-wire";
 export const JSON_LIMIT = 1048576;
 export const FRAME_LIMIT = JSON_LIMIT + 128;
 export function decodeJSON(bytes: Uint8Array): unknown {
