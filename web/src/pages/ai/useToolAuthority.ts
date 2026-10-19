@@ -9,11 +9,18 @@ import type {
   ToolFence,
   ToolTranscript,
 } from "./chat-tool-types";
-type Review = { fence: ToolFence; agent: AgentConfig; calls: ToolCall[] };
+import type { Target } from "../../lib/contracts";
+type Review = {
+  fence: ToolFence;
+  agent?: AgentConfig;
+  targets?: Target[];
+  calls: ToolCall[];
+};
 export function useToolAuthority(mutationsEnabled: boolean) {
   const [fence, setFence] = useState<ToolFence | null>(null);
   const [ready, setReady] = useState(false);
   const [supported, setSupported] = useState(false);
+  const [targetSupported, setTargetSupported] = useState(false);
   const [review, setReview] = useState<Review | null>(null);
   const [reviewState, setReviewState] = useState("idle");
   const [receipt, setReceipt] = useState<ReconcileReceipt | null>(null);
@@ -60,6 +67,7 @@ export function useToolAuthority(mutationsEnabled: boolean) {
         return;
       adopt(next);
       setSupported(runtime.supported);
+      setTargetSupported(runtime.supported && runtime.schema_version === 2);
       setReady(true);
     } catch {
       if (mounted.current && token === generation.current) setReady(false);
@@ -89,7 +97,12 @@ export function useToolAuthority(mutationsEnabled: boolean) {
     setReviewState("loading");
     setReady(false);
     try {
-      const current = await toolClient.inspectCurrent(controller.signal);
+      const targetScope = known.current?.call_ids.some(
+        (id) => knownCalls.current.get(id)?.tool === "target_create",
+      );
+      const current = targetScope
+        ? await toolClient.inspectTargets(controller.signal)
+        : await toolClient.inspectCurrent(controller.signal);
       if (
         !mounted.current ||
         token !== generation.current ||
@@ -100,7 +113,11 @@ export function useToolAuthority(mutationsEnabled: boolean) {
       const calls = current.fence.call_ids.map((id) =>
         knownCalls.current.get(id),
       );
-      if (!current.fence.fenced || calls.some((c) => !c)) {
+      if (
+        !current.fence.fenced ||
+        calls.some((c) => !c) ||
+        calls.some((c) => (c?.tool === "target_create") !== !!targetScope)
+      ) {
         setReviewState("history-required");
         return;
       }
@@ -170,6 +187,7 @@ export function useToolAuthority(mutationsEnabled: boolean) {
       review !== null &&
       !reconciling &&
       !unresolved.current,
+    targetSupported: ready && targetSupported,
     canGrant:
       mutationsEnabled &&
       ready &&

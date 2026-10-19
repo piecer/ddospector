@@ -18,10 +18,16 @@ import {
   parseFence,
   parseReconcile,
   parseAgent,
+  parseTargetInspection,
   reconcileFence,
 } from "./chat-tool-wire";
 import type { ChatSession } from "./chat-types";
-import type { ToolDecision, ToolGrant, ToolFence } from "./chat-tool-types";
+import type {
+  RequestedAuthority,
+  ToolDecision,
+  ToolGrant,
+  ToolFence,
+} from "./chat-tool-types";
 export type DecisionInput = Pick<
   ToolDecision,
   "request_id" | "proposal_digest" | "decision"
@@ -32,8 +38,14 @@ async function boundGrant(
   request: string,
   turnRequest: string,
   text: string,
+  requestedAuthority: RequestedAuthority,
 ) {
   const g = parseGrant(value);
+  check(
+    requestedAuthority === "agent_v1"
+      ? g.schema_version === 1
+      : requestedAuthority === "target_create_v2" && g.schema_version === 2,
+  );
   check(
     g.request_id === request &&
       g.session_id === session.id &&
@@ -60,6 +72,24 @@ export function bindDecision(
   return d;
 }
 export const toolClient = {
+  async targets(signal?: AbortSignal) {
+    return parseTargetInspection(
+      await chatJSON("/tools/targets", "GET", undefined, signal),
+    );
+  },
+  async inspectTargets(signal?: AbortSignal) {
+    const before = await toolClient.fence(signal);
+    check(before.current_draft_revision !== null);
+    const snapshot = await toolClient.targets(signal);
+    const after = await toolClient.fence(signal);
+    reconcileFence(before, after);
+    check(
+      before.generation === after.generation &&
+        before.current_draft_revision === snapshot.draft_revision &&
+        after.current_draft_revision === snapshot.draft_revision,
+    );
+    return { fence: after, targets: snapshot.targets };
+  },
   async inspectCurrent(signal?: AbortSignal) {
     // Workspace v1 has no CAS token. Sandwich it between equal revision observations;
     // never invent a field/route or use audit-list length as the draft revision.
@@ -121,6 +151,7 @@ export const toolClient = {
     request: string,
     turnRequest: string,
     text: string,
+    requestedAuthority: RequestedAuthority = "agent_v1",
   ) {
     uuid(session.id);
     uuid(request);
@@ -133,6 +164,9 @@ export const toolClient = {
           "/tool-grants",
           "POST",
           {
+            ...(requestedAuthority === "target_create_v2"
+              ? { schema_version: 2, scope: "target_create" }
+              : {}),
             request_id: request,
             session_id: session.id,
             turn_request_id: turnRequest,
@@ -146,10 +180,17 @@ export const toolClient = {
         request,
         turnRequest,
         text,
+        requestedAuthority,
       );
     } catch (error) {
       if (error instanceof ChatRequestError && error.definite) throw error;
-      return toolClient.recoverGrant(session, request, turnRequest, text);
+      return toolClient.recoverGrant(
+        session,
+        request,
+        turnRequest,
+        text,
+        requestedAuthority,
+      );
     }
   },
   async recoverGrant(
@@ -157,6 +198,7 @@ export const toolClient = {
     request: string,
     turnRequest: string,
     text: string,
+    requestedAuthority: RequestedAuthority = "agent_v1",
   ) {
     uuid(request);
     return boundGrant(
@@ -165,6 +207,7 @@ export const toolClient = {
       request,
       turnRequest,
       text,
+      requestedAuthority,
     );
   },
   async revoke(grant: ToolGrant) {
@@ -183,6 +226,7 @@ export const toolClient = {
     grant: ToolGrant,
     text: string,
     admit: () => boolean = () => true,
+    requestedAuthority: RequestedAuthority = "agent_v1",
   ) {
     await boundGrant(
       grant,
@@ -190,6 +234,7 @@ export const toolClient = {
       grant.request_id,
       grant.turn_request_id,
       text,
+      requestedAuthority,
     );
     check(grant.status === "pending" && admit());
     try {

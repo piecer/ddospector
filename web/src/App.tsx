@@ -1,8 +1,18 @@
 import type { ComponentType } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Locale, PageProps, WorkspaceSnapshot } from "./lib/contracts";
+import type {
+  Locale,
+  PageProps,
+  TargetSelection,
+  WorkspaceSnapshot,
+} from "./lib/contracts";
 import type { RouteId } from "./lib/navigation";
 import { navigation, routeFromPath } from "./lib/navigation";
+import {
+  cloneTargetSelection,
+  targetSelectionFromLocation,
+  targetSelectionPath,
+} from "./lib/target-selection";
 import { api } from "./lib/api";
 import { choose, text } from "./lib/i18n";
 import { AgentPage } from "./pages/ai/AgentPage";
@@ -15,6 +25,9 @@ export function Application({ pages }: ApplicationProps) {
   const [route, setRoute] = useState(() =>
     routeFromPath(window.location.pathname),
   );
+  const [targetSelection, setTargetSelection] = useState<
+    TargetSelection | undefined
+  >(() => targetSelectionFromLocation(window.location));
   const [locale, setLocale] = useState<Locale>(() => {
     try {
       const saved = localStorage.getItem("aegis.locale");
@@ -53,7 +66,10 @@ export function Application({ pages }: ApplicationProps) {
     return () => activeRequest.current?.abort();
   }, [refresh]);
   useEffect(() => {
-    const back = () => setRoute(routeFromPath(window.location.pathname));
+    const back = () => {
+      setTargetSelection(targetSelectionFromLocation(window.location));
+      setRoute(routeFromPath(window.location.pathname));
+    };
     window.addEventListener("popstate", back);
     return () => window.removeEventListener("popstate", back);
   }, []);
@@ -70,8 +86,17 @@ export function Application({ pages }: ApplicationProps) {
       /* Preferences are not a prerequisite for using the workspace. */
     }
   }, [locale]);
-  const navigate = (next: RouteId) => {
-    window.history.pushState(null, "", "/" + next);
+  const navigate = (next: RouteId, selection?: TargetSelection) => {
+    const owned =
+      next === "targets" && selection
+        ? cloneTargetSelection(selection)
+        : undefined;
+    window.history.pushState(
+      null,
+      "",
+      owned ? targetSelectionPath(owned) : "/" + next,
+    );
+    setTargetSelection(owned);
     setRoute(next);
     document.getElementById("main-content")?.focus({ preventScroll: true });
   };
@@ -158,6 +183,7 @@ export function Application({ pages }: ApplicationProps) {
               locale={locale}
               navigate={navigate}
               refresh={refresh}
+              targetSelection={targetSelection}
             />
           </fieldset>
         </>

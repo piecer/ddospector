@@ -181,21 +181,62 @@ class DraftStore:
     def _create(self, collection: str, model, value, action: str):
         with self.lock:
             state = self._read()
-            if len(getattr(state, collection)) >= 100:
+            if collection == "targets":
+                value = self.validate_target_creation(state, value)
+            elif len(getattr(state, collection)) >= 100:
                 raise DraftError("DRAFT_LIMIT_REACHED")
-            entity = model(**value.model_dump(), id=str(uuid4()), created_at=timestamp())
-            getattr(state, collection).append(entity)
-            state.audit.append(
-                AuditEvent(
-                    id=str(uuid4()),
-                    action=action,
-                    entity_id=entity.id,
-                    created_at=entity.created_at,
-                )
+            return self._publish_creation(state, collection, model, value, action)
+
+    def _publish_creation(self, state, collection, model, value, action, publication_guard=None):
+        entity = model(**value.model_dump(), id=str(uuid4()), created_at=timestamp())
+        getattr(state, collection).append(entity)
+        state.audit.append(
+            AuditEvent(
+                id=str(uuid4()),
+                action=action,
+                entity_id=entity.id,
+                created_at=entity.created_at,
             )
-            state.audit_total += 1
+        )
+        state.audit_total += 1
+        if publication_guard is None:
             self._write(state)
-            return entity
+        else:
+            self._write(state, publication_guard=publication_guard)
+        return entity
+
+    def validate_target_creation(self, state: DraftState, value: TargetInput) -> TargetInput:
+        """Effect-free input/capacity admission; caller holds the draft lock."""
+        value = TargetInput.model_validate(value.model_dump())
+        if len(state.targets) >= 100:
+            raise DraftError("DRAFT_LIMIT_REACHED")
+        if state.audit_total >= 9007199254740991:
+            raise DraftError("AUDIT_LIMIT_REACHED")
+        return value
+
+    def create_target_receipt(
+        self,
+        value: TargetInput,
+        *,
+        expected_draft_revision: int,
+        publication_guard: Callable[[], None],
+    ) -> tuple[Target, AuditEvent]:
+        """Create once and verify the complete persisted image under one draft lock."""
+        with self.lock:
+            state = self._read()
+            if state.audit_total != expected_draft_revision:
+                raise DraftError("CHAT_TOOL_CONFLICT")
+            value = self.validate_target_creation(state, value)
+            self._publish_creation(
+                state, "targets", Target, value, "target.created", publication_guard
+            )
+            try:
+                actual = self._read()
+                if actual.model_dump() != state.model_dump():
+                    raise DraftError("STATE_COMMIT_UNCERTAIN")
+            except Exception:
+                raise DraftError("STATE_COMMIT_UNCERTAIN") from None
+            return actual.targets[-1], actual.audit[-1]
 
     def validate_agent_profile(self, state: DraftState, value: AgentProfileInput) -> AgentProfile:
         """Shared business validation; caller holds the draft lock for this state."""

@@ -11,12 +11,20 @@ import threading
 from concurrent.futures import Future, ThreadPoolExecutor
 from time import monotonic
 
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 
 from .catalog import initial_workspace
 from .chat_models import encoded
 from .errors import DraftError
-from .models import AgentProfileInput
+from .models import AgentProfileInput, TargetInput
+from .validation import Identifier
+
+_TARGET_ID = TypeAdapter(Identifier)
+
+
+def target_config(target):
+    """Complete typed domain record, shared by model and operator inspection."""
+    return target.model_dump()
 
 
 def agent_config(profile):
@@ -90,6 +98,8 @@ class DomainWorker:
                     "STATE_CORRUPT": "CHAT_STORAGE_ERROR",
                     "STATE_COMMIT_UNCERTAIN": "CHAT_TOOL_UNCERTAIN",
                     "AUDIT_LIMIT_REACHED": "CHAT_INVALID_REQUEST",
+                    "DRAFT_LIMIT_REACHED": "CHAT_TOOL_LIMIT",
+                    "INVALID_REFERENCE": "CHAT_INVALID_REQUEST",
                 }.get(exc.code, exc.code)
                 raise DraftError(code) from None
 
@@ -121,6 +131,21 @@ class DomainWorker:
         """Internal workspace snapshot, never a model-visible projection."""
         return await self._run(lambda check: self.draft.snapshot(), deadline=deadline, stop=stop)
 
+    async def targets_snapshot(self, *, deadline=None, stop=None):
+        """Bounded, fresh operator inspection; not model authorization or cached receipt."""
+        def operation(check):
+            state = self.draft._read()
+            result = {
+                "schema_version": 1,
+                "draft_revision": state.audit_total,
+                "targets": [target_config(target) for target in state.targets],
+            }
+            if len(encoded(result)) > 131072:
+                raise DraftError("CHAT_TOOL_LIMIT")
+            return result
+
+        return await self._run(operation, deadline=deadline, stop=stop)
+
     async def read_configuration(self, arguments, locale, *, deadline=None, stop=None):
         """Project validated native arguments; reject oversize results, never truncate."""
 
@@ -130,6 +155,32 @@ class DomainWorker:
             result = {"kind": kind, "draft_revision": state.audit_total}
             if kind == "agent_profile":
                 result["agent_profile"] = agent_config(state.agent_profile)
+            elif kind == "targets":
+                if set(arguments) != {"kind", "offset", "limit"}:
+                    raise DraftError("CHAT_INVALID_REQUEST")
+                offset, limit = arguments["offset"], arguments["limit"]
+                if (
+                    type(offset) is not int
+                    or type(limit) is not int
+                    or not (0 <= offset <= 100 and 1 <= limit <= 10)
+                ):
+                    raise DraftError("CHAT_INVALID_REQUEST")
+                result["items"] = [
+                    target_config(target) for target in state.targets[offset : offset + limit]
+                ]
+                end = offset + len(result["items"])
+                result["next_offset"] = end if end < len(state.targets) else None
+            elif kind == "target":
+                if set(arguments) != {"kind", "id"}:
+                    raise DraftError("CHAT_INVALID_REQUEST")
+                try:
+                    identifier = _TARGET_ID.validate_python(arguments["id"], strict=True)
+                except ValidationError:
+                    raise DraftError("CHAT_INVALID_REQUEST") from None
+                target = next((t for t in state.targets if t.id == identifier), None)
+                if target is None:
+                    raise DraftError("CHAT_NOT_FOUND")
+                result["target"] = target_config(target)
             else:
                 skills = initial_workspace()["skills"] + [s.model_dump() for s in state.skills]
 
@@ -220,6 +271,87 @@ class DomainWorker:
                 "before_revision": before.audit_total,
                 "after_revision": before.audit_total + 1,
                 "agent_profile": agent_config(profile),
+                "audit": audit.model_dump(),
+            }
+
+        return await self._run(operation, deadline=deadline, stop=stop, write=True)
+
+    def _prepare_target(
+        self, expected_draft_revision, name, address, kind, expected_settings_revision=None
+    ):
+        state = self.draft._read()
+        if state.audit_total != expected_draft_revision or (
+            expected_settings_revision is not None
+            and state.ai_settings.revision != expected_settings_revision
+        ):
+            raise DraftError("CHAT_TOOL_CONFLICT")
+        try:
+            value = TargetInput(name=name, address=address, kind=kind)
+            value = self.draft.validate_target_creation(state, value)
+        except ValidationError:
+            raise DraftError("CHAT_INVALID_REQUEST") from None
+        return state, value
+
+    async def prepare_target_create(
+        self,
+        expected_draft_revision,
+        name,
+        address,
+        kind,
+        expected_settings_revision=None,
+        *,
+        deadline=None,
+        stop=None,
+    ):
+        """Validate the literal proposed image without allocating any domain fields."""
+        def operation(check):
+            state, value = self._prepare_target(
+                expected_draft_revision, name, address, kind, expected_settings_revision
+            )
+            return {
+                "before_revision": state.audit_total,
+                "before": None,
+                "after": value.model_dump(),
+            }
+
+        return await self._run(operation, deadline=deadline, stop=stop)
+
+    async def create_target(
+        self,
+        expected_draft_revision,
+        name,
+        address,
+        kind,
+        publication_guard,
+        expected_settings_revision=None,
+        *,
+        deadline=None,
+        stop=None,
+    ):
+        """Own the native lease through publication/readback, even on cancellation."""
+        def operation(check):
+            before, value = self._prepare_target(
+                expected_draft_revision, name, address, kind, expected_settings_revision
+            )
+
+            def guard():
+                check()
+                publication_guard()
+                check()
+
+            try:
+                target, audit = self.draft.create_target_receipt(
+                    value, expected_draft_revision=expected_draft_revision, publication_guard=guard
+                )
+            except DraftError:
+                raise
+            except Exception:
+                raise DraftError("CHAT_TOOL_UNCERTAIN") from None
+            return {
+                "kind": "target_created",
+                "before_revision": before.audit_total,
+                "after_revision": before.audit_total + 1,
+                "target": target.model_dump(),
                 "audit": audit.model_dump(),
             }
 

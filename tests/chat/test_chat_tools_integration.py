@@ -242,9 +242,14 @@ def test_tools_runtime_real_route(product):
         "max_writes",
         "requires_write_approval",
     }
-    assert body["mode"] == "operator_approved_settings" and body["schema_version"] == 1
+    assert body["mode"] == "operator_approved_settings"
+    versions = {
+        1: ["configuration_read", "agent_profile_update"],
+        2: ["configuration_read", "agent_profile_update", "target_create"],
+    }
+    assert type(body["schema_version"]) is int and body["schema_version"] in versions
     assert body["supported"] is False and isinstance(body["reason"], str)
-    assert body["tools"] == ["configuration_read", "agent_profile_update"]
+    assert body["tools"] == versions[body["schema_version"]]
     assert (
         body["max_calls"] == 3
         and body["max_writes"] == 1

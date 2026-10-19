@@ -4,7 +4,7 @@ from fastapi import APIRouter, Request
 
 from .chat import body, identifier, query, response
 from .chat_models import EmptyInput
-from .chat_tool_models import DecisionInput, GrantInput, ReconcileInput, ToolTurnInput
+from .chat_tool_models import DecisionInput, GrantRequest, ReconcileInput, ToolTurnInput
 
 
 def tool_router(runtime):
@@ -15,9 +15,14 @@ def tool_router(runtime):
         query(request)
         return response(await runtime.tools_runtime())
 
+    @router.get("/tools/targets")
+    async def targets(request: Request):
+        query(request)
+        return response(await runtime.tools_targets())
+
     @router.post("/tool-grants")
     async def grant(request: Request):
-        result, status = await runtime.create_grant(await body(request, GrantInput))
+        result, status = await runtime.create_grant((await body(request, GrantRequest)).root)
         return response(result, status)
 
     @router.post("/sessions/{session_id}/tool-turns")

@@ -4,6 +4,13 @@ import { resolve } from "node:path";
 const dir = process.env.CHAT02A_DIR;
 const mode = process.env.CHAT02A_MODE;
 const base = process.env.CHAT02A_WEB;
+const fixtureCase = process.env.CHAT02B1_FIXTURE_CASE;
+if (
+  fixtureCase !== undefined &&
+  (mode !== "fixture" || !["agent", "target"].includes(fixtureCase))
+) {
+  throw new Error("Fixture case is closed and forbidden outside fixture mode");
+}
 if (!dir || !["fixture", "real"].includes(mode ?? "") || !base) {
   throw new Error(
     "Use tools/chat_tools_acceptance.py; unmanaged browser admission denied",

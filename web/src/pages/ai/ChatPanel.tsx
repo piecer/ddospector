@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import type { Locale } from "../../lib/contracts";
+import type { Locale, TargetExpectation } from "../../lib/contracts";
 import { choose } from "../../lib/i18n";
 import { Badge, Button, Dialog, Field, Panel } from "../../components/ui";
 import { useChat } from "./useChat";
@@ -10,7 +10,7 @@ import type {
   TranscriptLedger,
   ToolReadGate,
 } from "./useToolTranscript";
-import type { ToolTranscript } from "./chat-tool-types";
+import type { RequestedAuthority, ToolTranscript } from "./chat-tool-types";
 import { ToolRecords } from "./ToolRecords";
 import "./chat.css";
 export function ChatPanel({
@@ -18,18 +18,23 @@ export function ChatPanel({
   mutationsEnabled = true,
   onSaved,
   onViewSaved,
+  onViewTarget,
 }: {
   locale: Locale;
   mutationsEnabled?: boolean;
   onSaved?: () => Promise<void>;
   onViewSaved?: () => void;
+  onViewTarget?: (expectation: TargetExpectation) => void;
 }) {
   const c = (en: string, ko: string) => choose(locale, en, ko);
   const authority = useToolAuthority(mutationsEnabled);
   const [toolConsent, setToolConsent] = useState(false);
-  const chat = useChat(locale, mutationsEnabled, authority.canGrant);
+  const [scope, setScope] = useState<RequestedAuthority>("agent_v1");
+  const canGrant =
+    authority.canGrant && (scope === "agent_v1" || authority.targetSupported);
+  const chat = useChat(locale, mutationsEnabled, canGrant, scope);
   const send = () => {
-    if (toolConsent && !authority.canGrant) return;
+    if (toolConsent && !canGrant) return;
     if (
       chat.busy ||
       chat.uncertain ||
@@ -60,7 +65,8 @@ export function ChatPanel({
       for (const call of record.calls)
         if (
           call.status === "succeeded" &&
-          call.result?.kind === "agent_profile_updated" &&
+          (call.result?.kind === "agent_profile_updated" ||
+            call.result?.kind === "target_created") &&
           !savedSeen.current.has(call.id)
         ) {
           savedSeen.current.add(call.id);
@@ -331,6 +337,7 @@ export function ChatPanel({
               canWrite={authority.canWrite}
               onRecord={observeRecords}
               onViewSaved={onViewSaved}
+              onViewTarget={onViewTarget}
               decisions={decisions.current}
               records={records.current}
               readGate={readGate.current}
@@ -382,6 +389,53 @@ export function ChatPanel({
         </div>
       )}
       {chat.runtime?.supported && (
+        <Field label={c("Tool permission scope", "도구 허용 범위")}>
+          <select
+            data-testid="chat-tool-scope"
+            value={scope}
+            disabled={
+              !mutationsEnabled ||
+              chat.busy ||
+              chat.uncertain ||
+              !!chat.session?.active_turn_id ||
+              [...decisions.current.entries()].some(
+                ([turnId, d]) =>
+                  !records.current
+                    .get(turnId)
+                    ?.calls.some(
+                      (call) =>
+                        call.id === d.call &&
+                        call.decision?.request_id === d.input.request_id &&
+                        call.decision?.proposal_digest ===
+                          d.input.proposal_digest &&
+                        call.decision?.decision === d.input.decision,
+                    ),
+              )
+            }
+            onChange={(e) => {
+              if (
+                e.target.value === "agent_v1" ||
+                (e.target.value === "target_create_v2" &&
+                  authority.targetSupported)
+              ) {
+                setScope(e.target.value);
+                setToolConsent(false);
+              }
+            }}
+          >
+            <option value="agent_v1">
+              {c("Agent settings", "에이전트 설정")}
+            </option>
+            <option
+              value="target_create_v2"
+              disabled={!authority.targetSupported}
+            >
+              {c("Create target", "대상 생성")}
+            </option>
+          </select>
+        </Field>
+      )}
+      {chat.runtime?.supported && (
         <label className="chat-tool-consent">
           <input
             type="checkbox"
@@ -399,10 +453,15 @@ export function ChatPanel({
             }}
           />
           <span>
-            {c(
-              "For the exact next message only: allow reading Agent/Skill configuration and proposing one Agent name / complete Skill-list change. This grants no write authority. A separate exact approval is always required.",
-              "정확히 다음 메시지만: 에이전트/스킬 설정 읽기 및 에이전트 이름/전체 스킬 목록 변경 1건 제안에 동의합니다. 저장 권한은 부여하지 않으며 정확한 변경에 대한 별도 승인이 항상 필요합니다.",
-            )}
+            {scope === "target_create_v2"
+              ? c(
+                  "For the exact next message only: allow target reads and one target creation proposal. No write authority; separate exact approval is required.",
+                  "정확히 다음 메시지만: 대상 읽기와 대상 생성 제안 1건에 동의합니다. 저장 권한이 아니며 정확한 제안에 별도 승인이 필요합니다.",
+                )
+              : c(
+                  "For the exact next message only: allow reading Agent/Skill configuration and proposing one Agent name / complete Skill-list change. This grants no write authority. A separate exact approval is always required.",
+                  "정확히 다음 메시지만: 에이전트/스킬 설정 읽기 및 에이전트 이름/전체 스킬 목록 변경 1건 제안에 동의합니다. 저장 권한은 부여하지 않으며 정확한 변경에 대한 별도 승인이 항상 필요합니다.",
+                )}
           </span>
         </label>
       )}
@@ -433,8 +492,8 @@ export function ChatPanel({
         disabled={authority.reconciling}
       >
         {c(
-          "Review uncertain execution and current Agent",
-          "미확인 실행 및 현재 에이전트 검토",
+          "Review uncertain execution and current configuration",
+          "미확인 실행 및 현재 설정 검토",
         )}
       </Button>
       {authority.review && (
@@ -450,11 +509,21 @@ export function ChatPanel({
               {JSON.stringify(call, null, 2)}
             </pre>
           ))}
-          <div data-testid="chat-tools-current-agent">
+          <div
+            data-testid={
+              authority.review.targets
+                ? "chat-tools-current-targets"
+                : "chat-tools-current-agent"
+            }
+          >
             <h4>
               {c(
-                "Independently refreshed current Agent",
-                "별도로 새로 읽은 현재 에이전트",
+                authority.review.targets
+                  ? "Independently refreshed current target inventory — matching names do not prove ownership"
+                  : "Independently refreshed current Agent",
+                authority.review.targets
+                  ? "별도로 새로 읽은 현재 대상 목록 — 같은 이름은 소유 증거 아님"
+                  : "별도로 새로 읽은 현재 에이전트",
               )}
             </h4>
             <p>
@@ -462,7 +531,11 @@ export function ChatPanel({
               {authority.review.fence.current_draft_revision}
             </p>
             <pre className="chat-text">
-              {JSON.stringify(authority.review.agent, null, 2)}
+              {JSON.stringify(
+                authority.review.targets ?? authority.review.agent,
+                null,
+                2,
+              )}
             </pre>
           </div>
           <p>
@@ -559,7 +632,7 @@ export function ChatPanel({
           data-testid="chat-send"
           disabled={
             !mutationsEnabled ||
-            (toolConsent && !authority.canGrant) ||
+            (toolConsent && !canGrant) ||
             !chat.session ||
             !!chat.session.active_turn_id ||
             chat.session.sequence >= 64 ||

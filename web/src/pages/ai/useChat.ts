@@ -9,12 +9,13 @@ import {
 } from "./chat-client";
 import { toolClient } from "./chat-tool-client";
 import { readChatMetadata } from "./chat-metadata";
-import type { ToolGrant } from "./chat-tool-types";
+import type { RequestedAuthority, ToolGrant } from "./chat-tool-types";
 import { terminal, validText } from "./chat-wire";
 type Submission = {
   session: ChatSession;
   request: string;
   text: string;
+  readonly requestedAuthority?: RequestedAuthority;
   grantRequest?: string;
   grant?: ToolGrant;
   dispatched?: boolean;
@@ -23,6 +24,7 @@ export function useChat(
   locale: Locale,
   mutationsEnabled: boolean,
   toolsAllowed = false,
+  requestedAuthority: RequestedAuthority = "agent_v1",
 ) {
   const authority = useRef({ mutationsEnabled, toolsAllowed });
   authority.current = { mutationsEnabled, toolsAllowed };
@@ -69,14 +71,7 @@ export function useChat(
   }
   const inputRef = useRef(input);
   inputRef.current = input;
-  const pending = useRef<{
-    session: ChatSession;
-    request: string;
-    text: string;
-    grantRequest?: string;
-    grant?: ToolGrant;
-    dispatched?: boolean;
-  } | null>(null);
+  const pending = useRef<Submission | null>(null);
   const pendingSession = useRef<{
     request: string;
     runtime: ChatRuntime;
@@ -245,7 +240,11 @@ export function useChat(
       request,
       text,
       ...(toolMode
-        ? { grantRequest: crypto.randomUUID(), dispatched: false }
+        ? {
+            requestedAuthority,
+            grantRequest: crypto.randomUUID(),
+            dispatched: false,
+          }
         : {}),
     };
     pending.current = submission;
@@ -256,6 +255,7 @@ export function useChat(
           submission.grantRequest,
           request,
           text,
+          submission.requestedAuthority,
         );
         if (
           token !== generation.current ||
@@ -267,16 +267,22 @@ export function useChat(
         }
       }
       const accepted = submission.grant
-        ? await toolClient.submit(session, submission.grant, text, () => {
-            if (
-              token !== generation.current ||
-              !authority.current.mutationsEnabled ||
-              !authority.current.toolsAllowed
-            )
-              return false;
-            submission.dispatched = true;
-            return true;
-          })
+        ? await toolClient.submit(
+            session,
+            submission.grant,
+            text,
+            () => {
+              if (
+                token !== generation.current ||
+                !authority.current.mutationsEnabled ||
+                !authority.current.toolsAllowed
+              )
+                return false;
+              submission.dispatched = true;
+              return true;
+            },
+            submission.requestedAuthority,
+          )
         : await chatClient.submit(session.id, request, session.sequence, text);
       // Bound acceptance can retire this request without adopting an old view.
       if (pending.current === submission) pending.current = null;
@@ -323,6 +329,7 @@ export function useChat(
           submission.grantRequest,
           request,
           text,
+          submission.requestedAuthority,
         );
         if (
           ["revoked", "expired"].includes(submission.grant.status) &&
@@ -377,16 +384,22 @@ export function useChat(
     setPhase("sending");
     const { session: saved, text, grant } = submission;
     try {
-      const accepted = await toolClient.submit(saved, grant, text, () => {
-        if (
-          token !== generation.current ||
-          !authority.current.mutationsEnabled ||
-          !authority.current.toolsAllowed
-        )
-          return false;
-        submission.dispatched = true;
-        return true;
-      });
+      const accepted = await toolClient.submit(
+        saved,
+        grant,
+        text,
+        () => {
+          if (
+            token !== generation.current ||
+            !authority.current.mutationsEnabled ||
+            !authority.current.toolsAllowed
+          )
+            return false;
+          submission.dispatched = true;
+          return true;
+        },
+        submission.requestedAuthority,
+      );
       if (pending.current === submission) pending.current = null;
       if (token !== generation.current) return;
       if (inputRef.current === text) setInput("");

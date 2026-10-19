@@ -71,13 +71,11 @@ def test_deny_is_atomic_terminal_replays_after_expiry_and_consumes_proposal(tmp_
                 )
             ],
         )
-        second = ledger.request_call(turn["id"], native, timestamp=STAMP)
-        next_proposal = proposal | {
-            "digest": proposal_digest(second["id"], second["grant_id"], proposal)
-        }
+        before = ledger.transcript(turn["id"])
         with pytest.raises(DraftError) as error:
-            ledger.propose(second["id"], next_proposal, timestamp=STAMP)
+            ledger.request_call(turn["id"], native, timestamp=STAMP)
         assert error.value.code == "CHAT_TOOL_LIMIT"
+        assert ledger.transcript(turn["id"]) == before
         storage.validate()
     finally:
         storage.close()

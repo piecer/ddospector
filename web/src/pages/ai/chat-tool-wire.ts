@@ -1,3 +1,4 @@
+import { parseTarget, parseTargetInput } from "./chat-target-wire";
 import { chatCodes } from "./chat-types";
 import { invalid, uuid } from "./chat-wire";
 import { canonical, digest, utf8Length } from "../scenarios/json";
@@ -11,6 +12,8 @@ import type {
   ToolResult,
   ToolFence,
   ReconcileReceipt,
+  TargetInspection,
+  ToolRuntime,
 } from "./chat-tool-types";
 export function check(ok: unknown): asserts ok {
   if (!ok) invalid();
@@ -124,10 +127,10 @@ export const timeKey = (v: string) =>
 function sha(v: unknown) {
   check(typeof v === "string" && /^[a-f0-9]{64}$/.test(v));
 }
-function identifier(v: unknown) {
+export function identifier(v: unknown) {
   check(typeof v === "string" && /^[a-z0-9-]{1,64}$/.test(v));
 }
-function text(v: unknown, max: number, multiline = false) {
+export function text(v: unknown, max: number, multiline = false) {
   check(typeof v === "string");
   const chars = Array.from(v);
   check(
@@ -139,7 +142,7 @@ function text(v: unknown, max: number, multiline = false) {
       ),
   );
 }
-function array(v: unknown, max: number): asserts v is unknown[] {
+export function array(v: unknown, max: number): asserts v is unknown[] {
   check(
     Array.isArray(v) &&
       Object.getPrototypeOf(v) === Array.prototype &&
@@ -164,11 +167,16 @@ export function parseAgent(value: unknown): AgentConfig {
   return value as AgentConfig;
 }
 export function parseGrant(value: unknown): ToolGrant {
+  const version =
+    value && typeof value === "object"
+      ? Object.getOwnPropertyDescriptor(value, "schema_version")?.value
+      : undefined;
+  check(version === 1 || version === 2);
   const g = object(
     value,
-    "schema_version id request_id session_id turn_request_id expected_sequence text_sha256 settings_revision profile_id created_at expires_at status read_scope proposal_fields",
+    "schema_version id request_id session_id turn_request_id expected_sequence text_sha256 settings_revision profile_id created_at expires_at status read_scope " +
+      (version === 1 ? "proposal_fields" : "scope proposal_tools"),
   );
-  check(g.schema_version === 1);
   [g.id, g.request_id, g.session_id, g.turn_request_id].forEach(uuid);
   integer(g.expected_sequence, 0, 63);
   integer(g.settings_revision);
@@ -184,11 +192,20 @@ export function parseGrant(value: unknown): ToolGrant {
     ["pending", "consumed", "revoked", "expired"].includes(g.status as string),
   );
   array(g.read_scope, 3);
-  array(g.proposal_fields, 2);
-  check(
-    canonical(g.read_scope) === '["agent_profile","skills","skill"]' &&
-      canonical(g.proposal_fields) === '["name","skill_ids"]',
-  );
+  if (version === 1) {
+    array(g.proposal_fields, 2);
+    check(
+      canonical(g.read_scope) === '["agent_profile","skills","skill"]' &&
+        canonical(g.proposal_fields) === '["name","skill_ids"]',
+    );
+  } else {
+    array(g.proposal_tools, 1);
+    check(
+      g.scope === "target_create" &&
+        canonical(g.read_scope) === '["targets","target"]' &&
+        canonical(g.proposal_tools) === '["target_create"]',
+    );
+  }
   check(utf8Length(canonical(value)) <= 8192);
   return value as ToolGrant;
 }
@@ -206,7 +223,11 @@ export function parseDecision(value: unknown): ToolDecision {
   return value as ToolDecision;
 }
 function argumentsFor(v: unknown, tool: unknown) {
-  if (tool === "agent_profile_update") {
+  if (tool === "target_create") {
+    const a = object(v, "expected_draft_revision name address kind");
+    integer(a.expected_draft_revision);
+    parseTargetInput({ name: a.name, address: a.address, kind: a.kind });
+  } else if (tool === "agent_profile_update") {
     const a = object(v, "expected_draft_revision name skill_ids");
     integer(a.expected_draft_revision);
     text(a.name, 120);
@@ -216,13 +237,13 @@ function argumentsFor(v: unknown, tool: unknown) {
     const k = Object.getOwnPropertyDescriptor(v, "kind");
     check(k && "value" in k);
     if (k.value === "agent_profile") object(v, "kind");
-    else if (k.value === "skills") {
+    else if (k.value === "skills" || k.value === "targets") {
       const a = object(v, "kind offset limit");
-      integer(a.offset, 0, 103);
+      integer(a.offset, 0, k.value === "targets" ? 100 : 103);
       integer(a.limit, 1, 10);
     } else {
       const a = object(v, "kind id");
-      check(a.kind === "skill");
+      check(a.kind === "skill" || a.kind === "target");
       identifier(a.id);
     }
   }
@@ -248,7 +269,33 @@ function skill(v: unknown, detail: boolean) {
   return s;
 }
 function resultFor(value: unknown, call: ToolCall): ToolResult {
-  if (call.tool === "agent_profile_update") {
+  if (call.tool === "target_create") {
+    const r = object(value, "kind before_revision after_revision target audit");
+    check(
+      r.kind === "target_created" &&
+        call.proposal &&
+        "operation" in call.proposal,
+    );
+    integer(r.before_revision);
+    integer(r.after_revision);
+    check(
+      r.before_revision === call.proposal.expected_draft_revision &&
+        r.after_revision === r.before_revision + 1,
+    );
+    const t = parseTarget(r.target);
+    check(
+      canonical({ name: t.name, address: t.address, kind: t.kind }) ===
+        canonical(call.proposal.after),
+    );
+    const a = object(r.audit, "id action entity_id created_at origin");
+    identifier(a.id);
+    check(
+      a.action === "target.created" &&
+        a.entity_id === t.id &&
+        a.origin === "local_operator" &&
+        a.created_at === t.created_at,
+    );
+  } else if (call.tool === "agent_profile_update") {
     const r = object(
       value,
       "kind before_revision after_revision agent_profile audit",
@@ -278,6 +325,22 @@ function resultFor(value: unknown, call: ToolCall): ToolResult {
       check(r.kind === args.kind);
       integer(r.draft_revision);
       parseAgent(r.agent_profile);
+    } else if (args.kind === "target") {
+      const r = object(value, "kind draft_revision target");
+      check(r.kind === args.kind);
+      integer(r.draft_revision);
+      check(parseTarget(r.target).id === args.id);
+    } else if (args.kind === "targets") {
+      const r = object(value, "kind draft_revision items next_offset");
+      check(r.kind === args.kind);
+      integer(r.draft_revision);
+      array(r.items, args.limit);
+      const items = r.items.map(parseTarget);
+      check(new Set(items.map((t) => t.id)).size === items.length);
+      if (r.next_offset !== null) {
+        integer(r.next_offset, 1, 100);
+        check(items.length > 0 && r.next_offset === args.offset + items.length);
+      }
     } else if (args.kind === "skills") {
       const r = object(value, "kind draft_revision items next_offset");
       check(r.kind === args.kind);
@@ -290,6 +353,7 @@ function resultFor(value: unknown, call: ToolCall): ToolResult {
         check(r.next_offset === args.offset + list.length && list.length > 0);
       }
     } else {
+      check(args.kind === "skill");
       const r = object(value, "kind draft_revision skill");
       check(r.kind === args.kind);
       integer(r.draft_revision);
@@ -298,6 +362,18 @@ function resultFor(value: unknown, call: ToolCall): ToolResult {
   }
   check(utf8Length(canonical(value)) <= 32768);
   return value as ToolResult;
+}
+export const isWrite = (tool: unknown) =>
+  tool === "agent_profile_update" || tool === "target_create";
+export function parseTargetInspection(value: unknown): TargetInspection {
+  const v = object(value, "schema_version draft_revision targets");
+  check(v.schema_version === 1);
+  integer(v.draft_revision);
+  array(v.targets, 100);
+  const targets = v.targets.map(parseTarget);
+  check(new Set(targets.map((t) => t.id)).size === targets.length);
+  check(utf8Length(canonical(value)) <= 131072);
+  return value as TargetInspection;
 }
 export const callTerminal = (c: ToolCall) =>
   !["requested", "awaiting_approval", "executing"].includes(c.status);
@@ -322,15 +398,21 @@ async function parseCall(value: unknown): Promise<ToolCall> {
   timestamp(c.started_at);
   const call = value as ToolCall;
   if (c.proposal !== null) {
-    check(c.tool === "agent_profile_update");
+    check(isWrite(c.tool));
     const p = object(
       c.proposal,
-      "digest expected_draft_revision before after expires_at",
+      "digest expected_draft_revision before after expires_at" +
+        (c.tool === "target_create" ? " operation" : ""),
     );
     sha(p.digest);
     integer(p.expected_draft_revision);
-    parseAgent(p.before);
-    parseAgent(p.after);
+    if (c.tool === "target_create") {
+      check(p.operation === "target_create" && p.before === null);
+      parseTargetInput(p.after);
+    } else {
+      parseAgent(p.before);
+      parseAgent(p.after);
+    }
     timestamp(p.expires_at);
     check(timeKey(p.expires_at) > timeKey(c.started_at));
     const args = call.arguments;
@@ -338,13 +420,22 @@ async function parseCall(value: unknown): Promise<ToolCall> {
     check(
       p.expected_draft_revision === args.expected_draft_revision &&
         call.proposal!.after.name === args.name &&
-        canonical(call.proposal!.after.skill_ids) === canonical(args.skill_ids),
+        (c.tool === "target_create"
+          ? "address" in args &&
+            "address" in call.proposal!.after &&
+            call.proposal!.after.address === args.address &&
+            call.proposal!.after.kind === args.kind
+          : "skill_ids" in args &&
+            "skill_ids" in call.proposal!.after &&
+            canonical(call.proposal!.after.skill_ids) ===
+              canonical(args.skill_ids)),
     );
     check(
       p.digest ===
         (await digest({
           call_id: c.id,
           grant_id: c.grant_id,
+          ...(c.tool === "target_create" ? { operation: "target_create" } : {}),
           expected_draft_revision: p.expected_draft_revision,
           before: p.before,
           after: p.after,
@@ -355,7 +446,7 @@ async function parseCall(value: unknown): Promise<ToolCall> {
   if (c.decision !== null) {
     const d = parseDecision(c.decision);
     check(
-      c.tool === "agent_profile_update" &&
+      isWrite(c.tool) &&
         call.proposal &&
         d.call_id === c.id &&
         d.proposal_digest === call.proposal.digest &&
@@ -408,7 +499,7 @@ async function parseCall(value: unknown): Promise<ToolCall> {
     }
   }
   if (
-    c.tool === "agent_profile_update" &&
+    isWrite(c.tool) &&
     ["executing", "succeeded", "uncertain"].includes(c.status as string)
   )
     check(c.proposal !== null && call.decision?.decision === "approve");
@@ -434,7 +525,8 @@ export async function parseTranscript(value: unknown): Promise<ToolTranscript> {
       new Set(calls.map((c) => c.provider_call_id)).size === calls.length,
   );
   check(
-    calls.filter((c) => c.proposal !== null).length <= 1 &&
+    calls.filter((c) => isWrite(c.tool)).length <= 1 &&
+      calls.filter((c) => c.proposal !== null).length <= 1 &&
       calls.filter((c) => c.decision !== null).length <= 1 &&
       new Set(calls.map((c) => c.grant_id)).size <= 1,
   );
@@ -462,32 +554,24 @@ export function parseToolRuntime(value: unknown) {
     "schema_version mode supported reason tools max_calls max_writes requires_write_approval",
   );
   check(
-    r.schema_version === 1 &&
+    (r.schema_version === 1 || r.schema_version === 2) &&
       r.mode === "operator_approved_settings" &&
       typeof r.supported === "boolean" &&
       r.max_calls === 3 &&
       r.max_writes === 1 &&
       r.requires_write_approval === true,
   );
-  array(r.tools, 2);
+  array(r.tools, 3);
   check(
-    r.tools.length === 2 &&
-      r.tools[0] === "configuration_read" &&
-      r.tools[1] === "agent_profile_update",
+    canonical(r.tools) ===
+      (r.schema_version === 1
+        ? '["configuration_read","agent_profile_update"]'
+        : '["configuration_read","agent_profile_update","target_create"]'),
   );
   check(
     r.supported
       ? r.reason === null
       : chatCodes.includes(r.reason as (typeof chatCodes)[number]),
   );
-  return value as {
-    schema_version: 1;
-    mode: "operator_approved_settings";
-    supported: boolean;
-    reason: (typeof chatCodes)[number] | null;
-    tools: ["configuration_read", "agent_profile_update"];
-    max_calls: 3;
-    max_writes: 1;
-    requires_write_approval: true;
-  };
+  return value as ToolRuntime;
 }

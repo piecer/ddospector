@@ -97,10 +97,13 @@ export type WorkspaceSnapshot = {
     llm_inference: false;
   };
 };
+export type TargetExpectation = { target: Target; after_revision: number };
+export type TargetSelection = { id: string; expectation?: TargetExpectation };
 export type PageProps = {
   data: WorkspaceSnapshot;
   locale: Locale;
-  navigate: (route: RouteId) => void;
+  navigate: (route: RouteId, selection?: TargetSelection) => void;
+  targetSelection?: TargetSelection;
   refresh: () => Promise<void>;
 };
 export type TargetInput = Pick<Target, "name" | "address" | "kind">;

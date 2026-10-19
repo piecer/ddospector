@@ -16,19 +16,21 @@ from .chat_tool_models import (
     RESULT_BYTES,
     TERMINAL,
     TURN_RESERVATION,
+    WRITE_TOOLS,
     AssistantCall,
     Decision,
     DecisionInput,
     Fence,
-    Grant,
-    GrantInput,
-    Proposal,
+    GrantRecord,
+    GrantRequest,
+    ProposalRecord,
     ReconcileInput,
     ReconcileReceipt,
     Result,
     ToolCall,
     ToolModel,
     ToolTranscript,
+    allows_call,
     digest,
     instant,
     parse_arguments,
@@ -188,13 +190,17 @@ class ToolLedger:
 
     @staticmethod
     def _grant_commitment(body):
-        return {
-            key: body[key]
-            for key in ("request_id", "session_id", "turn_request_id", "expected_sequence")
-        } | {"text_sha256": digest(body["text"])}
+        return (
+            {
+                key: body[key]
+                for key in ("request_id", "session_id", "turn_request_id", "expected_sequence")
+            }
+            | {"text_sha256": digest(body["text"]), "schema_version": body.get("schema_version", 1)}
+            | ({"scope": body["scope"]} if "scope" in body else {})
+        )
 
     def create_grant(self, body, *, timestamp=None):
-        body = GrantInput.model_validate(body).model_dump()
+        body = GrantRequest.model_validate(body).model_dump()
         timestamp = timestamp or now()
         with self.storage.transaction():
             commitment = self._grant_commitment(body)
@@ -220,20 +226,29 @@ class ToolLedger:
                     self._put("tool_grants", key, grant | {"status": "expired"})
                 elif grant["status"] == "pending" and grant["session_id"] == session["id"]:
                     raise DraftError("CHAT_TOOL_GRANT_CONFLICT")
-            grant = Grant.model_validate(
-                dict(
-                    schema_version=1,
-                    id=str(uuid4()),
-                    **commitment,
-                    settings_revision=session["settings_revision"],
-                    profile_id=session["profile_id"],
-                    created_at=timestamp,
-                    expires_at=(instant(timestamp) + timedelta(seconds=300)).isoformat(),
-                    status="pending",
-                    read_scope=["agent_profile", "skills", "skill"],
-                    proposal_fields=["name", "skill_ids"],
+            grant = (
+                TypeAdapter(GrantRecord)
+                .validate_python(
+                    dict(
+                        id=str(uuid4()),
+                        **commitment,
+                        settings_revision=session["settings_revision"],
+                        profile_id=session["profile_id"],
+                        created_at=timestamp,
+                        expires_at=(instant(timestamp) + timedelta(seconds=300)).isoformat(),
+                        status="pending",
+                        **(
+                            dict(read_scope=["targets", "target"], proposal_tools=["target_create"])
+                            if commitment["schema_version"] == 2
+                            else dict(
+                                read_scope=["agent_profile", "skills", "skill"],
+                                proposal_fields=["name", "skill_ids"],
+                            )
+                        ),
+                    )
                 )
-            ).model_dump()
+                .model_dump()
+            )
             self._put("tool_grants", grant["id"], grant)
             return grant, False
 
@@ -418,6 +433,8 @@ class ToolLedger:
             self._active(turn_id)
             binding = self.binding(turn_id)
             grant = self.grant(binding["grant_id"])
+            if not allows_call(grant, function["function"]["name"], arguments):
+                raise DraftError("CHAT_TOOL_DENIED")
             timestamp = timestamp or now()
             if grant["status"] != "consumed":
                 raise DraftError("CHAT_TOOL_GRANT_INVALID")
@@ -431,6 +448,7 @@ class ToolLedger:
                 raise DraftError("CHAT_TOOL_PROTOCOL")
             if (
                 binding["write_slot"]
+                or any(c["tool"] in WRITE_TOOLS for c in calls)
                 or len(calls) >= 3
                 or any(c["status"] not in TERMINAL for c in calls)
             ):
@@ -456,8 +474,11 @@ class ToolLedger:
             self._append(turn_id, native)
             return self._save_call(turn_id, call)
 
-    def _projection(self, turn_id, call):
-        """Conservative actual-string receipt projection, including nested escaping."""
+    @staticmethod
+    def projected_receipt(call):
+        """Sizing witness only, never published as a saved fact."""
+        if call["tool"] not in WRITE_TOOLS:
+            raise ValueError("Not a write operation")
         proposal = call["proposal"]
         # 40-byte UTC time and 16-digit safe integer counters bound all receipts.
         stamp = "9999-12-31T23:59:59.99999999999999+00:00"
@@ -474,7 +495,35 @@ class ToolLedger:
                 origin="local_operator",
             ),
         )
-        validate_result(receipt)
+        if call["tool"] == "target_create":
+            revision = proposal["expected_draft_revision"]
+            if revision >= SAFE_INT:
+                raise DraftError("CHAT_INVALID_REQUEST")
+            receipt.update(
+                kind="target_created",
+                before_revision=revision,
+                after_revision=revision + 1,
+                target=dict(**proposal["after"], id="t" * 64, status="draft", created_at=stamp),
+            )
+            receipt.pop("agent_profile")
+            receipt["audit"].update(action="target.created", entity_id="t" * 64)
+        return validate_result(receipt)
+
+    @classmethod
+    def projected_message(cls, call):
+        return dict(
+            role="tool",
+            tool_call_id="\x00" * 128,
+            content=encoded(
+                dict(ok=True, result=cls.projected_receipt(call), error_code=None)
+            ).decode(),
+        )
+
+    def _projection(self, turn_id, call):
+        """Conservative actual-string receipt projection, including nested escaping."""
+        proposal = call["proposal"]
+        receipt = self.projected_receipt(call)
+        stamp = "9999-12-31T23:59:59.99999999999999+00:00"
         decision_input = dict(
             request_id="f" * 36, proposal_digest=proposal["digest"], decision="approve"
         )
@@ -487,11 +536,7 @@ class ToolLedger:
             started_at=stamp,
             provider_call_id="\x00" * 128,
         )
-        tool_message = dict(
-            role="tool",
-            tool_call_id="\x00" * 128,
-            content=encoded(dict(ok=True, result=receipt, error_code=None)).decode(),
-        )
+        tool_message = self.projected_message(call)
         messages = self.exchanges(turn_id)
         growth = len(encoded(messages + [tool_message])) - len(encoded(messages))
         replay = {"call_id": call["id"], "input": decision_input, "receipt": decision}
@@ -508,7 +553,7 @@ class ToolLedger:
         return growth
 
     def propose(self, call_id, proposal, *, timestamp=None):
-        proposal = Proposal.model_validate(proposal).model_dump()
+        proposal = TypeAdapter(ProposalRecord).validate_python(proposal).model_dump()
         timestamp = timestamp or now()
         with self.storage.transaction():
             row = self._get("tool_calls", call_id)
@@ -516,7 +561,7 @@ class ToolLedger:
                 raise DraftError("CHAT_NOT_FOUND")
             turn_id, call = row["turn_id"], row["call"]
             self._active(turn_id)
-            if call["tool"] != "agent_profile_update" or call["status"] != "requested":
+            if call["tool"] not in WRITE_TOOLS or call["status"] != "requested":
                 raise DraftError("CHAT_TOOL_APPROVAL_CONFLICT")
             if self.fence()["fenced"]:
                 raise DraftError("CHAT_TOOL_WRITE_FENCED")
@@ -794,7 +839,7 @@ class ToolLedger:
                     raise ValueError("Noncanonical retained JSON")
         tables = {name: dict(self._rows(name)) for name in TABLES}
         models = {
-            "tool_grants": Grant,
+            "tool_grants": None,
             "tool_bindings": Binding,
             "tool_calls": StoredCall,
             "tool_decisions": DecisionReplay,
@@ -805,7 +850,9 @@ class ToolLedger:
             for key, value in rows.items():
                 if not isinstance(key, str) or len(encoded(value)) > CAPS[table]:
                     raise ValueError("Record cap")
-                if table in models:
+                if table == "tool_grants":
+                    TypeAdapter(GrantRecord).validate_python(value)
+                elif table in models:
                     models[table].model_validate(value)
         usage = self.usage()
         if usage["actual"] + usage["reserved"] > POOL_BYTES:
@@ -871,6 +918,8 @@ class ToolLedger:
                 or call["grant_id"] != bindings[row["turn_id"]]["grant_id"]
             ):
                 raise ValueError("Call linkage")
+            if not allows_call(grants[call["grant_id"]], call["tool"], call["arguments"]):
+                raise ValueError("Call outside grant scope")
             if call["proposal"] is not None and instant(call["proposal"]["expires_at"]) != min(
                 instant(grants[call["grant_id"]]["expires_at"]),
                 instant(bindings[row["turn_id"]]["deadline_at"]),
@@ -905,6 +954,11 @@ class ToolLedger:
             transcript = self.transcript(key)
             ToolTranscript.model_validate(transcript)
             ordered = transcript["calls"]
+            if (
+                grants[binding["grant_id"]]["schema_version"] == 2
+                and sum(c["tool"] in WRITE_TOOLS for c in ordered) > 1
+            ):
+                raise ValueError("Target write attempt count")
             if binding["revision"] < len(ordered) or binding["write_slot"] != any(
                 c["decision"] is not None and c["decision"]["decision"] == "approve"
                 for c in ordered
@@ -1007,7 +1061,7 @@ class ToolLedger:
                 call = row["call"]
                 if call["status"] in TERMINAL:
                     continue
-                uncertain = call["tool"] == "agent_profile_update" and call["status"] == "executing"
+                uncertain = call["tool"] in WRITE_TOOLS and call["status"] == "executing"
                 call.update(
                     status="uncertain" if uncertain else "cancelled",
                     finished_at=max(now(), call["started_at"], key=instant),

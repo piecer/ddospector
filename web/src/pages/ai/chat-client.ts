@@ -100,7 +100,10 @@ async function request<T>(
     controller.abort();
   }
 }
-async function jsonBody(response: Response): Promise<unknown> {
+async function jsonBody(
+  response: Response,
+  limit = JSON_LIMIT,
+): Promise<unknown> {
   if (
     response.headers.get("content-type")?.split(";")[0].trim() !==
       "application/json" ||
@@ -117,7 +120,7 @@ async function jsonBody(response: Response): Promise<unknown> {
       const { value, done } = await reader.read();
       if (done) break;
       size += value.length;
-      if (size > JSON_LIMIT) invalid();
+      if (size > limit) invalid();
       chunks.push(value);
     }
     const bytes = new Uint8Array(size);
@@ -138,7 +141,17 @@ export const chatJSON = (
   body?: unknown,
   signal?: AbortSignal,
   statuses?: number[],
-) => request(path, method, body, signal, jsonBody, 10000, statuses);
+) =>
+  request(
+    path,
+    method,
+    body,
+    signal,
+    (response) =>
+      jsonBody(response, path === "/tools/targets" ? 131072 : JSON_LIMIT),
+    10000,
+    statuses,
+  );
 const json = chatJSON;
 function boundTurn(value: unknown, id: string) {
   const t = parseTurn(value);

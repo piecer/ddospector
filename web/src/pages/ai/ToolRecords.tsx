@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import type { ToolTranscript } from "./chat-tool-types";
-import type { Locale } from "../../lib/contracts";
+import type { Locale, TargetExpectation } from "../../lib/contracts";
 import { choose } from "../../lib/i18n";
 import { Button } from "../../components/ui";
 import type { ChatTurn } from "./chat-types";
@@ -19,6 +19,7 @@ export function ToolRecords({
   canWrite,
   onRecord,
   onViewSaved,
+  onViewTarget,
   decisions,
   records,
   readGate,
@@ -30,6 +31,7 @@ export function ToolRecords({
   canWrite: boolean;
   onRecord?: (record: ToolTranscript) => void;
   onViewSaved?: () => void;
+  onViewTarget?: (expectation: TargetExpectation) => void;
   decisions?: DecisionLedger;
   records?: TranscriptLedger;
   readGate?: ToolReadGate;
@@ -111,17 +113,29 @@ export function ToolRecords({
               </p>
               <div className="chat-tool-diff">
                 <div>
-                  <h5>{c("Before", "변경 전")}</h5>
+                  <h5>
+                    {call.tool === "target_create"
+                      ? c(
+                          "New record (not a uniqueness claim)",
+                          "새 레코드 (중복 없음의 증거 아님)",
+                        )
+                      : c("Before", "변경 전")}
+                  </h5>
                   <pre className="chat-text">
                     {JSON.stringify(call.proposal.before, null, 2)}
                   </pre>
                 </div>
                 <div>
                   <h5>
-                    {c(
-                      "After (complete Skill list)",
-                      "변경 후 (전체 스킬 목록)",
-                    )}
+                    {call.tool === "target_create"
+                      ? c(
+                          "Create target — literal fields",
+                          "대상 생성 — 원본 필드",
+                        )
+                      : c(
+                          "After (complete Skill list)",
+                          "변경 후 (전체 스킬 목록)",
+                        )}
                   </h5>
                   <pre className="chat-text">
                     {JSON.stringify(call.proposal.after, null, 2)}
@@ -197,6 +211,32 @@ export function ToolRecords({
                   "할당 양식에서 저장된 에이전트 보기",
                 )}
               </Button>
+            )}
+          {call.status === "succeeded" &&
+            call.result?.kind === "target_created" && (
+              <div>
+                <p>
+                  {c("Saved ·", "저장됨 ·")} {call.result.before_revision} →{" "}
+                  {call.result.after_revision} · {call.result.audit.id}
+                </p>
+                {onViewTarget && (
+                  <Button
+                    data-testid={`chat-tool-view-saved-${call.id}`}
+                    onClick={() => {
+                      if (call.result?.kind === "target_created")
+                        onViewTarget({
+                          target: call.result.target,
+                          after_revision: call.result.after_revision,
+                        });
+                    }}
+                  >
+                    {c(
+                      "View saved target in inventory",
+                      "목록에서 저장된 대상 보기",
+                    )}
+                  </Button>
+                )}
+              </div>
             )}
           {call.result && (
             <pre className="chat-text">

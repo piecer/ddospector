@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Crosshair, Plus } from "lucide-react";
 import {
@@ -15,12 +15,63 @@ import {
 import { api } from "../../lib/api";
 import type { PageProps, TargetInput } from "../../lib/contracts";
 import { choose, formatDate } from "../../lib/i18n";
+import { useTargetReadback } from "../ai/useTargetReadback";
 import { useDraft } from "./use-draft";
 import { validAddress, validName } from "./validation";
 
-export function TargetsPage({ data, locale, refresh }: PageProps) {
+export function TargetsPage({
+  data,
+  locale,
+  refresh,
+  targetSelection,
+}: PageProps) {
   const c = (en: string, ko: string) => choose(locale, en, ko);
   const [open, setOpen] = useState(false);
+  const readback = useTargetReadback(targetSelection, data);
+  const selectedRow = useRef<HTMLTableRowElement>(null);
+  useEffect(() => {
+    if (
+      !open &&
+      (readback.state === "receipt-confirmed" ||
+        readback.state === "current-only")
+    )
+      selectedRow.current?.focus();
+  }, [open, readback.state, readback.target]);
+  // Workspace data never overwrites a separately inspected selected record.
+  const targets = targetSelection
+    ? [
+        ...data.targets.filter((t) => t.id !== targetSelection.id),
+        ...(readback.target ? [readback.target] : []),
+      ]
+    : data.targets;
+  const readbackText = {
+    loading: c("Reading current target inventory…", "현재 대상 목록 읽는 중…"),
+    "receipt-confirmed": c(
+      "Fresh record matches the saved receipt and revision floor.",
+      "새로 읽은 레코드가 저장 영수증 및 최소 리비전과 일치합니다.",
+    ),
+    "current-only": c(
+      "Current record only — no historical saved-receipt comparison.",
+      "현재 레코드만 표시 — 이전 저장 영수증과 비교하지 않았습니다.",
+    ),
+    mismatch: targetSelection?.expectation
+      ? c(
+          "Readback discrepancy; the saved receipt remains unchanged. Do not recreate.",
+          "다시 읽기 불일치. 저장 영수증은 그대로 유지됩니다. 다시 생성하지 마세요.",
+        )
+      : c(
+          "Selected ID is absent from the current inventory. No historical save comparison is available.",
+          "현재 목록에 선택한 ID가 없습니다. 이전 저장 기록과 비교할 수 없습니다.",
+        ),
+    unavailable: c(
+      "Readback unavailable; any last inspected row is stale/unverified. A saved receipt is not erased. Retry GET only.",
+      "다시 읽기 불가. 마지막으로 읽은 행은 오래된 미검증 상태입니다. 저장 영수증은 유지됩니다. GET만 재시도하세요.",
+    ),
+    stale: c(
+      "Last inspected record — stale/unverified pending a fresh read.",
+      "마지막으로 읽은 레코드 — 새로 읽기 전 오래된 미검증 상태입니다.",
+    ),
+  };
   const [draft, setDraft] = useState<TargetInput>({
     name: "",
     address: "",
@@ -83,15 +134,40 @@ export function TargetsPage({ data, locale, refresh }: PageProps) {
           "초안 목록입니다. 주소에 접속하거나 검증하지 않으며 트래픽 전송 권한을 부여하지 않습니다.",
         )}
       </Notice>
+      {targetSelection && (
+        <section
+          aria-label={c("Selected target readback", "선택 대상 다시 읽기")}
+        >
+          <p
+            data-testid="target-readback-status"
+            data-readback={readback.state}
+            role="status"
+          >
+            {readbackText[readback.state]}
+          </p>
+          <p className="mono">{targetSelection.id}</p>
+          <Button onClick={readback.refresh} disabled={readback.pending}>
+            {c(
+              "Read selected target again (GET only)",
+              "선택 대상 다시 읽기 (GET 전용)",
+            )}
+          </Button>
+          {readback.pending && (
+            <Button onClick={readback.cancel}>
+              {c("Cancel target read", "대상 읽기 취소")}
+            </Button>
+          )}
+        </section>
+      )}
       <Panel
         title={c("Target inventory", "시험 대상 목록")}
         actions={
           <Badge>
-            {data.targets.length} {c("drafts", "개 초안")}
+            {targets.length} {c("drafts", "개 초안")}
           </Badge>
         }
       >
-        {data.targets.length === 0 ? (
+        {targets.length === 0 ? (
           <EmptyState
             icon={<Crosshair size={28} />}
             title={c(
@@ -108,6 +184,7 @@ export function TargetsPage({ data, locale, refresh }: PageProps) {
             <table className="table">
               <thead>
                 <tr>
+                  <th>ID</th>
                   <th>{c("Name", "이름")}</th>
                   <th>{c("Address", "주소")}</th>
                   <th>{c("Role", "역할")}</th>
@@ -116,17 +193,45 @@ export function TargetsPage({ data, locale, refresh }: PageProps) {
                 </tr>
               </thead>
               <tbody>
-                {data.targets.map((target) => (
-                  <tr key={target.id}>
+                {targets.map((target) => (
+                  <tr
+                    key={target.id}
+                    data-testid={`target-row-${target.id}`}
+                    data-selected={
+                      targetSelection?.id === target.id ? "true" : "false"
+                    }
+                    ref={
+                      targetSelection?.id === target.id
+                        ? selectedRow
+                        : undefined
+                    }
+                    tabIndex={
+                      targetSelection?.id === target.id ? -1 : undefined
+                    }
+                    style={
+                      targetSelection?.id === target.id
+                        ? {
+                            outline: "2px solid currentColor",
+                            outlineOffset: "-2px",
+                          }
+                        : undefined
+                    }
+                  >
+                    <td className="mono">{target.id}</td>
                     <td>{target.name}</td>
                     <td className="mono">{target.address}</td>
                     <td>{target.kind}</td>
                     <td>
                       <Badge tone="warning">
-                        {c("Draft · not verified", "초안 · 미검증")}
+                        {c("Draft · not verified", "초안 · 미검증")}{" "}
+                        <span className="mono">{target.status}</span>
                       </Badge>
                     </td>
-                    <td>{formatDate(target.created_at, locale)}</td>
+                    <td>
+                      {targetSelection?.id === target.id
+                        ? target.created_at
+                        : formatDate(target.created_at, locale)}
+                    </td>
                   </tr>
                 ))}
               </tbody>

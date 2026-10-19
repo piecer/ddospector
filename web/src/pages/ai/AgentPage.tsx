@@ -42,6 +42,9 @@ export function AgentPage({
         mutationsEnabled={mutationsEnabled}
         onSaved={refresh}
         onViewSaved={viewSaved}
+        onViewTarget={(expectation) =>
+          navigate("targets", { id: expectation.target.id, expectation })
+        }
       />
       {data && (
         <fieldset className="page-fieldset" disabled={!mutationsEnabled}>

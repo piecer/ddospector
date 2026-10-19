@@ -47,13 +47,16 @@ def browser_setup(tmp_path, monkeypatch):
     monkeypatch.setattr(harness, "launch_api", lambda *a, **k: (api, "http://127.0.0.1:42001"))
     monkeypatch.setattr(harness.legacy, "bootstrap", lambda *_: None)
     monkeypatch.setattr(harness, "http", lambda *_: (200, {}))
-    monkeypatch.setattr(harness, "plan", lambda _: [])
-    monkeypatch.setattr(harness, "require_runtime", lambda *_: None)
+    monkeypatch.setattr(harness, "plan", lambda _, *, fixture_case="agent": [])
+    monkeypatch.setattr(harness, "require_runtime", lambda *_, fixture_case="agent": None)
     result = {"children": []}
     return tmp_path, provider, api, result
 
 
-def test_browser_origin_uses_existing_allowlist_without_policy_change(browser_setup, monkeypatch):
+@pytest.mark.parametrize("fixture_case", ["agent", "target"])
+def test_browser_origin_uses_existing_allowlist_without_policy_change(
+    browser_setup, monkeypatch, fixture_case
+):
     directory, provider, api, result = browser_setup
     ports, launches = [], []
 
@@ -74,7 +77,7 @@ def test_browser_origin_uses_existing_allowlist_without_policy_change(browser_se
     monkeypatch.setattr(harness.legacy, "reserved_port", reserve)
     monkeypatch.setattr(harness.legacy, "OwnedProcess", launch)
     with pytest.raises(AtVite):
-        harness.run_browser("fixture", directory, result)
+        harness.run_browser("fixture", directory, result, fixture_case=fixture_case)
     assert ports == [5175]
     assert len(launches) == 1
     command, _ = launches[0]
@@ -88,7 +91,10 @@ def test_browser_origin_uses_existing_allowlist_without_policy_change(browser_se
     assert api.retired and provider.retired and not provider.requests
 
 
-def test_origin_port_collision_has_no_fallback_or_process_adoption(browser_setup, monkeypatch):
+@pytest.mark.parametrize("fixture_case", ["agent", "target"])
+def test_origin_port_collision_has_no_fallback_or_process_adoption(
+    browser_setup, monkeypatch, fixture_case
+):
     directory, provider, api, result = browser_setup
     ports = []
     failure = OSError("invocation collision control")
@@ -105,6 +111,6 @@ def test_origin_port_collision_has_no_fallback_or_process_adoption(browser_setup
     monkeypatch.setattr(harness.legacy, "reserved_port", reserve)
     monkeypatch.setattr(harness.legacy, "OwnedProcess", forbidden)
     with pytest.raises(OSError) as caught:
-        harness.run_browser("fixture", directory, result)
+        harness.run_browser("fixture", directory, result, fixture_case=fixture_case)
     assert caught.value is failure and ports == [5175]
     assert api.retired and provider.retired and not provider.requests
