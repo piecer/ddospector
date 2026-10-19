@@ -1,10 +1,13 @@
 """Closed native-tool HTTP companions; no model-accessible authority routes."""
 
 from fastapi import APIRouter, Request
+from pydantic import TypeAdapter
 
 from .chat import body, identifier, query, response
 from .chat_models import EmptyInput
 from .chat_tool_models import DecisionInput, GrantRequest, ReconcileInput, ToolTurnInput
+from .errors import DraftError
+from .validation import Identifier
 
 
 def tool_router(runtime):
@@ -19,6 +22,20 @@ def tool_router(runtime):
     async def targets(request: Request):
         query(request)
         return response(await runtime.tools_targets())
+
+    @router.get("/tools/skills")
+    async def skills(request: Request):
+        query(request)
+        return response(await runtime.tools_skills())
+
+    @router.get("/tools/skills/{skill_id:path}")
+    async def skill(skill_id: str, request: Request):
+        query(request)
+        try:
+            TypeAdapter(Identifier).validate_python(skill_id)
+        except ValueError:
+            raise DraftError("CHAT_INVALID_REQUEST") from None
+        return response(await runtime.tools_skills(skill_id))
 
     @router.post("/tool-grants")
     async def grant(request: Request):

@@ -89,7 +89,12 @@ def test_runtime_metadata_publishes_v2(tmp_path):
     product = LiveProduct(tmp_path)
     try:
         status, value = product.request("/api/v1/chat/tools/runtime")
-        assert status == 200 and value["schema_version"] == 2
-        assert value["tools"] == ["configuration_read", "agent_profile_update", "target_create"]
+        assert status == 200 and value["schema_version"] == 3
+        assert value["tools"] == [
+            "configuration_read",
+            "agent_profile_update",
+            "target_create",
+            "skill_create",
+        ]
     finally:
         product.close()

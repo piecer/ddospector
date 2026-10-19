@@ -49,6 +49,7 @@ function fixture() {
     observedTurn,
     get,
     now: () => Date.parse(receipt.created_at) + 1000,
+    clock: () => 0,
   };
 }
 
@@ -68,6 +69,140 @@ describe("persisted grant observer (offline harness, not Chromium reproduction)"
     expect(result.originalResponseBody).toBe("not-observed");
     expect(result.grant).toEqual(receipt);
     expect(result.rawReadback).toBe(captured.raw_utf8);
+  });
+
+  it("passes only the remaining budget after pre-dispatch elapsed work", async () => {
+    const f = fixture();
+    let clockCalls = 0;
+    const result = await observePersistedGrant({
+      ...f,
+      clock: () => (clockCalls++ === 0 ? 0 : 2),
+    });
+    expect(f.get).toHaveBeenCalledExactlyOnceWith(captured.path, {
+      timeout: 14_998,
+      maxRetries: 0,
+      maxRedirects: 0,
+    });
+    expect(result.grant).toEqual(receipt);
+    expect(result.rawReadback).toBe(captured.raw_utf8);
+  });
+});
+
+// SYNTHETIC v3 observer fixture, not an actual producer/browser capture.
+function skillFixture(status: "pending" | "consumed" = "pending") {
+  const f = fixture();
+  const grant = {
+    ...receipt,
+    schema_version: 3,
+    scope: "skill_create",
+    status,
+    read_scope: ["skills", "skill"],
+    proposal_tools: ["skill_create"],
+  };
+  f.get.mockResolvedValue({ status: 200, body: JSON.stringify(grant) });
+  return {
+    ...f,
+    authority: "skill_create_v3" as const,
+    post: {
+      ...f.post,
+      body: { ...f.post.body, schema_version: 3, scope: "skill_create" },
+    },
+    skillGrant: grant,
+  };
+}
+
+describe("Skill v3 one-shot observer, synthetic controls only", () => {
+  it.each(["pending", "consumed"] as const)(
+    "binds exact %s v3 without rewriting provenance",
+    async (status) => {
+      const f = skillFixture(status);
+      const record = vi.fn();
+      if (status === "consumed")
+        f.now = () => Date.parse(receipt.expires_at) + 1;
+      const result = await observePersistedGrant({ ...f, record });
+      expect(result.grant).toEqual(f.skillGrant);
+      expect(result.originalResponseBody).toBe("not-observed");
+      expect(result.source).toBe("persisted-grant-by-request-GET");
+      expect(f.get).toHaveBeenCalledExactlyOnceWith(captured.path, {
+        timeout: 15_000,
+        maxRetries: 0,
+        maxRedirects: 0,
+      });
+      expect(record.mock.calls.map(([fact]) => fact.stage)).toEqual([
+        "original",
+        "readback-start",
+        "readback-response",
+        "validated",
+      ]);
+    },
+  );
+  it.each([
+    ["schema_version", 2],
+    ["scope", "target_create"],
+    ["read_scope", ["agent_profile", "skills", "skill"]],
+    ["proposal_tools", ["agent_profile_update"]],
+    ["proposal_fields", ["name"]],
+    ["id", "abcdef01-2345-4678-9abc-def012345678"],
+    ["request_id", "abcdef01-2345-4678-9abc-def012345678"],
+    ["session_id", "abcdef01-2345-4678-9abc-def012345678"],
+    ["turn_request_id", "abcdef01-2345-4678-9abc-def012345678"],
+    ["expected_sequence", 1],
+    ["settings_revision", 2],
+    ["profile_id", "other"],
+    ["text_sha256", "0".repeat(64)],
+    ["status", "revoked"],
+    ["extra", true],
+  ])("rejects v3 altered binding %s", async (key, value) => {
+    const f = skillFixture();
+    f.get.mockResolvedValue({
+      status: 200,
+      body: JSON.stringify({ ...f.skillGrant, [key as string]: value }),
+    });
+    await expect(observePersistedGrant(f)).rejects.toThrow();
+    expect(f.get).toHaveBeenCalledTimes(1);
+  });
+  it.each([
+    [1, 3],
+    [2, 3],
+    [3, 1],
+    [3, 2],
+  ])(
+    "rejects closed cross-authority substitution %s → %s",
+    async (wanted, supplied) => {
+      const f =
+        wanted === 1 ? legacy() : wanted === 2 ? fixture() : skillFixture();
+      const grant =
+        supplied === 1
+          ? legacy().legacyGrant
+          : supplied === 2
+            ? receipt
+            : skillFixture().skillGrant;
+      f.get.mockResolvedValue({ status: 200, body: JSON.stringify(grant) });
+      await expect(observePersistedGrant(f)).rejects.toThrow();
+      expect(f.get).toHaveBeenCalledTimes(1);
+    },
+  );
+  it("denies mismatched v3 POST scope before GET", async () => {
+    const f = skillFixture();
+    f.post.body.scope = "target_create";
+    await expect(observePersistedGrant(f)).rejects.toThrow();
+    expect(f.get).not.toHaveBeenCalled();
+  });
+  it("rejects late v3 read without retry or a validated fact", async () => {
+    const f = skillFixture();
+    let elapsed = 0;
+    f.get.mockImplementation(async () => {
+      elapsed = 15_001;
+      return { status: 200, body: JSON.stringify(f.skillGrant) };
+    });
+    const record = vi.fn();
+    await expect(
+      observePersistedGrant({ ...f, record, clock: () => elapsed }),
+    ).rejects.toThrow("deadline");
+    expect(f.get).toHaveBeenCalledTimes(1);
+    expect(record.mock.calls.some(([fact]) => fact.stage === "validated")).toBe(
+      false,
+    );
   });
 });
 

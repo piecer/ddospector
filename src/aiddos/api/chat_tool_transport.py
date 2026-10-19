@@ -13,7 +13,7 @@ from .errors import DraftError
 FRAME_BYTES = 65536
 ARGUMENT_BYTES = 16384
 SEPARATOR = re.compile(rb"\r?\n\r?\n")
-TOOL_NAMES = ("configuration_read", "agent_profile_update", "target_create")
+TOOL_NAMES = ("configuration_read", "agent_profile_update", "target_create", "skill_create")
 
 
 class NativeParser:

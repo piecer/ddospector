@@ -1,4 +1,10 @@
-import type { AuditEvent, Target, TargetInput } from "../../lib/contracts";
+import type {
+  AuditEvent,
+  Target,
+  TargetInput,
+  CompleteDraftSkill,
+  SkillInput,
+} from "../../lib/contracts";
 import type { ChatCode } from "./chat-types";
 export type AgentConfig = {
   resource_id: "agent-profile";
@@ -29,7 +35,21 @@ export type TargetInspection = {
   draft_revision: number;
   targets: Target[];
 };
+export type SkillCreateArguments = SkillInput & {
+  expected_draft_revision: number;
+};
+export type SkillReadArguments = Extract<
+  ReadArguments,
+  { kind: "skills" | "skill" }
+>;
 export type ToolResult =
+  | {
+      kind: "skill_created";
+      before_revision: number;
+      after_revision: number;
+      skill: CompleteDraftSkill;
+      audit: AuditEvent;
+    }
   | {
       kind: "targets";
       draft_revision: number;
@@ -67,7 +87,8 @@ export type ToolResult =
       agent_profile: AgentConfig;
       audit: AuditEvent;
     };
-export type RequestedAuthority = "agent_v1" | "target_create_v2";
+export type RequestedAuthority =
+  "agent_v1" | "target_create_v2" | "skill_create_v3";
 export type ToolRuntime = {
   mode: "operator_approved_settings";
   supported: boolean;
@@ -76,6 +97,15 @@ export type ToolRuntime = {
   max_writes: 1;
   requires_write_approval: true;
 } & (
+  | {
+      schema_version: 3;
+      tools: [
+        "configuration_read",
+        "agent_profile_update",
+        "target_create",
+        "skill_create",
+      ];
+    }
   | { schema_version: 1; tools: ["configuration_read", "agent_profile_update"] }
   | {
       schema_version: 2;
@@ -101,6 +131,12 @@ export type ToolGrant = {
       proposal_fields: ["name", "skill_ids"];
     }
   | {
+      schema_version: 3;
+      scope: "skill_create";
+      read_scope: ["skills", "skill"];
+      proposal_tools: ["skill_create"];
+    }
+  | {
       schema_version: 2;
       scope: "target_create";
       read_scope: ["targets", "target"];
@@ -116,6 +152,14 @@ export type ToolDecision = {
   accepted_at: string;
 };
 export type ToolProposal =
+  | {
+      operation: "skill_create";
+      digest: string;
+      expected_draft_revision: number;
+      before: null;
+      after: SkillInput;
+      expires_at: string;
+    }
   | {
       operation: "target_create";
       digest: string;
@@ -145,10 +189,15 @@ export type ToolCall = {
   id: string;
   index: number;
   provider_call_id: string;
-  tool: "configuration_read" | "agent_profile_update" | "target_create";
+  tool:
+    | "configuration_read"
+    | "agent_profile_update"
+    | "target_create"
+    | "skill_create";
   arguments:
     | ReadArguments
     | WriteArguments
+    | SkillCreateArguments
     | TargetCreateArguments
     | { kind: "targets"; offset: number; limit: number }
     | { kind: "target"; id: string };

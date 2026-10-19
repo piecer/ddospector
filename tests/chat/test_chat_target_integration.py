@@ -235,8 +235,13 @@ def test_target_grant_public_http(product):
 
 def test_target_runtime_and_get_only_inventory(product):
     status, runtime = product.request("/api/v1/chat/tools/runtime")
-    assert status == 200 and runtime["schema_version"] == 2
-    assert runtime["tools"] == ["configuration_read", "agent_profile_update", "target_create"]
+    assert status == 200 and type(runtime["schema_version"]) is int
+    expected = {
+        2: ["configuration_read", "agent_profile_update", "target_create"],
+        3: ["configuration_read", "agent_profile_update", "target_create", "skill_create"],
+    }
+    assert runtime["schema_version"] in expected
+    assert runtime["tools"] == expected[runtime["schema_version"]]
     assert runtime["max_calls"] == 3 and runtime["max_writes"] == 1
     assert runtime["requires_write_approval"] is True
     before = workspace(product)

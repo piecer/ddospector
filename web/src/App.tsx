@@ -4,6 +4,8 @@ import type {
   Locale,
   PageProps,
   TargetSelection,
+  SkillSelection,
+  NavigationArgs,
   WorkspaceSnapshot,
 } from "./lib/contracts";
 import type { RouteId } from "./lib/navigation";
@@ -13,6 +15,12 @@ import {
   targetSelectionFromLocation,
   targetSelectionPath,
 } from "./lib/target-selection";
+import {
+  cloneSkillSelection,
+  skillSelectionFromLocation,
+  skillSelectionPath,
+} from "./lib/skill-selection";
+import { SelectedSkillReadback } from "./pages/ai/SkillsPage";
 import { api } from "./lib/api";
 import { choose, text } from "./lib/i18n";
 import { AgentPage } from "./pages/ai/AgentPage";
@@ -28,6 +36,9 @@ export function Application({ pages }: ApplicationProps) {
   const [targetSelection, setTargetSelection] = useState<
     TargetSelection | undefined
   >(() => targetSelectionFromLocation(window.location));
+  const [skillSelection, setSkillSelection] = useState<
+    SkillSelection | undefined
+  >(() => skillSelectionFromLocation(window.location));
   const [locale, setLocale] = useState<Locale>(() => {
     try {
       const saved = localStorage.getItem("aegis.locale");
@@ -68,6 +79,7 @@ export function Application({ pages }: ApplicationProps) {
   useEffect(() => {
     const back = () => {
       setTargetSelection(targetSelectionFromLocation(window.location));
+      setSkillSelection(skillSelectionFromLocation(window.location));
       setRoute(routeFromPath(window.location.pathname));
     };
     window.addEventListener("popstate", back);
@@ -86,17 +98,26 @@ export function Application({ pages }: ApplicationProps) {
       /* Preferences are not a prerequisite for using the workspace. */
     }
   }, [locale]);
-  const navigate = (next: RouteId, selection?: TargetSelection) => {
+  const navigate = (...[next, selection]: NavigationArgs) => {
     const owned =
       next === "targets" && selection
         ? cloneTargetSelection(selection)
         : undefined;
+    const ownedSkill =
+      next === "skills" && selection
+        ? cloneSkillSelection(selection)
+        : undefined;
     window.history.pushState(
       null,
       "",
-      owned ? targetSelectionPath(owned) : "/" + next,
+      owned
+        ? targetSelectionPath(owned)
+        : ownedSkill
+          ? skillSelectionPath(ownedSkill)
+          : "/" + next,
     );
     setTargetSelection(owned);
+    setSkillSelection(ownedSkill);
     setRoute(next);
     document.getElementById("main-content")?.focus({ preventScroll: true });
   };
@@ -184,9 +205,16 @@ export function Application({ pages }: ApplicationProps) {
               navigate={navigate}
               refresh={refresh}
               targetSelection={targetSelection}
+              skillSelection={skillSelection}
             />
           </fieldset>
         </>
+      ) : route === "skills" && skillSelection ? (
+        <SelectedSkillReadback
+          selection={skillSelection}
+          workspace={null}
+          locale={locale}
+        />
       ) : (
         connection !== "error" && (
           <div className="loading-workspace" role="status">

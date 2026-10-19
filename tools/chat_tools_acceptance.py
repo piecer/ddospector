@@ -33,8 +33,24 @@ COMPLETIONS = ENDPOINT + "/chat/completions"
 NAME = "CHAT02A 승인된 에이전트 🌍"
 TARGET_NAME = "CHAT02B1 승인된 대상 🌍"
 TARGET_INPUT = {"name": TARGET_NAME, "address": "Example.COM.", "kind": "DUT"}
+SKILL_INPUT = {
+    "name": "CHAT02B2 승인된 스킬 🌍",
+    "description": "SYNTHETIC literal description / 설명 — no execution or assignment",
+    "instructions": (
+        '  SYNTHETIC inert <script>alert("no")</script> [link](javascript:alert(1))\n'
+        + "Long literal instruction / 긴 지침 🌍\t" * 48
+        + "\r\nFULL-INSTRUCTION-TAIL-끝  "
+    ),
+    "category": "analysis",
+}
 OWNED = (
     "tools/chat_tools_acceptance.py",
+    "tests/tooling/test_chat_tools_acceptance_skill.py",
+    "tests/tooling/test_chat_skill_capture_ordering.py",
+    "tests/chat/test_chat_skill_integration.py",
+    "tests/chat/chat_skill_capture.py",
+    "web/e2e/chat-grant-observer.ts",
+    "web/src/test/chat-grant-observer.test.ts",
     "tests/tooling/test_chat_tools_acceptance.py",
     "tests/tooling/test_chat_tools_acceptance_origin.py",
     "tests/tooling/test_chat_tools_acceptance_target.py",
@@ -96,10 +112,15 @@ def manifest():
 def clean_env(extra=None):
     return legacy.clean_env(
         {
-            "PYTHONPATH": str(ROOT / "src"),
+            "PYTHONPATH": os.pathsep.join((str(ROOT / "src"), str(ROOT))),
             "PYTHONDONTWRITEBYTECODE": "1",
             "UV_OFFLINE": "1",
             "UV_NO_SYNC": "1",
+            "UV_PYTHON_DOWNLOADS": "never",
+            "npm_config_offline": "true",
+            "npm_config_update_notifier": "false",
+            "npm_config_audit": "false",
+            "npm_config_fund": "false",
             **(extra or {}),
         }
     )
@@ -156,6 +177,22 @@ def agent(workspace):
 
 
 def plan(workspace, *, skills=None, fixture_case="agent"):
+    if fixture_case == "skill":
+        if skills is not None:
+            raise ValueError("skill fixture does not have Agent assignment authority")
+        return [
+            native(
+                "configuration_read",
+                {"kind": "skills", "offset": 0, "limit": 10},
+                "native-skill-read-01",
+            ),
+            native(
+                "skill_create",
+                {"expected_draft_revision": revision(workspace), **SKILL_INPUT},
+                "native-skill-create-02",
+            ),
+            Scenario.text("SYNTHETIC approved skill receipt observed. No execution or assignment."),
+        ]
     if fixture_case == "target":
         if skills is not None:
             raise ValueError("target fixture does not have Agent skill authority")
@@ -596,6 +633,8 @@ def launch_api(state, artifacts, *, port=0, ledger=None, fault=None):
 
 
 def require_runtime(base, artifacts, *, fixture_case="agent"):
+    if fixture_case not in {"agent", "target", "skill"}:
+        raise ValueError("unknown fixture case")
     status, runtime = http(base, "/api/v1/chat/tools/runtime")
     dump(Path(artifacts) / "tools-runtime.json", {"status": status, "body": runtime})
     assert status == 200, f"missing CHAT02A runtime: HTTP {status}: {runtime}"
@@ -603,17 +642,22 @@ def require_runtime(base, artifacts, *, fixture_case="agent"):
     expected = {
         1: ["configuration_read", "agent_profile_update"],
         2: ["configuration_read", "agent_profile_update", "target_create"],
+        3: ["configuration_read", "agent_profile_update", "target_create", "skill_create"],
     }
     assert type(runtime["schema_version"]) is int and runtime["schema_version"] in expected
     assert runtime["tools"] == expected[runtime["schema_version"]]
     if fixture_case == "target":
-        assert runtime["schema_version"] == 2, "missing CHAT02B1 target runtime"
+        assert runtime["schema_version"] in {2, 3}, "missing CHAT02B1 target runtime"
+    if fixture_case == "skill":
+        assert runtime["schema_version"] == 3, "missing CHAT02B2 skill runtime"
 
 
 def run_browser(mode, directory, result, admission=None, *, fixture_case="agent"):
     if mode == "fixture" and admission is not None:
         raise RuntimeError("fixture cannot use real-model admission or ledger")
-    if fixture_case not in {"agent", "target"} or (mode != "fixture" and fixture_case != "agent"):
+    if fixture_case not in {"agent", "target", "skill"} or (
+        mode != "fixture" and fixture_case != "agent"
+    ):
         raise RuntimeError("target fixture cannot authorize real inference")
     deadline = admission["deadline"] if admission else time.monotonic() + 900
     ledger = admission["ledger"] if admission else None
@@ -688,7 +732,13 @@ def run_browser(mode, directory, result, admission=None, *, fixture_case="agent"
                     "CHAT02A_DIR": str(directory),
                     "CHAT02A_MODE": mode,
                     "CHAT02A_WEB": web,
-                    "CHAT02A_NAME": TARGET_NAME if fixture_case == "target" else NAME,
+                    "CHAT02A_NAME": (
+                        SKILL_INPUT["name"]
+                        if fixture_case == "skill"
+                        else TARGET_NAME
+                        if fixture_case == "target"
+                        else NAME
+                    ),
                     **({"CHAT02B1_FIXTURE_CASE": fixture_case} if mode == "fixture" else {}),
                 }
             ),
@@ -725,7 +775,7 @@ def run_browser(mode, directory, result, admission=None, *, fixture_case="agent"
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("preflight", "fixture", "real"), default="preflight")
-    parser.add_argument("--fixture-case", choices=("agent", "target"), default=None)
+    parser.add_argument("--fixture-case", choices=("agent", "target", "skill"), default=None)
     parser.add_argument("--allow-real-model", action="store_true")
     parser.add_argument("--parent-admission", type=Path)
     parser.add_argument("--correction-reason")

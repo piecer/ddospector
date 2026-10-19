@@ -42,6 +42,9 @@ export function AgentPage({
         mutationsEnabled={mutationsEnabled}
         onSaved={refresh}
         onViewSaved={viewSaved}
+        onViewSkill={(expectation) =>
+          navigate("skills", { id: expectation.skill.id, expectation })
+        }
         onViewTarget={(expectation) =>
           navigate("targets", { id: expectation.target.id, expectation })
         }

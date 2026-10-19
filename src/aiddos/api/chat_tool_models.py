@@ -8,9 +8,10 @@ from typing import Annotated, Literal
 from pydantic import AfterValidator, Field, RootModel, TypeAdapter, model_validator
 
 from .ai_settings import AIIdentifier
+from .catalog import SAFETY_RULES, SKILLS_V1
 from .chat_models import ChatID, ChatTime, Counter, TurnInput, encoded, user_text, valid_text
 from .encoding import strict_json
-from .models import AuditEvent, ClosedModel, Target, TargetInput
+from .models import AuditEvent, ClosedModel, Skill, SkillInput, Target, TargetInput
 from .validation import Description, Identifier, Instructions, Name, unique_ids
 
 POOL_BYTES = 2 * 1024 * 1024
@@ -35,16 +36,19 @@ CODES = {
     "uncertain": {"CHAT_TOOL_UNCERTAIN"},
     "cancelled": {"CHAT_CANCELLED"},
 }
-ToolName = Literal["configuration_read", "agent_profile_update", "target_create"]
-WRITE_TOOLS = frozenset({"agent_profile_update", "target_create"})
+ToolName = Literal["configuration_read", "agent_profile_update", "target_create", "skill_create"]
+WRITE_TOOLS = frozenset({"agent_profile_update", "target_create", "skill_create"})
 
 
 def allows_call(grant, tool, arguments):
+    version = grant["schema_version"]
+    if type(version) is not int or version not in (1, 2, 3):
+        return False
+    if version in (2, 3) and grant.get("scope") != {2: "target_create", 3: "skill_create"}[version]:
+        return False
     if tool == "configuration_read":
         return arguments["kind"] in grant["read_scope"]
-    if grant["schema_version"] == 1:
-        return tool == "agent_profile_update"
-    return tool in grant["proposal_tools"]
+    return tool == {1: "agent_profile_update", 2: "target_create", 3: "skill_create"}[version]
 
 
 Digest = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
@@ -109,16 +113,27 @@ class ToolRuntime(ToolModel):
 
     @model_validator(mode="after")
     def support(self):
-        if self.supported != (self.reason is None) or self.tools != [
-            "configuration_read",
-            "agent_profile_update",
-        ] + (["target_create"] if self.schema_version == 2 else []):
+        if (
+            self.supported != (self.reason is None)
+            or self.tools
+            != [
+                "configuration_read",
+                "agent_profile_update",
+            ]
+            + {1: [], 2: ["target_create"], 3: ["target_create", "skill_create"]}[
+                self.schema_version
+            ]
+        ):
             raise ValueError("Invalid runtime support")
         return self
 
 
 class ToolRuntimeV2(ToolRuntime):
     schema_version: Literal[2]
+
+
+class ToolRuntimeV3(ToolRuntime):
+    schema_version: Literal[3]
 
 
 class AgentRead(ToolModel):
@@ -137,6 +152,7 @@ class SkillRead(ToolModel):
 
 
 ReadArguments = Annotated[AgentRead | SkillsRead | SkillRead, Field(discriminator="kind")]
+SkillReadArguments = Annotated[SkillsRead | SkillRead, Field(discriminator="kind")]
 
 
 class TargetsRead(ToolModel):
@@ -160,6 +176,10 @@ class TargetCreateArguments(TargetInput):
     expected_draft_revision: Counter
 
 
+class SkillCreateArguments(SkillInput):
+    expected_draft_revision: Counter
+
+
 class UpdateArguments(ToolModel):
     expected_draft_revision: Counter
     name: Name
@@ -173,6 +193,8 @@ def validate_arguments(tool, value):
         return UpdateArguments.model_validate(value).model_dump()
     if tool == "target_create":
         return TargetCreateArguments.model_validate(value).model_dump()
+    if tool == "skill_create":
+        return SkillCreateArguments.model_validate(value).model_dump()
     raise ValueError("Unknown tool")
 
 
@@ -291,6 +313,125 @@ class TargetCreatedResult(ToolModel):
         return self
 
 
+class CompleteDraftSkill(Skill):
+    # All ten domain fields are required on the wire, including domain defaults.
+    version: Literal["1.0.0"]
+    status: Literal["draft"]
+
+    @model_validator(mode="after")
+    def draft_policy(self):
+        if (
+            self.id in {s["id"] for s in SKILLS_V1}
+            or self.allowed_operations != []
+            or self.required_capabilities != []
+            or [r.model_dump() for r in self.safety_rules] != SAFETY_RULES
+            or any(
+                getattr(self, k).en != getattr(self, k).ko
+                for k in ("name", "description", "instructions")
+            )
+        ):
+            raise ValueError("Invalid complete draft Skill")
+        SkillInput.model_validate(
+            {
+                **{k: getattr(self, k).en for k in ("name", "description", "instructions")},
+                "category": self.category,
+            }
+        )
+        return self
+
+
+class CompleteTemplateSkill(Skill):
+    version: Literal["1.0.0"]
+    status: Literal["template"]
+
+    @model_validator(mode="after")
+    def catalog_identity(self):
+        if self.model_dump() not in SKILLS_V1:
+            raise ValueError("Unknown or altered catalog Skill")
+        return self
+
+
+CompleteActualSkill = Annotated[
+    CompleteDraftSkill | CompleteTemplateSkill, Field(discriminator="status")
+]
+
+
+class SkillInspection(ToolModel):
+    schema_version: Literal[1]
+    draft_revision: Counter
+    skill: CompleteActualSkill
+
+    @model_validator(mode="after")
+    def bounded(self):
+        if len(encoded(self.model_dump())) > 131072:
+            raise ValueError("Skill inspection byte limit")
+        return self
+
+
+class SkillName(ToolModel):
+    en: Name
+    ko: Name
+
+
+class SkillInspectionSummary(ToolModel):
+    id: Identifier
+    name: SkillName
+    category: Literal["planning", "measurement", "analysis"]
+    status: Literal["template", "draft"]
+    version: Literal["1.0.0"]
+
+    @model_validator(mode="after")
+    def identity(self):
+        if self.status == "draft":
+            if self.id in {s["id"] for s in SKILLS_V1} or self.name.en != self.name.ko:
+                raise ValueError("Invalid draft Skill summary")
+        elif self.model_dump() not in [
+            {k: s[k] for k in ("id", "name", "category", "status", "version")} for s in SKILLS_V1
+        ]:
+            raise ValueError("Invalid template Skill summary")
+        return self
+
+
+class SkillsInspection(ToolModel):
+    schema_version: Literal[1]
+    draft_revision: Counter
+    skills: list[SkillInspectionSummary] = Field(min_length=3, max_length=103)
+
+    @model_validator(mode="after")
+    def bounded(self):
+        if (
+            [s.id for s in self.skills[:3]] != [s["id"] for s in SKILLS_V1]
+            or len({s.id for s in self.skills}) != len(self.skills)
+            or any(s.status != "draft" for s in self.skills[3:])
+            or len(encoded(self.model_dump())) > 131072
+        ):
+            raise ValueError("Invalid bounded Skill inventory")
+        return self
+
+
+class SkillAudit(AuditEvent):
+    action: Literal["skill.created"]
+    origin: Literal["local_operator"]
+
+
+class SkillCreatedResult(ToolModel):
+    kind: Literal["skill_created"]
+    before_revision: Counter
+    after_revision: Counter
+    skill: CompleteDraftSkill
+    audit: SkillAudit
+
+    @model_validator(mode="after")
+    def revision(self):
+        if (
+            self.after_revision != self.before_revision + 1
+            or self.audit.entity_id != self.skill.id
+            or self.audit.id == self.skill.id
+        ):
+            raise ValueError("Invalid Skill creation receipt")
+        return self
+
+
 Result = Annotated[
     AgentResult
     | SkillsResult
@@ -298,7 +439,8 @@ Result = Annotated[
     | UpdateResult
     | TargetsResult
     | TargetResult
-    | TargetCreatedResult,
+    | TargetCreatedResult
+    | SkillCreatedResult,
     Field(discriminator="kind"),
 ]
 
@@ -323,7 +465,12 @@ class TargetGrantInput(GrantInput):
     scope: Literal["target_create"]
 
 
-class GrantRequest(RootModel[GrantInput | TargetGrantInput]):
+class SkillGrantInput(GrantInput):
+    schema_version: Literal[3]
+    scope: Literal["skill_create"]
+
+
+class GrantRequest(RootModel[GrantInput | TargetGrantInput | SkillGrantInput]):
     """Closed body union; legacy explicit schema_version=1 remains forbidden."""
 
 
@@ -382,7 +529,35 @@ class TargetGrant(ToolModel):
         return self
 
 
-GrantRecord = Annotated[Grant | TargetGrant, Field(discriminator="schema_version")]
+class SkillGrant(ToolModel):
+    schema_version: Literal[3]
+    id: ChatID
+    request_id: ChatID
+    session_id: ChatID
+    turn_request_id: ChatID
+    expected_sequence: Counter
+    text_sha256: Digest
+    settings_revision: Counter
+    profile_id: AIIdentifier
+    created_at: ChatTime
+    expires_at: ChatTime
+    status: Literal["pending", "consumed", "revoked", "expired"]
+    scope: Literal["skill_create"]
+    read_scope: list[Literal["skills", "skill"]]
+    proposal_tools: list[Literal["skill_create"]]
+
+    @model_validator(mode="after")
+    def authority(self):
+        if (
+            self.read_scope != ["skills", "skill"]
+            or self.proposal_tools != ["skill_create"]
+            or (instant(self.expires_at) - instant(self.created_at)).total_seconds() != 300
+        ):
+            raise ValueError("Invalid grant scope or expiry")
+        return self
+
+
+GrantRecord = Annotated[Grant | TargetGrant | SkillGrant, Field(discriminator="schema_version")]
 
 
 class ToolTurnInput(TurnInput):
@@ -418,7 +593,16 @@ class TargetCreateProposal(ToolModel):
     expires_at: ChatTime
 
 
-ProposalRecord = Proposal | TargetCreateProposal
+class SkillCreateProposal(ToolModel):
+    operation: Literal["skill_create"]
+    digest: Digest
+    expected_draft_revision: Counter
+    before: None
+    after: SkillInput
+    expires_at: ChatTime
+
+
+ProposalRecord = Proposal | TargetCreateProposal | SkillCreateProposal
 
 
 def proposal_digest(call_id, grant_id, proposal):
@@ -440,7 +624,7 @@ class ToolCall(ToolModel):
     index: int = Field(ge=0, le=2)
     provider_call_id: ProviderID
     tool: ToolName
-    arguments: IngressReadArguments | UpdateArguments | TargetCreateArguments
+    arguments: IngressReadArguments | UpdateArguments | TargetCreateArguments | SkillCreateArguments
     args_digest: Digest
     grant_id: ChatID
     actor: Literal["operator_authorized_model"]
@@ -480,6 +664,7 @@ class ToolCall(ToolModel):
             expected = {
                 "agent_profile_update": "agent_profile_updated",
                 "target_create": "target_created",
+                "skill_create": "skill_created",
             }.get(self.tool, arguments.get("kind"))
             if result["kind"] != expected:
                 raise ValueError("Wrong result kind")
@@ -522,15 +707,20 @@ class ToolCall(ToolModel):
                 raise ValueError("Requested call has no proposal yet")
             if self.proposal is not None:
                 p = self.proposal.model_dump()
-                if (self.tool == "target_create") != isinstance(
-                    self.proposal, TargetCreateProposal
+                if (
+                    type(self.proposal)
+                    is not {
+                        "agent_profile_update": Proposal,
+                        "target_create": TargetCreateProposal,
+                        "skill_create": SkillCreateProposal,
+                    }[self.tool]
                 ):
                     raise ValueError("Wrong proposal operation")
-                fields = (
-                    ("name", "address", "kind")
-                    if self.tool == "target_create"
-                    else ("name", "skill_ids")
-                )
+                fields = {
+                    "agent_profile_update": ("name", "skill_ids"),
+                    "target_create": ("name", "address", "kind"),
+                    "skill_create": ("name", "description", "instructions", "category"),
+                }[self.tool]
                 if (
                     p["digest"] != proposal_digest(self.id, self.grant_id, p)
                     or p["expected_draft_revision"] != arguments["expected_draft_revision"]
@@ -565,11 +755,20 @@ class ToolCall(ToolModel):
             ):
                 raise ValueError("Decision mismatch")
             if self.status == "succeeded":
-                saved = (
-                    {key: getattr(self.result.target, key) for key in ("name", "address", "kind")}
-                    if self.tool == "target_create"
-                    else self.result.agent_profile.model_dump()
-                )
+                if self.tool == "target_create":
+                    saved = {
+                        key: getattr(self.result.target, key) for key in ("name", "address", "kind")
+                    }
+                elif self.tool == "skill_create":
+                    saved = {
+                        **{
+                            key: getattr(self.result.skill, key).en
+                            for key in ("name", "description", "instructions")
+                        },
+                        "category": self.result.skill.category,
+                    }
+                else:
+                    saved = self.result.agent_profile.model_dump()
                 if (
                     self.result.before_revision != self.proposal.expected_draft_revision
                     or saved != self.proposal.after.model_dump()

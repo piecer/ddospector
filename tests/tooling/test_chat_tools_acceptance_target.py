@@ -13,7 +13,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 import chat_tools_acceptance as harness  # noqa: E402
 
 
-@pytest.mark.parametrize("case", ["agent", "target"])
+@pytest.mark.parametrize("case", ["agent", "target", "skill"])
 def test_fixture_selector_reaches_only_fixture_runner(tmp_path, monkeypatch, case):
     observed = []
 
@@ -36,7 +36,7 @@ def test_fixture_selector_reaches_only_fixture_runner(tmp_path, monkeypatch, cas
 
 
 @pytest.mark.parametrize("mode", ["preflight", "real"])
-@pytest.mark.parametrize("case", ["agent", "target"])
+@pytest.mark.parametrize("case", ["agent", "target", "skill"])
 def test_explicit_selector_denied_outside_fixture_before_any_side_effect(
     tmp_path, monkeypatch, mode, case
 ):
@@ -142,14 +142,37 @@ def test_runner_defense_in_depth_before_startup(tmp_path, monkeypatch, mode, cas
         harness.run_browser(mode, tmp_path, {}, admission, fixture_case=case)
 
 
-@pytest.mark.parametrize("case", ["agent", "target"])
-def test_actual_playwright_fixture_collection_is_one_closed_case(tmp_path, case):
+@pytest.mark.parametrize("case", ["agent", "target", "skill"])
+def test_actual_playwright_fixture_collection_is_one_closed_case(tmp_path, case, record_property):
+    guard = tmp_path / "collection-guard.cjs"
+    proof = tmp_path / "collection-proof.json"
+    guard.write_text(r"""
+const fs = require('node:fs');
+const cp = require('node:child_process');
+const net = require('node:net');
+const fact = {started: true, ended: false, child_entries: [], socket_entries: []};
+for (const key of ['spawn', 'spawnSync', 'exec', 'execSync', 'execFile', 'execFileSync', 'fork']) {
+  cp[key] = () => {
+    fact.child_entries.push(key); throw Error('collection spawned a target');
+  };
+}
+net.Socket.prototype.connect = function () {
+  fact.socket_entries.push('connect'); throw Error('collection contacted a target');
+};
+process.on('exit', () => {
+  fact.ended = true;
+  fs.writeFileSync(process.env.CHAT02B2_COLLECTION_PROOF, JSON.stringify(fact));
+});
+""")
     env = harness.clean_env(
         {
             "CHAT02A_DIR": str(tmp_path),
             "CHAT02A_MODE": "fixture",
             "CHAT02A_WEB": "http://127.0.0.1:5175",
             "CHAT02B1_FIXTURE_CASE": case,
+            "CHAT02B2_COLLECTION_PROOF": str(proof),
+            "CHAT02B2_COLLECTION_PROBE": str(tmp_path / "target-entry.json"),
+            "NODE_OPTIONS": "--require=" + str(guard),
         }
     )
     result = subprocess.run(
@@ -170,11 +193,18 @@ def test_actual_playwright_fixture_collection_is_one_closed_case(tmp_path, case)
     assert result.returncode == 0, result.stdout + result.stderr
     assert "Total: 1 test in 1 file" in result.stdout
     assert (
-        "native fixture approved target creation"
+        "native fixture approved skill creation"
+        if case == "skill"
+        else "native fixture approved target creation"
         if case == "target"
         else "native fixture approved Agent write"
     ) in result.stdout
     assert "native real model" not in result.stdout
+    observed = json.loads(proof.read_bytes())
+    assert observed == {"started": True, "ended": True, "child_entries": [], "socket_entries": []}
+    assert not (tmp_path / "target-entry.json").exists()
+    record_property("collection_stdout", result.stdout)
+    record_property("zero_target_entry_observer", json.dumps(observed))
 
 
 @pytest.mark.parametrize(

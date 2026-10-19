@@ -96,12 +96,17 @@ async function readOnce(
       input.post.path === "/api/v1/chat/tool-grants" &&
       input.post.status === 201,
   );
-  check(authority === "agent_v1" || authority === "target_create_v2");
+  check(
+    authority === "agent_v1" ||
+      authority === "target_create_v2" ||
+      authority === "skill_create_v3",
+  );
   const target = authority === "target_create_v2";
+  const skill = authority === "skill_create_v3";
   const post = object(
     input.post.body,
     "request_id session_id turn_request_id expected_sequence text" +
-      (target ? " schema_version scope" : ""),
+      (target || skill ? " schema_version scope" : ""),
   );
   [post.request_id, post.session_id, post.turn_request_id, session.id].forEach(
     uuid,
@@ -116,6 +121,7 @@ async function readOnce(
   );
   if (target)
     check(post.schema_version === 2 && post.scope === "target_create");
+  if (skill) check(post.schema_version === 3 && post.scope === "skill_create");
   check(
     observedTurn.method === "POST" &&
       observedTurn.path === `/api/v1/chat/sessions/${session.id}/tool-turns`,
@@ -146,7 +152,9 @@ async function readOnce(
   input.record?.({ source, stage: "readback-response", path, ...response });
   check(response.status === 200 && utf8Length(response.body) <= 8192);
   const grant = parseGrant(parseJSON(response.body));
-  check(grant.schema_version === (target ? 2 : 1));
+  check(grant.schema_version === (skill ? 3 : target ? 2 : 1));
+  if (skill)
+    check(grant.schema_version === 3 && grant.scope === "skill_create");
   check(
     grant.request_id === post.request_id &&
       grant.session_id === session.id &&

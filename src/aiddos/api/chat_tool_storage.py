@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from pydantic import Field, TypeAdapter
 
+from .catalog import SAFETY_RULES
 from .chat_models import SAFE_INT, ChatID, ChatTime, Counter, Session, Turn, TurnInput, encoded, now
 from .chat_storage import storage_read
 from .chat_tool_models import (
@@ -240,6 +241,10 @@ class ToolLedger:
                         **(
                             dict(read_scope=["targets", "target"], proposal_tools=["target_create"])
                             if commitment["schema_version"] == 2
+                            else dict(
+                                read_scope=["skills", "skill"], proposal_tools=["skill_create"]
+                            )
+                            if commitment["schema_version"] == 3
                             else dict(
                                 read_scope=["agent_profile", "skills", "skill"],
                                 proposal_fields=["name", "skill_ids"],
@@ -507,6 +512,35 @@ class ToolLedger:
             )
             receipt.pop("agent_profile")
             receipt["audit"].update(action="target.created", entity_id="t" * 64)
+        elif call["tool"] == "skill_create":
+            revision = proposal["expected_draft_revision"]
+            if revision >= SAFE_INT:
+                raise DraftError("CHAT_INVALID_REQUEST")
+            after = proposal["after"]
+            receipt.update(
+                kind="skill_created",
+                before_revision=revision,
+                after_revision=revision + 1,
+                skill=dict(
+                    id="s" * 64,
+                    **{
+                        key: dict(en=after[key], ko=after[key])
+                        for key in ("name", "description", "instructions")
+                    },
+                    version="1.0.0",
+                    category=after["category"],
+                    status="draft",
+                    allowed_operations=[],
+                    required_capabilities=[],
+                    safety_rules=SAFETY_RULES,
+                ),
+            )
+            receipt.pop("agent_profile")
+            receipt["audit"].update(action="skill.created", entity_id="s" * 64)
+            # A valid manual input may expand beyond the chat receipt budget.
+            # Size admission is a product refusal, not a malformed native call.
+            if len(encoded(receipt)) > RESULT_BYTES:
+                raise DraftError("CHAT_TOOL_LIMIT")
         return validate_result(receipt)
 
     @classmethod
@@ -552,7 +586,7 @@ class ToolLedger:
             raise DraftError("CHAT_TOOL_LIMIT")
         return growth
 
-    def propose(self, call_id, proposal, *, timestamp=None):
+    def propose(self, call_id, proposal, *, timestamp=None, admission_guard=None):
         proposal = TypeAdapter(ProposalRecord).validate_python(proposal).model_dump()
         timestamp = timestamp or now()
         with self.storage.transaction():
@@ -579,6 +613,8 @@ class ToolLedger:
                 call | {"status": "awaiting_approval", "proposal": proposal}
             ).model_dump()
             growth = self._projection(turn_id, prospective)
+            if admission_guard is not None:
+                admission_guard()
             reservation = self.reservation(turn_id)
             reservation["exchange_hold"] = growth
             self._put("tool_reservations", turn_id, reservation)
@@ -955,10 +991,10 @@ class ToolLedger:
             ToolTranscript.model_validate(transcript)
             ordered = transcript["calls"]
             if (
-                grants[binding["grant_id"]]["schema_version"] == 2
+                grants[binding["grant_id"]]["schema_version"] in (2, 3)
                 and sum(c["tool"] in WRITE_TOOLS for c in ordered) > 1
             ):
-                raise ValueError("Target write attempt count")
+                raise ValueError("Scoped write attempt count")
             if binding["revision"] < len(ordered) or binding["write_slot"] != any(
                 c["decision"] is not None and c["decision"]["decision"] == "approve"
                 for c in ordered

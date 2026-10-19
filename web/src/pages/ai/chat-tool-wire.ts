@@ -1,3 +1,4 @@
+import { parseSkillInput, validateSkillResult } from "./chat-skill-wire";
 import { parseTarget, parseTargetInput } from "./chat-target-wire";
 import { chatCodes } from "./chat-types";
 import { invalid, uuid } from "./chat-wire";
@@ -171,7 +172,7 @@ export function parseGrant(value: unknown): ToolGrant {
     value && typeof value === "object"
       ? Object.getOwnPropertyDescriptor(value, "schema_version")?.value
       : undefined;
-  check(version === 1 || version === 2);
+  check(version === 1 || version === 2 || version === 3);
   const g = object(
     value,
     "schema_version id request_id session_id turn_request_id expected_sequence text_sha256 settings_revision profile_id created_at expires_at status read_scope " +
@@ -198,6 +199,13 @@ export function parseGrant(value: unknown): ToolGrant {
       canonical(g.read_scope) === '["agent_profile","skills","skill"]' &&
         canonical(g.proposal_fields) === '["name","skill_ids"]',
     );
+  } else if (version === 3) {
+    array(g.proposal_tools, 1);
+    check(
+      g.scope === "skill_create" &&
+        canonical(g.read_scope) === '["skills","skill"]' &&
+        canonical(g.proposal_tools) === '["skill_create"]',
+    );
   } else {
     array(g.proposal_tools, 1);
     check(
@@ -223,7 +231,19 @@ export function parseDecision(value: unknown): ToolDecision {
   return value as ToolDecision;
 }
 function argumentsFor(v: unknown, tool: unknown) {
-  if (tool === "target_create") {
+  if (tool === "skill_create") {
+    const a = object(
+      v,
+      "expected_draft_revision name description instructions category",
+    );
+    integer(a.expected_draft_revision);
+    parseSkillInput({
+      name: a.name,
+      description: a.description,
+      instructions: a.instructions,
+      category: a.category,
+    });
+  } else if (tool === "target_create") {
     const a = object(v, "expected_draft_revision name address kind");
     integer(a.expected_draft_revision);
     parseTargetInput({ name: a.name, address: a.address, kind: a.kind });
@@ -269,7 +289,9 @@ function skill(v: unknown, detail: boolean) {
   return s;
 }
 function resultFor(value: unknown, call: ToolCall): ToolResult {
-  if (call.tool === "target_create") {
+  if (call.tool === "skill_create") {
+    validateSkillResult(value, call);
+  } else if (call.tool === "target_create") {
     const r = object(value, "kind before_revision after_revision target audit");
     check(
       r.kind === "target_created" &&
@@ -364,7 +386,9 @@ function resultFor(value: unknown, call: ToolCall): ToolResult {
   return value as ToolResult;
 }
 export const isWrite = (tool: unknown) =>
-  tool === "agent_profile_update" || tool === "target_create";
+  tool === "agent_profile_update" ||
+  tool === "target_create" ||
+  tool === "skill_create";
 export function parseTargetInspection(value: unknown): TargetInspection {
   const v = object(value, "schema_version draft_revision targets");
   check(v.schema_version === 1);
@@ -402,11 +426,16 @@ async function parseCall(value: unknown): Promise<ToolCall> {
     const p = object(
       c.proposal,
       "digest expected_draft_revision before after expires_at" +
-        (c.tool === "target_create" ? " operation" : ""),
+        (c.tool === "target_create" || c.tool === "skill_create"
+          ? " operation"
+          : ""),
     );
     sha(p.digest);
     integer(p.expected_draft_revision);
-    if (c.tool === "target_create") {
+    if (c.tool === "skill_create") {
+      check(p.operation === "skill_create" && p.before === null);
+      parseSkillInput(p.after);
+    } else if (c.tool === "target_create") {
       check(p.operation === "target_create" && p.before === null);
       parseTargetInput(p.after);
     } else {
@@ -420,22 +449,30 @@ async function parseCall(value: unknown): Promise<ToolCall> {
     check(
       p.expected_draft_revision === args.expected_draft_revision &&
         call.proposal!.after.name === args.name &&
-        (c.tool === "target_create"
-          ? "address" in args &&
-            "address" in call.proposal!.after &&
-            call.proposal!.after.address === args.address &&
-            call.proposal!.after.kind === args.kind
-          : "skill_ids" in args &&
-            "skill_ids" in call.proposal!.after &&
-            canonical(call.proposal!.after.skill_ids) ===
-              canonical(args.skill_ids)),
+        (c.tool === "skill_create"
+          ? "instructions" in args &&
+            "instructions" in call.proposal!.after &&
+            call.proposal!.after.description === args.description &&
+            call.proposal!.after.instructions === args.instructions &&
+            call.proposal!.after.category === args.category
+          : c.tool === "target_create"
+            ? "address" in args &&
+              "address" in call.proposal!.after &&
+              call.proposal!.after.address === args.address &&
+              call.proposal!.after.kind === args.kind
+            : "skill_ids" in args &&
+              "skill_ids" in call.proposal!.after &&
+              canonical(call.proposal!.after.skill_ids) ===
+                canonical(args.skill_ids)),
     );
     check(
       p.digest ===
         (await digest({
           call_id: c.id,
           grant_id: c.grant_id,
-          ...(c.tool === "target_create" ? { operation: "target_create" } : {}),
+          ...(c.tool === "target_create" || c.tool === "skill_create"
+            ? { operation: c.tool }
+            : {}),
           expected_draft_revision: p.expected_draft_revision,
           before: p.before,
           after: p.after,
@@ -554,19 +591,23 @@ export function parseToolRuntime(value: unknown) {
     "schema_version mode supported reason tools max_calls max_writes requires_write_approval",
   );
   check(
-    (r.schema_version === 1 || r.schema_version === 2) &&
+    (r.schema_version === 1 ||
+      r.schema_version === 2 ||
+      r.schema_version === 3) &&
       r.mode === "operator_approved_settings" &&
       typeof r.supported === "boolean" &&
       r.max_calls === 3 &&
       r.max_writes === 1 &&
       r.requires_write_approval === true,
   );
-  array(r.tools, 3);
+  array(r.tools, 4);
   check(
     canonical(r.tools) ===
       (r.schema_version === 1
         ? '["configuration_read","agent_profile_update"]'
-        : '["configuration_read","agent_profile_update","target_create"]'),
+        : r.schema_version === 2
+          ? '["configuration_read","agent_profile_update","target_create"]'
+          : '["configuration_read","agent_profile_update","target_create","skill_create"]'),
   );
   check(
     r.supported

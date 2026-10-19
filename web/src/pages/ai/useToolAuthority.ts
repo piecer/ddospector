@@ -9,11 +9,14 @@ import type {
   ToolFence,
   ToolTranscript,
 } from "./chat-tool-types";
-import type { Target } from "../../lib/contracts";
+import type { OperatorSkillSummary } from "./chat-skill-wire";
+import type { Target, Skill } from "../../lib/contracts";
 type Review = {
   fence: ToolFence;
   agent?: AgentConfig;
   targets?: Target[];
+  skills?: OperatorSkillSummary[];
+  skillDetail?: Skill;
   calls: ToolCall[];
 };
 export function useToolAuthority(mutationsEnabled: boolean) {
@@ -21,6 +24,7 @@ export function useToolAuthority(mutationsEnabled: boolean) {
   const [ready, setReady] = useState(false);
   const [supported, setSupported] = useState(false);
   const [targetSupported, setTargetSupported] = useState(false);
+  const [skillSupported, setSkillSupported] = useState(false);
   const [review, setReview] = useState<Review | null>(null);
   const [reviewState, setReviewState] = useState("idle");
   const [receipt, setReceipt] = useState<ReconcileReceipt | null>(null);
@@ -67,7 +71,11 @@ export function useToolAuthority(mutationsEnabled: boolean) {
         return;
       adopt(next);
       setSupported(runtime.supported);
-      setTargetSupported(runtime.supported && runtime.schema_version === 2);
+      setTargetSupported(
+        runtime.supported &&
+          (runtime.schema_version === 2 || runtime.schema_version === 3),
+      );
+      setSkillSupported(runtime.supported && runtime.schema_version === 3);
       setReady(true);
     } catch {
       if (mounted.current && token === generation.current) setReady(false);
@@ -100,9 +108,14 @@ export function useToolAuthority(mutationsEnabled: boolean) {
       const targetScope = known.current?.call_ids.some(
         (id) => knownCalls.current.get(id)?.tool === "target_create",
       );
-      const current = targetScope
-        ? await toolClient.inspectTargets(controller.signal)
-        : await toolClient.inspectCurrent(controller.signal);
+      const skillScope = known.current?.call_ids.some(
+        (id) => knownCalls.current.get(id)?.tool === "skill_create",
+      );
+      const current = skillScope
+        ? await toolClient.inspectSkills(controller.signal)
+        : targetScope
+          ? await toolClient.inspectTargets(controller.signal)
+          : await toolClient.inspectCurrent(controller.signal);
       if (
         !mounted.current ||
         token !== generation.current ||
@@ -116,7 +129,11 @@ export function useToolAuthority(mutationsEnabled: boolean) {
       if (
         !current.fence.fenced ||
         calls.some((c) => !c) ||
-        calls.some((c) => (c?.tool === "target_create") !== !!targetScope)
+        calls.some(
+          (c) =>
+            (c?.tool === "target_create") !== !!targetScope ||
+            (c?.tool === "skill_create") !== !!skillScope,
+        )
       ) {
         setReviewState("history-required");
         return;
@@ -128,6 +145,39 @@ export function useToolAuthority(mutationsEnabled: boolean) {
         setReviewState("unknown");
     }
   }, [adopt]);
+  async function inspectSkill(id: string) {
+    if (
+      !review?.skills?.some((s) => s.id === id) ||
+      owner.current ||
+      unresolved.current
+    )
+      return;
+    const held = review,
+      token = ++generation.current;
+    reader.current?.abort();
+    const controller = new AbortController();
+    reader.current = controller;
+    setReview(null);
+    setReviewState("loading");
+    try {
+      const skillDetail = await toolClient.inspectSkill(
+        id,
+        held.fence,
+        controller.signal,
+      );
+      if (
+        !mounted.current ||
+        token !== generation.current ||
+        controller.signal.aborted
+      )
+        return;
+      setReview({ ...held, skillDetail });
+      setReviewState("review");
+    } catch {
+      if (mounted.current && token === generation.current)
+        setReviewState("unknown");
+    }
+  }
   async function acknowledge() {
     if (
       !allowed.current ||
@@ -177,6 +227,7 @@ export function useToolAuthority(mutationsEnabled: boolean) {
     refresh,
     observe,
     inspect,
+    inspectSkill,
     review,
     reviewState,
     receipt,
@@ -188,6 +239,7 @@ export function useToolAuthority(mutationsEnabled: boolean) {
       !reconciling &&
       !unresolved.current,
     targetSupported: ready && targetSupported,
+    skillSupported: ready && skillSupported,
     canGrant:
       mutationsEnabled &&
       ready &&

@@ -62,7 +62,12 @@ async function request<T>(
       redirect: "error",
     });
     if (!response.ok) {
-      const value = await jsonBody(response);
+      const value = await jsonBody(
+        response,
+        path === "/tools/skills" || path.startsWith("/tools/skills/")
+          ? 131072
+          : JSON_LIMIT,
+      );
       if (value && typeof value === "object" && !Array.isArray(value)) {
         const record = value as Record<string, unknown>;
         if (
@@ -148,7 +153,14 @@ export const chatJSON = (
     body,
     signal,
     (response) =>
-      jsonBody(response, path === "/tools/targets" ? 131072 : JSON_LIMIT),
+      jsonBody(
+        response,
+        path === "/tools/targets" ||
+          path === "/tools/skills" ||
+          path.startsWith("/tools/skills/")
+          ? 131072
+          : JSON_LIMIT,
+      ),
     10000,
     statuses,
   );

@@ -97,13 +97,29 @@ export type WorkspaceSnapshot = {
     llm_inference: false;
   };
 };
+export type CompleteDraftSkill = Skill & {
+  version: "1.0.0";
+  status: "draft";
+  allowed_operations: [];
+  required_capabilities: [];
+};
+export type SkillExpectation = {
+  skill: CompleteDraftSkill;
+  after_revision: number;
+};
+export type SkillSelection = { id: string; expectation?: SkillExpectation };
 export type TargetExpectation = { target: Target; after_revision: number };
 export type TargetSelection = { id: string; expectation?: TargetExpectation };
+export type NavigationArgs =
+  | [route: RouteId]
+  | [route: "targets", selection: TargetSelection]
+  | [route: "skills", selection: SkillSelection];
 export type PageProps = {
   data: WorkspaceSnapshot;
   locale: Locale;
-  navigate: (route: RouteId, selection?: TargetSelection) => void;
+  navigate: (...args: NavigationArgs) => void;
   targetSelection?: TargetSelection;
+  skillSelection?: SkillSelection;
   refresh: () => Promise<void>;
 };
 export type TargetInput = Pick<Target, "name" | "address" | "kind">;

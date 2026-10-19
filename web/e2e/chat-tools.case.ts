@@ -8,6 +8,7 @@ import {
   type GrantObserverFact,
 } from "./chat-grant-observer";
 import type { ChatSession } from "../src/pages/ai/chat-types";
+import type { Skill } from "../src/lib/contracts";
 import {
   unexpectedConsole,
   type ConsoleFact,
@@ -18,6 +19,18 @@ const dir = process.env.CHAT02A_DIR!;
 const desiredName = process.env.CHAT02A_NAME!;
 const real = process.env.CHAT02A_MODE === "real";
 const targetCase = process.env.CHAT02B1_FIXTURE_CASE === "target";
+const skillCase = process.env.CHAT02B1_FIXTURE_CASE === "skill";
+if (skillCase && real) throw new Error("Skill is fixture-only");
+const skillInput = {
+  name: desiredName,
+  description:
+    "SYNTHETIC literal description / 설명 — no execution or assignment",
+  instructions:
+    '  SYNTHETIC inert <script>alert("no")</script> [link](javascript:alert(1))\n' +
+    "Long literal instruction / 긴 지침 🌍\t".repeat(48) +
+    "\r\nFULL-INSTRUCTION-TAIL-끝  ",
+  category: "analysis",
+};
 const targetInput = { name: desiredName, address: "Example.COM.", kind: "DUT" };
 type Target = {
   id: string;
@@ -38,6 +51,7 @@ type Agent = {
   skill_ids: string[];
 };
 type Workspace = {
+  skills: Skill[];
   targets: Target[];
   agent_profile: {
     name: string;
@@ -68,9 +82,9 @@ type Call = {
   error_code: string | null;
   proposal: {
     digest: string;
-    operation?: "target_create";
+    operation?: "target_create" | "skill_create";
     before: Agent | null;
-    after: Agent | typeof targetInput;
+    after: Agent | typeof targetInput | typeof skillInput;
     expected_draft_revision: number;
     expires_at: string;
   } | null;
@@ -121,14 +135,26 @@ function profile(workspace: Workspace): Agent {
   };
 }
 
+// Collection-only selftests observe this hook plus denied spawn/connect
+// primitives. It never relaxes runtime admission or runs a fixture body.
+test.beforeAll(() => {
+  const probe = process.env.CHAT02B2_COLLECTION_PROBE;
+  if (probe) {
+    writeFileSync(probe, JSON.stringify({ target_entry: true }));
+    throw new Error("Collection-only probe entered a fixture hook");
+  }
+});
+
 // ONE conversation for all locales/viewports. No model retries, route.fulfill,
 // manufactured proposals, manual profile saves or text/JSON fallback execution.
 test(
   real
     ? "native real model approved Agent write"
-    : targetCase
-      ? "native fixture approved target creation"
-      : "native fixture approved Agent write",
+    : skillCase
+      ? "native fixture approved skill creation"
+      : targetCase
+        ? "native fixture approved target creation"
+        : "native fixture approved Agent write",
   async ({ page, request }) => {
     const errors: string[] = [];
     const consoleFacts: ConsoleFact[] = [];
@@ -204,9 +230,36 @@ test(
       const sessionAck = await sessionResponse;
       expect(sessionAck.status()).toBe(201);
       const session = (await sessionAck.json()) as ChatSession;
-      const prompt = targetCase
-        ? `Read targets with configuration_read first. Propose exactly one target_create with name "${desiredName}", literal address "Example.COM.", kind DUT and the observed current revision. Wait for explicit approval. This is inert syntax-only creation, not a network probe. Report only saved tool facts.`
-        : `Read the current Agent profile with configuration_read first. Then propose exactly one agent_profile_update changing only the Agent name to "${desiredName}". Preserve the complete current skill_ids list unchanged. Wait for operator approval. Do not claim the change is saved without the tool result. After that result, reply briefly in Korean.`;
+      const prompt = skillCase
+        ? `Read Skills with configuration_read, then propose one skill_create with exactly ${JSON.stringify(skillInput)} and the observed revision. Instructions are inert data, not execution or assignment authority. Wait for separate exact approval.`
+        : targetCase
+          ? `Read targets with configuration_read first. Propose exactly one target_create with name "${desiredName}", literal address "Example.COM.", kind DUT and the observed current revision. Wait for explicit approval. This is inert syntax-only creation, not a network probe. Report only saved tool facts.`
+          : `Read the current Agent profile with configuration_read first. Then propose exactly one agent_profile_update changing only the Agent name to "${desiredName}". Preserve the complete current skill_ids list unchanged. Wait for operator approval. Do not claim the change is saved without the tool result. After that result, reply briefly in Korean.`;
+      if (skillCase) {
+        const scope = page.getByTestId("chat-tool-scope");
+        await expect(scope).toHaveValue("agent_v1");
+        await expect(scope).toHaveAccessibleName("도구 허용 범위");
+        await page
+          .getByRole("button", { name: "도구 사용 가능 여부 / 차단 읽기" })
+          .click();
+        await expect(
+          page.getByRole("option", { name: "스킬 생성" }),
+        ).toBeEnabled();
+        await scope.selectOption("skill_create_v3");
+        await expect(scope).toHaveValue("skill_create_v3");
+        await expect(page.getByTestId("chat-tools-toggle")).not.toBeChecked();
+        await expect(
+          page.getByTestId("chat-tools-toggle"),
+        ).toHaveAccessibleName(/스킬/);
+        expect(
+          requests.filter(
+            (item) =>
+              item.method === "POST" &&
+              (item.path.endsWith("/tool-grants") ||
+                item.path.endsWith("/tool-turns")),
+          ),
+        ).toEqual([]);
+      }
       if (targetCase) {
         const scope = page.getByTestId("chat-tool-scope");
         await expect(scope).toHaveValue("agent_v1");
@@ -219,7 +272,9 @@ test(
         ).toBeEnabled();
         await scope.selectOption("target_create_v2");
         await expect(scope).toHaveValue("target_create_v2");
-        await expect(page.getByTestId("chat-tools-toggle")).toHaveAccessibleName(
+        await expect(
+          page.getByTestId("chat-tools-toggle"),
+        ).toHaveAccessibleName(
           "정확히 다음 메시지만: 대상 읽기와 대상 생성 제안 1건에 동의합니다. 저장 권한이 아니며 정확한 제안에 별도 승인이 필요합니다.",
         );
         await expect(page.getByTestId("chat-tools-toggle")).not.toBeChecked();
@@ -262,7 +317,11 @@ test(
         },
         session,
         prompt,
-        authority: targetCase ? "target_create_v2" : "agent_v1",
+        authority: skillCase
+          ? "skill_create_v3"
+          : targetCase
+            ? "target_create_v2"
+            : "agent_v1",
         observedTurn: {
           method: turnAck.request().method(),
           path: new URL(turnAck.url()).pathname,
@@ -280,7 +339,23 @@ test(
       };
       expect(grant.text_sha256).toBe(sha(prompt));
       expect(grant.session_id).toBe(session.id);
-      if (targetCase) {
+      if (skillCase) {
+        expect(grant.schema_version).toBe(3);
+        expect(grant.scope).toBe("skill_create");
+        expect(grant.read_scope).toEqual(["skills", "skill"]);
+        expect(grant.proposal_tools).toEqual(["skill_create"]);
+        expect(grant).not.toHaveProperty("proposal_fields");
+        expect(grantAck.request().postDataJSON()).toEqual({
+          schema_version: 3,
+          scope: "skill_create",
+          request_id: grant.request_id,
+          session_id: session.id,
+          turn_request_id: grant.turn_request_id,
+          expected_sequence: session.sequence,
+          text: prompt,
+        });
+        await expect(page.getByTestId("chat-tool-scope")).toBeDisabled();
+      } else if (targetCase) {
         expect(grant.schema_version).toBe(2);
         expect(grant.scope).toBe("target_create");
         expect(grant.read_scope).toEqual(["targets", "target"]);
@@ -323,58 +398,89 @@ test(
       expect(read.tool).toBe("configuration_read");
       expect(read.status).toBe("succeeded");
       expect(read.arguments).toEqual(
-        targetCase
-          ? { kind: "targets", offset: 0, limit: 10 }
-          : { kind: "agent_profile" },
+        skillCase
+          ? { kind: "skills", offset: 0, limit: 10 }
+          : targetCase
+            ? { kind: "targets", offset: 0, limit: 10 }
+            : { kind: "agent_profile" },
       );
       expect(read.result).toEqual(
-        targetCase
+        skillCase
           ? {
-              kind: "targets",
+              kind: "skills",
               draft_revision: before.meta.audit_retention.total_recorded,
-              items: before.targets.slice(0, 10),
-              next_offset: before.targets.length > 10 ? 10 : null,
+              items: before.skills.slice(0, 10).map((item) => ({
+                id: item.id,
+                name: item.name.ko,
+                category: item.category,
+                status: item.status,
+                version: item.version,
+              })),
+              next_offset: before.skills.length > 10 ? 10 : null,
             }
-          : {
-              kind: "agent_profile",
-              draft_revision: before.meta.audit_retention.total_recorded,
-              agent_profile: profile(before),
-            },
+          : targetCase
+            ? {
+                kind: "targets",
+                draft_revision: before.meta.audit_retention.total_recorded,
+                items: before.targets.slice(0, 10),
+                next_offset: before.targets.length > 10 ? 10 : null,
+              }
+            : {
+                kind: "agent_profile",
+                draft_revision: before.meta.audit_retention.total_recorded,
+                agent_profile: profile(before),
+              },
       );
       expect(call.tool).toBe(
-        targetCase ? "target_create" : "agent_profile_update",
+        skillCase
+          ? "skill_create"
+          : targetCase
+            ? "target_create"
+            : "agent_profile_update",
       );
       expect(call.grant_id).toBe(grant.id);
       expect(call.provider_call_id).not.toBe(read.provider_call_id);
       expect(call.args_digest).toBe(sha(call.arguments));
       expect(call.arguments).toEqual(
-        targetCase
+        skillCase
           ? {
               expected_draft_revision:
                 before.meta.audit_retention.total_recorded,
-              ...targetInput,
+              ...skillInput,
             }
-          : {
-              expected_draft_revision:
-                before.meta.audit_retention.total_recorded,
-              name: desiredName,
-              skill_ids: before.agent_profile.skill_ids,
-            },
+          : targetCase
+            ? {
+                expected_draft_revision:
+                  before.meta.audit_retention.total_recorded,
+                ...targetInput,
+              }
+            : {
+                expected_draft_revision:
+                  before.meta.audit_retention.total_recorded,
+                name: desiredName,
+                skill_ids: before.agent_profile.skill_ids,
+              },
       );
       expect(call.proposal!.before).toEqual(
-        targetCase ? null : profile(before),
+        targetCase || skillCase ? null : profile(before),
       );
       expect(call.proposal!.after).toEqual(
-        targetCase
-          ? targetInput
-          : {
-              ...profile(before),
-              name: desiredName,
-            },
+        skillCase
+          ? skillInput
+          : targetCase
+            ? targetInput
+            : {
+                ...profile(before),
+                name: desiredName,
+              },
       );
       expect(call.proposal!.digest).toBe(
         sha({
-          ...(targetCase ? { operation: "target_create" } : {}),
+          ...(skillCase
+            ? { operation: "skill_create" }
+            : targetCase
+              ? { operation: "target_create" }
+              : {}),
           call_id: call.id,
           grant_id: grant.id,
           expected_draft_revision: call.proposal!.expected_draft_revision,
@@ -398,7 +504,59 @@ test(
       const card = page.getByTestId(`chat-tool-proposal-${call.id}`);
       await expect(card).toBeVisible();
       await expect(card).toContainText(desiredName);
-      if (targetCase) {
+      if (skillCase) {
+        expect(call.proposal!.operation).toBe("skill_create");
+        // Skill approval renders four literal fields, not one JSON after-image.
+        // Read textContent without whitespace normalization or execution.
+        const displayedAfter = await card
+          .locator(".chat-tool-diff > div")
+          .last()
+          .locator("dl > div")
+          .evaluateAll((fields) =>
+            Object.fromEntries(
+              fields.map((field) => [
+                field.querySelector("dt")!.textContent,
+                field.querySelector("dd > pre")!.textContent,
+              ]),
+            ),
+          );
+        expect(displayedAfter).toEqual(skillInput);
+        await expect(card).toContainText("FULL-INSTRUCTION-TAIL-끝");
+        await expect(card).toContainText(call.proposal!.digest);
+        await expect(card).toContainText(
+          String(call.proposal!.expected_draft_revision),
+        );
+        await expect(card).toContainText(call.proposal!.expires_at);
+        await expect(
+          card.locator("script, a[href^='javascript:']"),
+        ).toHaveCount(0);
+        for (const locale of ["en", "ko"]) {
+          await page.locator(".language-control select").selectOption(locale);
+          for (const width of [900, 390]) {
+            await page.setViewportSize({ width, height: 1000 });
+            await expect(card).toContainText("FULL-INSTRUCTION-TAIL-끝");
+            for (const action of ["approve", "deny"]) {
+              const control = page.getByTestId(
+                `chat-tool-${action}-${call.id}`,
+              );
+              await control.scrollIntoViewIfNeeded();
+              await expect(control).toBeVisible();
+              await control.focus();
+              await expect(control).toBeFocused();
+            }
+            expect(
+              await page.evaluate(
+                () => document.documentElement.scrollWidth <= innerWidth + 1,
+              ),
+            ).toBe(true);
+            await page.screenshot({
+              path: join(dir, `skill-approval-${locale}-${width}.png`),
+              fullPage: true,
+            });
+          }
+        }
+        expect(await get<Workspace>(request, "workspace")).toEqual(before);
+      } else if (targetCase) {
         expect(call.proposal!.operation).toBe("target_create");
         await expect(card).toContainText("Example.COM.");
         await expect(card).toContainText("DUT");
@@ -447,7 +605,7 @@ test(
       expect(operation.proposal).toEqual(call.proposal);
       const after = await get<Workspace>(request, "workspace");
       expect(after.agent_profile).toEqual(
-        targetCase
+        targetCase || skillCase
           ? before.agent_profile
           : {
               ...before.agent_profile,
@@ -460,34 +618,211 @@ test(
       expect(after.audit.slice(0, -1)).toEqual(before.audit);
       const audit = after.audit.at(-1)!;
       const savedTarget = targetCase ? after.targets.at(-1)! : undefined;
+      const savedSkill = skillCase ? after.skills.at(-1)! : undefined;
       expect(audit).toMatchObject({
-        action: targetCase ? "target.created" : "agent_profile.updated",
-        entity_id: targetCase ? savedTarget!.id : "agent-profile",
+        action: skillCase
+          ? "skill.created"
+          : targetCase
+            ? "target.created"
+            : "agent_profile.updated",
+        entity_id: skillCase
+          ? savedSkill!.id
+          : targetCase
+            ? savedTarget!.id
+            : "agent-profile",
         origin: "local_operator",
       });
       expect(operation.result).toEqual(
-        targetCase
+        skillCase
           ? {
-              kind: "target_created",
+              kind: "skill_created",
               before_revision: before.meta.audit_retention.total_recorded,
               after_revision: after.meta.audit_retention.total_recorded,
-              target: savedTarget,
+              skill: savedSkill,
               audit,
             }
-          : {
-              kind: "agent_profile_updated",
-              before_revision: before.meta.audit_retention.total_recorded,
-              after_revision: after.meta.audit_retention.total_recorded,
-              agent_profile: profile(after),
-              audit,
-            },
+          : targetCase
+            ? {
+                kind: "target_created",
+                before_revision: before.meta.audit_retention.total_recorded,
+                after_revision: after.meta.audit_retention.total_recorded,
+                target: savedTarget,
+                audit,
+              }
+            : {
+                kind: "agent_profile_updated",
+                before_revision: before.meta.audit_retention.total_recorded,
+                after_revision: after.meta.audit_retention.total_recorded,
+                agent_profile: profile(after),
+                audit,
+              },
       );
       await expect(page.getByTestId(`chat-tool-${call.id}`)).toHaveAttribute(
         "data-tool-status",
         "succeeded",
       );
       await page.getByTestId(`chat-tool-view-saved-${call.id}`).click();
-      if (targetCase) {
+      if (skillCase) {
+        expect(after.skills.slice(0, -1)).toEqual(before.skills);
+        expect(savedSkill).toEqual({
+          id: savedSkill!.id,
+          name: { en: skillInput.name, ko: skillInput.name },
+          description: {
+            en: skillInput.description,
+            ko: skillInput.description,
+          },
+          instructions: {
+            en: skillInput.instructions,
+            ko: skillInput.instructions,
+          },
+          category: skillInput.category,
+          version: "1.0.0",
+          status: "draft",
+          allowed_operations: [],
+          required_capabilities: [],
+          safety_rules: before.skills[0].safety_rules,
+        });
+        expect(savedSkill!.id).toMatch(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+        );
+        expect(savedSkill).not.toHaveProperty("created_at");
+        expect(audit.id).not.toBe(savedSkill!.id);
+        expect(Object.keys(audit).sort()).toEqual([
+          "action",
+          "created_at",
+          "entity_id",
+          "id",
+          "origin",
+        ]);
+        expect(Number.isFinite(Date.parse(String(audit.created_at)))).toBe(
+          true,
+        );
+        expect(before.skills.some((item) => item.id === savedSkill!.id)).toBe(
+          false,
+        );
+        for (const key of Object.keys(before).filter(
+          (key) => !["skills", "audit", "meta"].includes(key),
+        )) {
+          expect((after as unknown as Record<string, unknown>)[key]).toEqual(
+            (before as unknown as Record<string, unknown>)[key],
+          );
+        }
+        const persisted = JSON.parse(
+          readFileSync(join(dir, "owned-state", "draft.json"), "utf8"),
+        );
+        expect(persisted.skills).toEqual(
+          after.skills.filter((item) => item.status === "draft"),
+        );
+        expect(persisted.audit).toEqual(after.audit);
+        expect(persisted.audit_total).toBe(
+          after.meta.audit_retention.total_recorded,
+        );
+        expect(persisted.agent_profile).toEqual(after.agent_profile);
+        expect(
+          await get(request, `chat/tools/skills/${savedSkill!.id}`),
+        ).toEqual({
+          schema_version: 1,
+          draft_revision: after.meta.audit_retention.total_recorded,
+          skill: savedSkill,
+        });
+        await expect(page).toHaveURL(
+          new RegExp(`/skills\\?skill=${savedSkill!.id}$`),
+        );
+        await expect(page.getByTestId("skill-readback-status")).toHaveAttribute(
+          "data-readback",
+          "receipt-confirmed",
+        );
+        for (const locale of ["en", "ko"] as const) {
+          // The language control is outside the modal; close it before switching.
+          await page.keyboard.press("Escape");
+          await page.locator(".language-control select").selectOption(locale);
+          await page.getByTestId("skill-readback-open").click();
+          for (const width of [900, 390]) {
+            await page.setViewportSize({ width, height: 1000 });
+            const dialog = page.getByRole("dialog");
+            await expect(dialog).toBeVisible();
+            await expect(dialog).toContainText(savedSkill!.id);
+            await expect(dialog).toContainText(savedSkill!.version);
+            await expect(dialog).toContainText(savedSkill!.description[locale]);
+            await expect(dialog).toContainText(/User draft|사용자 초안/);
+            expect(await dialog.locator(".ai-instructions").textContent()).toBe(
+              skillInput.instructions,
+            );
+            await expect(dialog).toContainText("FULL-INSTRUCTION-TAIL-끝");
+            for (const rule of savedSkill!.safety_rules)
+              await expect(dialog).toContainText(rule[locale]);
+            await expect(dialog).toContainText(
+              /No capabilities declared|선언된 필요 기능이 없습니다/,
+            );
+            await expect(dialog).toContainText(
+              /No operations declared|명시된 작업이 없습니다/,
+            );
+            await expect(
+              dialog.locator("script, a[href^='javascript:']"),
+            ).toHaveCount(0);
+            expect(
+              await page.evaluate(
+                () => document.documentElement.scrollWidth <= innerWidth + 1,
+              ),
+            ).toBe(true);
+            expect(
+              await dialog.evaluate((el) => {
+                const rect = el.getBoundingClientRect();
+                return (
+                  rect.left >= 0 &&
+                  rect.right <= innerWidth + 1 &&
+                  rect.height <= innerHeight
+                );
+              }),
+            ).toBe(true);
+            const readAgainControl = dialog.getByRole("button", {
+              name:
+                locale === "en"
+                  ? "Read selected Skill again (GET only)"
+                  : "선택한 스킬 다시 읽기 (GET 전용)",
+              exact: true,
+            });
+            await expect(readAgainControl).toBeEnabled();
+            await readAgainControl.focus();
+            await expect(readAgainControl).toBeFocused();
+            await page.keyboard.press("End");
+            const close = dialog.getByRole("button", { name: /Close|닫기/ });
+            await close.scrollIntoViewIfNeeded();
+            await expect(close).toBeVisible();
+            await close.focus();
+            await expect(close).toBeFocused();
+            await page.screenshot({
+              path: join(dir, `skill-${locale}-${width}.png`),
+              fullPage: true,
+            });
+            await page.keyboard.press("Escape");
+            await expect(dialog).not.toBeVisible();
+            await expect(page.getByTestId("skill-readback-open")).toBeFocused();
+            await page.getByTestId("skill-readback-open").press("Enter");
+            await expect(
+              page.getByTestId("skill-readback-status"),
+            ).toHaveAttribute("data-readback", "receipt-confirmed");
+          }
+        }
+        // The final viewport iteration has reopened the dialog; read-again is
+        // inside it, not a control available after Escape. Last locale is ko.
+        const writesBeforeRetry = requests.filter(
+          (item) => item.method !== "GET",
+        ).length;
+        const readAgain = page.getByRole("dialog").getByRole("button", {
+          name: "선택한 스킬 다시 읽기 (GET 전용)",
+          exact: true,
+        });
+        await expect(readAgain).toBeEnabled();
+        await readAgain.click();
+        await expect(page.getByTestId("skill-readback-status")).toHaveAttribute(
+          "data-readback",
+          "receipt-confirmed",
+        );
+        expect(requests.filter((item) => item.method !== "GET")).toHaveLength(
+          writesBeforeRetry,
+        );
+      } else if (targetCase) {
         expect(after.targets.slice(0, -1)).toEqual(before.targets);
         expect(savedTarget).toEqual({
           ...targetInput,
@@ -586,6 +921,24 @@ test(
         await get<Transcript>(request, `chat/turns/${admitted.id}/tools`),
       ).toEqual(completed);
       await page.reload();
+      if (skillCase) {
+        await expect(page.getByTestId("skill-readback-status")).toHaveAttribute(
+          "data-readback",
+          "current-only",
+        );
+        await page.keyboard.press("Escape");
+        await page.goto("/agent");
+        await page.goBack();
+        await expect(page).toHaveURL(
+          new RegExp(`/skills\\?skill=${savedSkill!.id}$`),
+        );
+        await expect(page.getByTestId("skill-readback-status")).toHaveAttribute(
+          "data-readback",
+          "current-only",
+        );
+        await page.keyboard.press("Escape");
+        await page.goto("/agent");
+      }
       if (targetCase) {
         await expect(
           page.getByTestId(`target-row-${savedTarget!.id}`),
@@ -626,6 +979,33 @@ test(
           });
         }
       }
+      if (skillCase) {
+        await page.getByTestId(`chat-tool-view-saved-${call.id}`).click();
+        await expect(page.getByTestId("skill-readback-status")).toHaveAttribute(
+          "data-readback",
+          "receipt-confirmed",
+        );
+        await expect(page.getByRole("dialog")).toContainText(
+          "FULL-INSTRUCTION-TAIL-끝",
+        );
+        expect(
+          requests.filter(
+            (item) => item.path === "/api/v1/skills" && item.method !== "GET",
+          ),
+        ).toEqual([]);
+        expect(
+          requests.filter(
+            (item) =>
+              item.path.endsWith("/tool-grants") && item.method === "POST",
+          ),
+        ).toHaveLength(1);
+        expect(
+          requests.filter(
+            (item) =>
+              item.path.endsWith("/tool-turns") && item.method === "POST",
+          ),
+        ).toHaveLength(1);
+      }
       expect(requests.filter((item) => item.method !== "GET")).toHaveLength(
         writeCount,
       );
@@ -660,7 +1040,7 @@ test(
       ).toEqual([]);
       artifact("browser-proof.json", {
         mode: real ? "real" : "fixture",
-        fixture_case: targetCase ? "target" : "agent",
+        fixture_case: skillCase ? "skill" : targetCase ? "target" : "agent",
         session,
         terminal,
         completed,
@@ -673,7 +1053,8 @@ test(
         historical_post_body_failure: {
           status: "unresolved",
           source: "chat02b1-browser62d/agent/browser.log",
-          error: "response.json: Protocol error (Network.getResponseBody): No data found for resource with given identifier",
+          error:
+            "response.json: Protocol error (Network.getResponseBody): No data found for resource with given identifier",
           note: "Persisted readback is not the historical POST acknowledgement or a diagnosis of its body failure.",
         },
         facts: grantObserverFacts,

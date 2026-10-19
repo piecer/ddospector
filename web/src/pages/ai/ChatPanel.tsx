@@ -1,5 +1,9 @@
 import { useCallback, useRef, useState } from "react";
-import type { Locale, TargetExpectation } from "../../lib/contracts";
+import type {
+  Locale,
+  TargetExpectation,
+  SkillExpectation,
+} from "../../lib/contracts";
 import { choose } from "../../lib/i18n";
 import { Badge, Button, Dialog, Field, Panel } from "../../components/ui";
 import { useChat } from "./useChat";
@@ -11,6 +15,7 @@ import type {
   ToolReadGate,
 } from "./useToolTranscript";
 import type { RequestedAuthority, ToolTranscript } from "./chat-tool-types";
+import { SkillDetails } from "./SkillDetails";
 import { ToolRecords } from "./ToolRecords";
 import "./chat.css";
 export function ChatPanel({
@@ -19,19 +24,24 @@ export function ChatPanel({
   onSaved,
   onViewSaved,
   onViewTarget,
+  onViewSkill,
 }: {
   locale: Locale;
   mutationsEnabled?: boolean;
   onSaved?: () => Promise<void>;
   onViewSaved?: () => void;
   onViewTarget?: (expectation: TargetExpectation) => void;
+  onViewSkill?: (expectation: SkillExpectation) => void;
 }) {
   const c = (en: string, ko: string) => choose(locale, en, ko);
   const authority = useToolAuthority(mutationsEnabled);
   const [toolConsent, setToolConsent] = useState(false);
   const [scope, setScope] = useState<RequestedAuthority>("agent_v1");
   const canGrant =
-    authority.canGrant && (scope === "agent_v1" || authority.targetSupported);
+    authority.canGrant &&
+    (scope === "agent_v1" ||
+      (scope === "target_create_v2" && authority.targetSupported) ||
+      (scope === "skill_create_v3" && authority.skillSupported));
   const chat = useChat(locale, mutationsEnabled, canGrant, scope);
   const send = () => {
     if (toolConsent && !canGrant) return;
@@ -66,7 +76,8 @@ export function ChatPanel({
         if (
           call.status === "succeeded" &&
           (call.result?.kind === "agent_profile_updated" ||
-            call.result?.kind === "target_created") &&
+            call.result?.kind === "target_created" ||
+            call.result?.kind === "skill_created") &&
           !savedSeen.current.has(call.id)
         ) {
           savedSeen.current.add(call.id);
@@ -338,6 +349,7 @@ export function ChatPanel({
               onRecord={observeRecords}
               onViewSaved={onViewSaved}
               onViewTarget={onViewTarget}
+              onViewSkill={onViewSkill}
               decisions={decisions.current}
               records={records.current}
               readGate={readGate.current}
@@ -416,7 +428,9 @@ export function ChatPanel({
               if (
                 e.target.value === "agent_v1" ||
                 (e.target.value === "target_create_v2" &&
-                  authority.targetSupported)
+                  authority.targetSupported) ||
+                (e.target.value === "skill_create_v3" &&
+                  authority.skillSupported)
               ) {
                 setScope(e.target.value);
                 setToolConsent(false);
@@ -431,6 +445,12 @@ export function ChatPanel({
               disabled={!authority.targetSupported}
             >
               {c("Create target", "대상 생성")}
+            </option>
+            <option
+              value="skill_create_v3"
+              disabled={!authority.skillSupported}
+            >
+              {c("Create Skill", "스킬 생성")}
             </option>
           </select>
         </Field>
@@ -453,15 +473,20 @@ export function ChatPanel({
             }}
           />
           <span>
-            {scope === "target_create_v2"
+            {scope === "skill_create_v3"
               ? c(
-                  "For the exact next message only: allow target reads and one target creation proposal. No write authority; separate exact approval is required.",
-                  "정확히 다음 메시지만: 대상 읽기와 대상 생성 제안 1건에 동의합니다. 저장 권한이 아니며 정확한 제안에 별도 승인이 필요합니다.",
+                  "For the exact next message only: allow Skill reads and one Skill creation proposal. No execution or Agent assignment. No write authority; separate exact approval is required.",
+                  "정확히 다음 메시지만: 스킬 읽기와 스킬 생성 제안 1건에 동의합니다. 실행이나 에이전트 할당은 없습니다. 저장 권한이 아니며 정확한 제안에 별도 승인이 필요합니다.",
                 )
-              : c(
-                  "For the exact next message only: allow reading Agent/Skill configuration and proposing one Agent name / complete Skill-list change. This grants no write authority. A separate exact approval is always required.",
-                  "정확히 다음 메시지만: 에이전트/스킬 설정 읽기 및 에이전트 이름/전체 스킬 목록 변경 1건 제안에 동의합니다. 저장 권한은 부여하지 않으며 정확한 변경에 대한 별도 승인이 항상 필요합니다.",
-                )}
+              : scope === "target_create_v2"
+                ? c(
+                    "For the exact next message only: allow target reads and one target creation proposal. No write authority; separate exact approval is required.",
+                    "정확히 다음 메시지만: 대상 읽기와 대상 생성 제안 1건에 동의합니다. 저장 권한이 아니며 정확한 제안에 별도 승인이 필요합니다.",
+                  )
+                : c(
+                    "For the exact next message only: allow reading Agent/Skill configuration and proposing one Agent name / complete Skill-list change. This grants no write authority. A separate exact approval is always required.",
+                    "정확히 다음 메시지만: 에이전트/스킬 설정 읽기 및 에이전트 이름/전체 스킬 목록 변경 1건 제안에 동의합니다. 저장 권한은 부여하지 않으며 정확한 변경에 대한 별도 승인이 항상 필요합니다.",
+                  )}
           </span>
         </label>
       )}
@@ -511,32 +536,63 @@ export function ChatPanel({
           ))}
           <div
             data-testid={
-              authority.review.targets
-                ? "chat-tools-current-targets"
-                : "chat-tools-current-agent"
+              authority.review.skills
+                ? "chat-tools-current-skills"
+                : authority.review.targets
+                  ? "chat-tools-current-targets"
+                  : "chat-tools-current-agent"
             }
           >
             <h4>
               {c(
-                authority.review.targets
-                  ? "Independently refreshed current target inventory — matching names do not prove ownership"
-                  : "Independently refreshed current Agent",
-                authority.review.targets
-                  ? "별도로 새로 읽은 현재 대상 목록 — 같은 이름은 소유 증거 아님"
-                  : "별도로 새로 읽은 현재 에이전트",
+                authority.review.skills
+                  ? "Current Skill summaries — matching names do not prove ownership"
+                  : authority.review.targets
+                    ? "Independently refreshed current target inventory — matching names do not prove ownership"
+                    : "Independently refreshed current Agent",
+                authority.review.skills
+                  ? "현재 스킬 요약 — 같은 이름은 소유 증거 아님"
+                  : authority.review.targets
+                    ? "별도로 새로 읽은 현재 대상 목록 — 같은 이름은 소유 증거 아님"
+                    : "별도로 새로 읽은 현재 에이전트",
               )}
             </h4>
             <p>
               {c("Current draft revision", "현재 초안 리비전")}{" "}
               {authority.review.fence.current_draft_revision}
             </p>
-            <pre className="chat-text">
-              {JSON.stringify(
-                authority.review.targets ?? authority.review.agent,
-                null,
-                2,
-              )}
-            </pre>
+            {authority.review.skills ? (
+              <ul className="chat-skill-inventory">
+                {authority.review.skills.map((s) => (
+                  <li key={s.id}>
+                    <p className="chat-text">
+                      {s.id} · {s.name[locale]} · {s.category} · {s.status} ·{" "}
+                      {s.version}
+                    </p>
+                    <Button onClick={() => void authority.inspectSkill(s.id)}>
+                      {c(`Inspect Skill ${s.id}`, `스킬 검사 ${s.id}`)}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <pre className="chat-text">
+                {JSON.stringify(
+                  authority.review.targets ?? authority.review.agent,
+                  null,
+                  2,
+                )}
+              </pre>
+            )}
+            {authority.review.skillDetail && (
+              <div data-testid="chat-tools-skill-detail">
+                <SkillDetails
+                  skill={authority.review.skillDetail}
+                  locale={locale}
+                  showName
+                />
+              </div>
+            )}
           </div>
           <p>
             {c(

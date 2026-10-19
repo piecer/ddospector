@@ -7,7 +7,7 @@ const base = process.env.CHAT02A_WEB;
 const fixtureCase = process.env.CHAT02B1_FIXTURE_CASE;
 if (
   fixtureCase !== undefined &&
-  (mode !== "fixture" || !["agent", "target"].includes(fixtureCase))
+  (mode !== "fixture" || !["agent", "target", "skill"].includes(fixtureCase))
 ) {
   throw new Error("Fixture case is closed and forbidden outside fixture mode");
 }

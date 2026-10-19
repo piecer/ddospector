@@ -308,30 +308,67 @@ class DraftStore:
             state = self._read()
             if len(state.skills) >= 100:
                 raise DraftError("DRAFT_LIMIT_REACHED")
-            skill = Skill(
+            return self._publish_skill_creation(state, value)
+
+    def _publish_skill_creation(self, state, value, publication_guard=None):
+        skill = Skill(
+            id=str(uuid4()),
+            status="draft",
+            category=value.category,
+            **{
+                field: localized(getattr(value, field), getattr(value, field))
+                for field in ("name", "description", "instructions")
+            },
+            allowed_operations=[],
+            required_capabilities=[],
+            safety_rules=SAFETY_RULES,
+        )
+        state.skills.append(skill)
+        state.audit.append(
+            AuditEvent(
                 id=str(uuid4()),
-                status="draft",
-                category=value.category,
-                **{
-                    field: localized(getattr(value, field), getattr(value, field))
-                    for field in ("name", "description", "instructions")
-                },
-                allowed_operations=[],
-                required_capabilities=[],
-                safety_rules=SAFETY_RULES,
+                action="skill.created",
+                entity_id=skill.id,
+                created_at=timestamp(),
             )
-            state.skills.append(skill)
-            state.audit.append(
-                AuditEvent(
-                    id=str(uuid4()),
-                    action="skill.created",
-                    entity_id=skill.id,
-                    created_at=timestamp(),
-                )
-            )
-            state.audit_total += 1
+        )
+        state.audit_total += 1
+        if publication_guard is None:
             self._write(state)
-            return skill
+        else:
+            self._write(state, publication_guard=publication_guard)
+        return skill
+
+    def validate_skill_creation(self, state: DraftState, value: SkillInput) -> SkillInput:
+        """Effect-free typed input, custom quota, then audit headroom; caller holds lock."""
+        value = SkillInput.model_validate(value.model_dump())
+        if len(state.skills) >= 100:
+            raise DraftError("DRAFT_LIMIT_REACHED")
+        if state.audit_total >= 9007199254740991:
+            raise DraftError("AUDIT_LIMIT_REACHED")
+        return value
+
+    def create_skill_receipt(
+        self,
+        value: SkillInput,
+        *,
+        expected_draft_revision: int,
+        publication_guard: Callable[[], None],
+    ) -> tuple[Skill, AuditEvent]:
+        """Create a Skill and reread its publication under the shared path lock."""
+        with self.lock:
+            state = self._read()
+            if state.audit_total != expected_draft_revision:
+                raise DraftError("CHAT_TOOL_CONFLICT")
+            value = self.validate_skill_creation(state, value)
+            self._publish_skill_creation(state, value, publication_guard)
+            try:
+                actual = self._read()
+                if actual.model_dump() != state.model_dump():
+                    raise DraftError("STATE_COMMIT_UNCERTAIN")
+            except Exception:
+                raise DraftError("STATE_COMMIT_UNCERTAIN") from None
+            return actual.skills[-1], actual.audit[-1]
 
     def create_campaign(self, value: CampaignInput) -> Campaign:
         with self.lock:

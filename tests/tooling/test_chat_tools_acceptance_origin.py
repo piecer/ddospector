@@ -53,7 +53,7 @@ def browser_setup(tmp_path, monkeypatch):
     return tmp_path, provider, api, result
 
 
-@pytest.mark.parametrize("fixture_case", ["agent", "target"])
+@pytest.mark.parametrize("fixture_case", ["agent", "target", "skill"])
 def test_browser_origin_uses_existing_allowlist_without_policy_change(
     browser_setup, monkeypatch, fixture_case
 ):
@@ -91,7 +91,7 @@ def test_browser_origin_uses_existing_allowlist_without_policy_change(
     assert api.retired and provider.retired and not provider.requests
 
 
-@pytest.mark.parametrize("fixture_case", ["agent", "target"])
+@pytest.mark.parametrize("fixture_case", ["agent", "target", "skill"])
 def test_origin_port_collision_has_no_fallback_or_process_adoption(
     browser_setup, monkeypatch, fixture_case
 ):

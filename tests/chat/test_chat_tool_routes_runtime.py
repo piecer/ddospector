@@ -57,7 +57,12 @@ def test_native_http_read_approve_write_receipt_final_and_restart(tmp_path):
             saved = session(product, seed)
             status, view = product.request("/api/v1/chat/tools/runtime")
             assert status == 200, (status, view)
-            assert view["tools"] == ["configuration_read", "agent_profile_update", "target_create"]
+            assert view["tools"] == [
+                "configuration_read",
+                "agent_profile_update",
+                "target_create",
+                "skill_create",
+            ]
             assert view["requires_write_approval"] is True
             # Settings bootstrap is itself an audited write; read actual persisted revision.
             before = json.loads(product.state.read_text())

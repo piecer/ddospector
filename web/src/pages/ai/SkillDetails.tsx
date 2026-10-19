@@ -18,16 +18,24 @@ export function categoryLabel(
 export function SkillDetails({
   skill,
   locale,
+  showName = false,
 }: {
   skill: Skill;
   locale: Locale;
+  showName?: boolean;
 }) {
   const t = (en: string, ko: string) => choose(locale, en, ko);
   return (
     <div className="ai-skill-details form-stack">
+      {showName && <h3>{text(skill.name, locale)}</h3>}
       <div className="chips">
         <Badge>{categoryLabel(skill.category, locale)}</Badge>
         <Badge>{skill.version}</Badge>
+        <Badge>
+          {skill.status === "draft"
+            ? t("User draft", "사용자 초안")
+            : t("Built-in template", "기본 템플릿")}
+        </Badge>
         <code>{skill.id}</code>
       </div>
       <p>{text(skill.description, locale)}</p>

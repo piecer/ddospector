@@ -16,10 +16,11 @@ from pydantic import TypeAdapter, ValidationError
 from .catalog import initial_workspace
 from .chat_models import encoded
 from .errors import DraftError
-from .models import AgentProfileInput, TargetInput
+from .models import AgentProfileInput, SkillInput, TargetInput
 from .validation import Identifier
 
 _TARGET_ID = TypeAdapter(Identifier)
+_SKILL_ID = TypeAdapter(Identifier)
 
 
 def target_config(target):
@@ -140,6 +141,46 @@ class DomainWorker:
                 "draft_revision": state.audit_total,
                 "targets": [target_config(target) for target in state.targets],
             }
+            if len(encoded(result)) > 131072:
+                raise DraftError("CHAT_TOOL_LIMIT")
+            return result
+
+        return await self._run(operation, deadline=deadline, stop=stop)
+
+    async def skills_snapshot(self, *, deadline=None, stop=None):
+        """Operator summaries only: finite catalog first, then stored custom order."""
+        def operation(check):
+            state = self.draft._read()
+            fields = {"id", "name", "category", "status", "version"}
+            skills = [
+                {key: value for key, value in skill.items() if key in fields}
+                for skill in initial_workspace()["skills"]
+            ]
+            skills.extend(skill.model_dump(include=fields) for skill in state.skills)
+            result = {"schema_version": 1, "draft_revision": state.audit_total, "skills": skills}
+            if len(encoded(result)) > 131072:
+                raise DraftError("CHAT_TOOL_LIMIT")
+            return result
+
+        return await self._run(operation, deadline=deadline, stop=stop)
+
+    async def skill_snapshot(self, skill_id, *, deadline=None, stop=None):
+        """One full actual record, never a retained receipt or inferred ownership."""
+        def operation(check):
+            try:
+                identifier = _SKILL_ID.validate_python(skill_id, strict=True)
+            except ValidationError:
+                raise DraftError("CHAT_INVALID_REQUEST") from None
+            state = self.draft._read()
+            # Templates come only from the exact finite catalog. _read validates
+            # every custom draft's literal text, policy and noncatalog identity.
+            skill = next((s for s in initial_workspace()["skills"] if s["id"] == identifier), None)
+            if skill is None:
+                custom = next((s for s in state.skills if s.id == identifier), None)
+                if custom is None:
+                    raise DraftError("CHAT_NOT_FOUND")
+                skill = custom.model_dump()
+            result = {"schema_version": 1, "draft_revision": state.audit_total, "skill": skill}
             if len(encoded(result)) > 131072:
                 raise DraftError("CHAT_TOOL_LIMIT")
             return result
@@ -352,6 +393,95 @@ class DomainWorker:
                 "before_revision": before.audit_total,
                 "after_revision": before.audit_total + 1,
                 "target": target.model_dump(),
+                "audit": audit.model_dump(),
+            }
+
+        return await self._run(operation, deadline=deadline, stop=stop, write=True)
+
+    def _prepare_skill(
+        self, expected_draft_revision, name, description, instructions, category,
+        expected_settings_revision=None,
+    ):
+        state = self.draft._read()
+        if state.audit_total != expected_draft_revision or (
+            expected_settings_revision is not None
+            and state.ai_settings.revision != expected_settings_revision
+        ):
+            raise DraftError("CHAT_TOOL_CONFLICT")
+        try:
+            value = SkillInput(
+                name=name, description=description, instructions=instructions, category=category
+            )
+            value = self.draft.validate_skill_creation(state, value)
+        except ValidationError:
+            raise DraftError("CHAT_INVALID_REQUEST") from None
+        return state, value
+
+    async def prepare_skill_create(
+        self,
+        expected_draft_revision,
+        name,
+        description,
+        instructions,
+        category,
+        expected_settings_revision=None,
+        *,
+        deadline=None,
+        stop=None,
+    ):
+        """Validate literal proposed Skill data without allocating domain fields."""
+        def operation(check):
+            state, value = self._prepare_skill(
+                expected_draft_revision, name, description, instructions, category,
+                expected_settings_revision,
+            )
+            return {
+                "before_revision": state.audit_total,
+                "before": None,
+                "after": value.model_dump(),
+            }
+
+        return await self._run(operation, deadline=deadline, stop=stop)
+
+    async def create_skill(
+        self,
+        expected_draft_revision,
+        name,
+        description,
+        instructions,
+        category,
+        publication_guard,
+        expected_settings_revision=None,
+        *,
+        deadline=None,
+        stop=None,
+    ):
+        """Own the native lease through publication/readback, even on cancellation."""
+        def operation(check):
+            before, value = self._prepare_skill(
+                expected_draft_revision, name, description, instructions, category,
+                expected_settings_revision,
+            )
+
+            def guard():
+                check()
+                publication_guard()
+                check()
+
+            try:
+                skill, audit = self.draft.create_skill_receipt(
+                    value, expected_draft_revision=expected_draft_revision, publication_guard=guard
+                )
+            except DraftError:
+                raise
+            except Exception:
+                # Mutation entry alone cannot prove an unexpected fault was prepublication.
+                raise DraftError("CHAT_TOOL_UNCERTAIN") from None
+            return {
+                "kind": "skill_created",
+                "before_revision": before.audit_total,
+                "after_revision": before.audit_total + 1,
+                "skill": skill.model_dump(),
                 "audit": audit.model_dump(),
             }
 

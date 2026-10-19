@@ -1,5 +1,11 @@
-import { useState } from "react";
-import type { PageProps, Skill } from "../../lib/contracts";
+import { useRef, useState } from "react";
+import type {
+  PageProps,
+  Skill,
+  SkillSelection,
+  WorkspaceSnapshot,
+  Locale,
+} from "../../lib/contracts";
 import { choose, text } from "../../lib/i18n";
 import {
   Badge,
@@ -11,11 +17,18 @@ import {
   PageHeader,
   Panel,
 } from "../../components/ui";
+import { useSkillReadback } from "./useSkillReadback";
 import { SkillDraftForm } from "./SkillDraftForm";
 import { categoryLabel, SkillDetails } from "./SkillDetails";
 
-export function SkillsPage({ data, locale, refresh }: PageProps) {
+export function SkillsPage({
+  data,
+  locale,
+  refresh,
+  skillSelection,
+}: PageProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detailsOwner, setDetailsOwner] = useState(skillSelection);
   const [created, setCreated] = useState<Skill[]>([]);
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -65,6 +78,11 @@ export function SkillsPage({ data, locale, refresh }: PageProps) {
           "스킬은 지침이며 승인 권한이 아닙니다. MCP 바인딩과 Safety Gate의 권한을 대체하지 않습니다. 지침을 저장해도 실행은 승인되지 않습니다.",
         )}
       </Notice>
+      <SelectedSkillReadback
+        selection={skillSelection}
+        workspace={data}
+        locale={locale}
+      />
       <div className="ai-skills-layout">
         <Panel title={t("Instruction library", "지침 라이브러리")}>
           <div className="ai-filters">
@@ -147,7 +165,12 @@ export function SkillsPage({ data, locale, refresh }: PageProps) {
                   </div>
                   <h3>{text(skill.name, locale)}</h3>
                   <p className="muted">{text(skill.description, locale)}</p>
-                  <Button onClick={() => setSelectedId(skill.id)}>
+                  <Button
+                    onClick={() => {
+                      setDetailsOwner(skillSelection);
+                      setSelectedId(skill.id);
+                    }}
+                  >
                     {t("View instructions", "지침 보기")}
                   </Button>
                 </li>
@@ -165,7 +188,7 @@ export function SkillsPage({ data, locale, refresh }: PageProps) {
         />
       </div>
       <Dialog
-        open={selectedId !== null}
+        open={selectedId !== null && detailsOwner === skillSelection}
         title={
           selected
             ? text(selected.name, locale)
@@ -185,5 +208,96 @@ export function SkillsPage({ data, locale, refresh }: PageProps) {
         )}
       </Dialog>
     </div>
+  );
+}
+
+/** Separate inspected bytes: never merge a receipt or inspection into manual drafts. */
+export function SelectedSkillReadback({
+  selection,
+  workspace,
+  locale,
+}: {
+  selection?: SkillSelection;
+  workspace: WorkspaceSnapshot | null;
+  locale: Locale;
+}) {
+  const [dismissed, setDismissed] = useState<SkillSelection>();
+  const open = !!selection && dismissed !== selection;
+  const read = useSkillReadback(selection, workspace, open);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const t = (en: string, ko: string) => choose(locale, en, ko);
+  const labels = {
+    loading: t("Reading selected Skill…", "선택한 스킬 읽는 중…"),
+    "receipt-confirmed": t(
+      "Receipt-confirmed record. This does not independently confirm the saved audit.",
+      "영수증과 레코드 일치. 저장된 감사 기록의 독립 검증은 아닙니다.",
+    ),
+    "current-only": t(
+      "Current record only — no saved receipt expectation.",
+      "현재 레코드만 표시 — 저장 영수증 기대값 없음.",
+    ),
+    discrepancy: t(
+      "Discrepancy — missing, changed or older than the receipt. Saved remains a historical fact.",
+      "불일치 — 누락, 변경 또는 영수증보다 이전 상태입니다. 저장 사실은 보존됩니다.",
+    ),
+    unavailable: t(
+      "Inspection unavailable. No automatic retry; Saved is not erased.",
+      "검사 불가. 자동 재시도하지 않으며 저장 사실은 지워지지 않습니다.",
+    ),
+    stale: t("Inspection stale / unverified.", "오래된 검사 / 미확인."),
+  };
+  if (!selection) return null;
+  function close() {
+    read.cancel();
+    setDismissed(selection);
+  }
+  return (
+    <section className="ai-page ai-selected-skill">
+      <p
+        id="skill-readback-status"
+        data-testid="skill-readback-status"
+        data-readback={read.state}
+        role="status"
+      >
+        {labels[read.state]}
+      </p>
+      <code>{selection.id}</code>
+      <button
+        type="button"
+        className="button button-secondary"
+        ref={trigger}
+        data-testid="skill-readback-open"
+        onClick={() => {
+          setDismissed(undefined);
+        }}
+      >
+        {t("Open selected Skill", "선택한 스킬 열기")}
+      </button>
+      <Dialog
+        open={open}
+        title={t("Selected Skill details", "선택한 스킬 상세")}
+        onClose={close}
+        recoveryOnly
+        restoreFocusTo={trigger}
+      >
+        <div className="ai-page form-stack">
+          <p>{labels[read.state]}</p>
+          <Button disabled={read.pending} onClick={read.refresh}>
+            {t(
+              "Read selected Skill again (GET only)",
+              "선택한 스킬 다시 읽기 (GET 전용)",
+            )}
+          </Button>
+          {read.pending && (
+            <Button onClick={read.cancel}>
+              {t("Cancel inspection", "검사 취소")}
+            </Button>
+          )}
+          {read.skill && (
+            <SkillDetails skill={read.skill} locale={locale} showName />
+          )}
+        </div>
+      </Dialog>
+    </section>
   );
 }

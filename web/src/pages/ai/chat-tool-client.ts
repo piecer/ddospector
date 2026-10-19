@@ -1,4 +1,9 @@
 import {
+  parseSkillInventory,
+  parseSkillInspection,
+  SkillReadbackMismatch,
+} from "./chat-skill-wire";
+import {
   bindSubmission,
   chatClient,
   chatJSON,
@@ -10,6 +15,7 @@ import { uuid, validText } from "./chat-wire";
 import {
   check,
   integer,
+  identifier,
   object,
   parseDecision,
   parseGrant,
@@ -44,7 +50,9 @@ async function boundGrant(
   check(
     requestedAuthority === "agent_v1"
       ? g.schema_version === 1
-      : requestedAuthority === "target_create_v2" && g.schema_version === 2,
+      : requestedAuthority === "target_create_v2"
+        ? g.schema_version === 2
+        : requestedAuthority === "skill_create_v3" && g.schema_version === 3,
   );
   check(
     g.request_id === request &&
@@ -72,6 +80,52 @@ export function bindDecision(
   return d;
 }
 export const toolClient = {
+  async skills(signal?: AbortSignal) {
+    return parseSkillInventory(
+      await chatJSON("/tools/skills", "GET", undefined, signal),
+    );
+  },
+  async inspectSkills(signal?: AbortSignal) {
+    const before = await toolClient.fence(signal);
+    check(before.current_draft_revision !== null);
+    const snapshot = await toolClient.skills(signal);
+    const after = await toolClient.fence(signal);
+    reconcileFence(before, after);
+    check(
+      before.generation === after.generation &&
+        before.current_draft_revision === snapshot.draft_revision &&
+        after.current_draft_revision === snapshot.draft_revision,
+    );
+    return { fence: after, skills: snapshot.skills };
+  },
+  async inspectSkill(id: string, fence: ToolFence, signal?: AbortSignal) {
+    const snapshot = await toolClient.skill(id, signal);
+    const after = await toolClient.fence(signal);
+    reconcileFence(fence, after);
+    check(
+      fence.fenced &&
+        fence.generation === after.generation &&
+        fence.current_draft_revision === snapshot.draft_revision &&
+        after.current_draft_revision === snapshot.draft_revision,
+    );
+    return snapshot.skill;
+  },
+  async skill(id: string, signal?: AbortSignal) {
+    identifier(id);
+    const result = parseSkillInspection(
+      await chatJSON(
+        `/tools/skills/${encodeURIComponent(id)}`,
+        "GET",
+        undefined,
+        signal,
+      ),
+    );
+    if (result.skill.id !== id)
+      throw new SkillReadbackMismatch(
+        "Selected Skill differs from requested ID.",
+      );
+    return result;
+  },
   async targets(signal?: AbortSignal) {
     return parseTargetInspection(
       await chatJSON("/tools/targets", "GET", undefined, signal),
@@ -158,29 +212,25 @@ export const toolClient = {
     uuid(turnRequest);
     integer(session.sequence, 0, 63);
     check(validText(text, 8192, true));
+    let acknowledged: unknown;
     try {
-      return await boundGrant(
-        await chatJSON(
-          "/tool-grants",
-          "POST",
-          {
-            ...(requestedAuthority === "target_create_v2"
-              ? { schema_version: 2, scope: "target_create" }
+      acknowledged = await chatJSON(
+        "/tool-grants",
+        "POST",
+        {
+          ...(requestedAuthority === "target_create_v2"
+            ? { schema_version: 2, scope: "target_create" }
+            : requestedAuthority === "skill_create_v3"
+              ? { schema_version: 3, scope: "skill_create" }
               : {}),
-            request_id: request,
-            session_id: session.id,
-            turn_request_id: turnRequest,
-            expected_sequence: session.sequence,
-            text,
-          },
-          undefined,
-          [200, 201],
-        ),
-        session,
-        request,
-        turnRequest,
-        text,
-        requestedAuthority,
+          request_id: request,
+          session_id: session.id,
+          turn_request_id: turnRequest,
+          expected_sequence: session.sequence,
+          text,
+        },
+        undefined,
+        [200, 201],
       );
     } catch (error) {
       if (error instanceof ChatRequestError && error.definite) throw error;
@@ -191,6 +241,27 @@ export const toolClient = {
         text,
         requestedAuthority,
       );
+    }
+    try {
+      return await boundGrant(
+        acknowledged,
+        session,
+        request,
+        turnRequest,
+        text,
+        requestedAuthority,
+      );
+    } catch (mismatch) {
+      // Preserve B1's one GET-only observation after an invalid ACK, but a
+      // decoded contradictory ACK must never become an automatic tool send.
+      await toolClient.recoverGrant(
+        session,
+        request,
+        turnRequest,
+        text,
+        requestedAuthority,
+      );
+      throw mismatch;
     }
   },
   async recoverGrant(

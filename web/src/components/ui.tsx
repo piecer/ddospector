@@ -178,13 +178,15 @@ export function Dialog({
   onClose,
   children,
   recoveryOnly = false,
+  restoreFocusTo,
 }: {
   open: boolean;
   title: string;
   onClose: () => void;
   children: ReactNode;
-  /** Only after a committed save: children must allow reads/dismissal, never mutations. */
+  /** Bounded inspection/recovery only: children allow reads/dismissal, never mutations. */
   recoveryOnly?: boolean;
+  restoreFocusTo?: { current: HTMLElement | null };
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const focusSession = useRef<{
@@ -209,7 +211,7 @@ export function Dialog({
       // Dismissal consumes restoration, even when stale state disables the invoker.
       // A later readback must not steal focus from newer work.
       focusSession.current = null;
-      const invoker = session?.invoker;
+      const invoker = restoreFocusTo?.current ?? session?.invoker;
       if (
         session?.recovery &&
         invoker instanceof HTMLElement &&
@@ -220,7 +222,7 @@ export function Dialog({
         invoker.focus({ preventScroll: true });
       }
     }
-  }, [open, recoveryOnly]);
+  }, [open, recoveryOnly, restoreFocusTo]);
   const dialog = (
     <dialog
       ref={ref}
@@ -248,7 +250,7 @@ export function Dialog({
       <div className="dialog-body">{open ? children : null}</div>
     </dialog>
   );
-  // Ordinary drafts retain the page's fail-closed fieldset. Only committed,
-  // read-only recovery escapes it; changing this boundary remounts the dialog.
+  // Ordinary drafts retain the page's fail-closed fieldset. Only bounded,
+  // read-only inspection/recovery escapes it; changing this boundary remounts the dialog.
   return recoveryOnly ? createPortal(dialog, document.body) : dialog;
 }

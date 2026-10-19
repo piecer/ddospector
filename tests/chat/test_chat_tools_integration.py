@@ -246,6 +246,7 @@ def test_tools_runtime_real_route(product):
     versions = {
         1: ["configuration_read", "agent_profile_update"],
         2: ["configuration_read", "agent_profile_update", "target_create"],
+        3: ["configuration_read", "agent_profile_update", "target_create", "skill_create"],
     }
     assert type(body["schema_version"]) is int and body["schema_version"] in versions
     assert body["supported"] is False and isinstance(body["reason"], str)

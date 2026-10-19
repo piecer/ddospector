@@ -1,6 +1,10 @@
 import { useEffect } from "react";
 import type { ToolTranscript } from "./chat-tool-types";
-import type { Locale, TargetExpectation } from "../../lib/contracts";
+import type {
+  Locale,
+  TargetExpectation,
+  SkillExpectation,
+} from "../../lib/contracts";
 import { choose } from "../../lib/i18n";
 import { Button } from "../../components/ui";
 import type { ChatTurn } from "./chat-types";
@@ -20,6 +24,7 @@ export function ToolRecords({
   onRecord,
   onViewSaved,
   onViewTarget,
+  onViewSkill,
   decisions,
   records,
   readGate,
@@ -32,6 +37,7 @@ export function ToolRecords({
   onRecord?: (record: ToolTranscript) => void;
   onViewSaved?: () => void;
   onViewTarget?: (expectation: TargetExpectation) => void;
+  onViewSkill?: (expectation: SkillExpectation) => void;
   decisions?: DecisionLedger;
   records?: TranscriptLedger;
   readGate?: ToolReadGate;
@@ -114,7 +120,8 @@ export function ToolRecords({
               <div className="chat-tool-diff">
                 <div>
                   <h5>
-                    {call.tool === "target_create"
+                    {call.tool === "target_create" ||
+                    call.tool === "skill_create"
                       ? c(
                           "New record (not a uniqueness claim)",
                           "새 레코드 (중복 없음의 증거 아님)",
@@ -127,19 +134,51 @@ export function ToolRecords({
                 </div>
                 <div>
                   <h5>
-                    {call.tool === "target_create"
+                    {call.tool === "skill_create"
                       ? c(
-                          "Create target — literal fields",
-                          "대상 생성 — 원본 필드",
+                          "Create Skill — literal fields",
+                          "스킬 생성 — 원본 필드",
                         )
-                      : c(
-                          "After (complete Skill list)",
-                          "변경 후 (전체 스킬 목록)",
-                        )}
+                      : call.tool === "target_create"
+                        ? c(
+                            "Create target — literal fields",
+                            "대상 생성 — 원본 필드",
+                          )
+                        : c(
+                            "After (complete Skill list)",
+                            "변경 후 (전체 스킬 목록)",
+                          )}
                   </h5>
-                  <pre className="chat-text">
-                    {JSON.stringify(call.proposal.after, null, 2)}
-                  </pre>
+                  {"operation" in call.proposal &&
+                  call.proposal.operation === "skill_create" ? (
+                    <dl>
+                      {(
+                        [
+                          "name",
+                          "description",
+                          "instructions",
+                          "category",
+                        ] as const
+                      ).map((key) => (
+                        <div key={key}>
+                          <dt>{key}</dt>
+                          <dd>
+                            <pre className="chat-text">
+                              {call.proposal &&
+                              "operation" in call.proposal &&
+                              call.proposal.operation === "skill_create"
+                                ? call.proposal.after[key]
+                                : ""}
+                            </pre>
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  ) : (
+                    <pre className="chat-text">
+                      {JSON.stringify(call.proposal.after, null, 2)}
+                    </pre>
+                  )}
                 </div>
               </div>
               <p className="chat-text">{call.proposal.digest}</p>
@@ -233,6 +272,32 @@ export function ToolRecords({
                     {c(
                       "View saved target in inventory",
                       "목록에서 저장된 대상 보기",
+                    )}
+                  </Button>
+                )}
+              </div>
+            )}
+          {call.status === "succeeded" &&
+            call.result?.kind === "skill_created" && (
+              <div>
+                <p>
+                  {c("Saved ·", "저장됨 ·")} {call.result.before_revision} →{" "}
+                  {call.result.after_revision} · {call.result.audit.id}
+                </p>
+                {onViewSkill && (
+                  <Button
+                    data-testid={`chat-tool-view-saved-${call.id}`}
+                    onClick={() => {
+                      if (call.result?.kind === "skill_created")
+                        onViewSkill({
+                          skill: call.result.skill,
+                          after_revision: call.result.after_revision,
+                        });
+                    }}
+                  >
+                    {c(
+                      "View saved Skill in library",
+                      "라이브러리에서 저장된 스킬 보기",
                     )}
                   </Button>
                 )}
