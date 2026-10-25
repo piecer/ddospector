@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { readFileSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import { chatClient } from "./chat-client";
@@ -132,7 +133,22 @@ const issue = (authority: "agent_v1" | "target_create_v2") =>
     authority,
   );
 
-it("binds all 23 exact bodies and inherited capture evidence to unchanged producer inputs", () => {
+it("binds all 23 historical bodies to frozen base blobs, not current producer claims", () => {
+  // This transition is inseparable from the genuine current all-variant corpus
+  // and its mandatory strict replay in chat-skill-producer-wire.test.ts.
+  const currentBytes = readFileSync(
+    resolve("src/pages/ai/chat-skill-producer-data/producer.json"),
+  );
+  expect(sha(currentBytes)).toBe(
+    "cb3b7e080c6f59a5669429f9722a1ceddd057b949030971f0a8f2b933dda8732",
+  );
+  const current = JSON.parse(currentBytes.toString("utf8"));
+  expect(current.capture.verdict).toBe(
+    "ACTUAL_ALL_VARIANT_CAPTURE_NOT_REAL_MODEL",
+  );
+  expect(
+    current.capture.variants.map((v: { variant: string }) => v.variant),
+  ).toEqual(["agent", "target", "skill"]);
   expect(corpus.schema_version).toBe(1);
   expect(corpus.provenance.kind).toBe(
     "inherited_actual_http_capture_not_new_runtime",
@@ -173,11 +189,67 @@ it("binds all 23 exact bodies and inherited capture evidence to unchanged produc
   // Pin producing Python/dependencies/harness, not unrelated mutable frontend.
   // Full original source manifest remains intact above as historical evidence.
   expect(corpus.producer_inputs).toHaveLength(92);
+  const baselineBytes = readFileSync(
+    resolve("src/pages/ai/chat-target-producer-data/producer-baseline.json"),
+  );
+  expect(sha(baselineBytes)).toBe(
+    "3b17eb6f377d3a58814053cf231ab7e442764ec0ca9ba390d5f1214634126688",
+  );
+  const binding = JSON.parse(baselineBytes.toString("utf8")) as {
+    schema_version: number;
+    base_commit: string;
+    base_tree: string;
+    corpus_path: string;
+    corpus_sha256: string;
+    producer_inputs: {
+      path: string;
+      sha256: string;
+      recorded_mode: string;
+      git_mode: string;
+      base_blob_oid: string;
+    }[];
+  };
+  expect(binding.schema_version).toBe(1);
+  expect(binding.base_commit).toBe("5d41294644f1138f6638e69451e1e565a42c3b54");
+  expect(binding.base_tree).toBe("ed72b8827aa7136c043cc8f12de417df6162bef8");
+  expect(binding.corpus_path).toBe(
+    "web/src/pages/ai/chat-target-producer-data/producer.json",
+  );
+  expect(binding.corpus_sha256).toBe(sha(fixture));
+  expect(binding.producer_inputs).toHaveLength(92);
+  expect(new Set(binding.producer_inputs.map((entry) => entry.path)).size).toBe(
+    92,
+  );
+  expect(
+    binding.producer_inputs.map(({ path, sha256, recorded_mode }) => ({
+      path,
+      sha256,
+      mode: recorded_mode,
+    })),
+  ).toEqual(corpus.producer_inputs);
+  const git = (args: string[]) =>
+    execFileSync("git", args, { cwd: resolve("..") });
+  expect(
+    git(["rev-parse", `${binding.base_commit}^{tree}`])
+      .toString()
+      .trim(),
+  ).toBe(binding.base_tree);
   for (const input of corpus.producer_inputs) {
     expect(inputs.find((entry) => entry.path === input.path)).toEqual(input);
-    const path = resolve("..", input.path);
-    expect(sha(readFileSync(path)), input.path).toBe(input.sha256);
-    expect(`0o${(statSync(path).mode & 0o777).toString(8)}`, input.path).toBe(
+    const archived = binding.producer_inputs.find(
+      (entry) => entry.path === input.path,
+    )!;
+    const entry = git(["ls-tree", binding.base_commit, "--", input.path])
+      .toString()
+      .trimEnd();
+    expect(entry).toBe(
+      `${archived.git_mode} blob ${archived.base_blob_oid}\t${input.path}`,
+    );
+    expect(
+      sha(git(["cat-file", "blob", archived.base_blob_oid])),
+      input.path,
+    ).toBe(input.sha256);
+    expect(`0o${(parseInt(archived.git_mode, 8) & 0o777).toString(8)}`).toBe(
       input.mode,
     );
   }

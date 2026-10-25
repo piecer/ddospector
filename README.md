@@ -87,20 +87,41 @@ It uses explicit session consent and a supported local, unauthenticated
 Chat Completions model; saving configuration or previewing instructions still
 does not activate inference. Runtime readiness and conversation results come
 from `/api/v1/chat`, not the legacy draft capability flags. Text-only chat remains
-the default. The separately consented CHAT-02A/B1 companion path is specified in
+the default. The separately consented CHAT-02A/B1/B2 companion path is specified in
 `docs/CHAT_TOOLS_CONTRACT.md`: native Agent/Skill reads and one exactly approved
 Agent name/Skill-assignment write, with conflict checks, audit and stored readback.
 CHAT-02B1 adds a separate target-only permission scope for target reads and one
-exactly approved target creation. Read tool availability before selecting that
-scope; registration is syntax-only and never probes or sends traffic to a target.
-Saved targets can be inspected in the existing Targets inventory. Reloaded
-ID-only links verify the current record, not a lost historical receipt.
+exactly approved target creation. CHAT-02B2 implements a third, Skill-only scope
+for existing localized Skill reads and one exactly approved custom draft creation.
+Agent v1 remains the default; Target v2 and Skill v3 do not widen each other's
+authority. Tool runtime v3 advertises four tools, but each grant exposes only its
+own read/propose pair. Read tool availability before selecting a creation scope.
+Target registration is syntax-only and never probes or sends traffic to a target.
+Skill creation preserves literal name/description/instructions/category, duplicates
+the supplied text into both locales without translation, and saves the full draft
+with fixed safety policy and a separate audit. It does not assign or execute a Skill.
+Existing limits are unchanged: a manually valid Skill can be too large for the
+complete chat receipt/exchange and is then refused, never truncated.
+Saved targets use the existing Targets inventory; saved Skills use bounded
+operator summaries and one explicitly selected full record in Skills details.
+Receipt-confirmed Skill details mean full-record equality at the receipt's revision
+floor, not independent confirmation of its audit. Reloaded ID-only links inspect
+the current record, not a lost historical receipt. Explicit GET retry, cancellation
+and close preserve dirty forms and never replay a mutation.
 Provider settings, MCP assignments and execution are not writable by these tools.
-Skill creation and scenario/version saves remain CHAT-02B2/B3; multi-step planning
-is CHAT-03. No target update/delete is exposed. None of these permissions can be
+Chat-driven scenario/version saves remain CHAT-02B3; multi-step planning is CHAT-03.
+No target or Skill update/delete is exposed. None of these permissions can be
 inferred from model or Skill text. A saved tool result is separate from final
-model-text success; CHAT-02A final-explanation acceptance remains open, and
-synthetic-provider tests do not establish selected-model acceptance for B1.
+model-text success.
+
+CHAT-02B2 at checkpoint `4412cc9` is implementation work in progress, not an
+accepted full feature or MVP. Component reviews are closed, but fresh current-source
+all-variant producer capture/replay, normal PostgreSQL/separate-worker parity,
+browser/resource acceptance and final canonical gates remain open. Historical B1
+raw evidence remains frozen; it cannot be relabeled as current producer evidence.
+New capture and mandatory freshness checks must be promoted together. CHAT-02A
+final-explanation acceptance (A-FINAL) and selected-model B1 acceptance remain open;
+synthetic Agent/Target/Skill fixtures do not close them or expand model budgets.
 
 LIVE run admission, MCP connection/handshake, traffic generation, instrument control, operational approvals, full defense verdicts and live evidence capture remain unavailable. The legacy LIVE execution endpoint remains denied. The OFFLINE Runs route reads actual run storage; it shows an unavailable state when storage is absent, not fabricated empty history. The supervised Phase-1 path is accepted; full original S02 integration remains unaccepted.
 

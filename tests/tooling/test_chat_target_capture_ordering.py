@@ -111,7 +111,7 @@ const page = {
       return {async click() { events.push('availability'); available = true; }};
     }
     assert.equal(role, 'option'); assert.equal(name, '대상 생성');
-    return {kind: 'target-option'};
+    return {kind: 'target-option', get disabled() { return !available; }};
   },
 };
 const requests = [];
@@ -127,15 +127,22 @@ function expect(actual) {
         assert.equal(selected, 'target_create_v2'); events.push('target-label');
       }
     },
-    async toBeEnabled() {
+    async toHaveJSProperty(property, value) {
       assert.equal(actual.kind, 'target-option');
-      assert.equal(available, true); events.push('enabled');
+      assert.equal(property, 'disabled'); assert.equal(value, false);
+      assert.equal(actual[property], value); events.push('enabled');
     },
     toEqual(value) { assert.deepEqual(actual, value); },
     not: {async toBeChecked() { assert.equal(actual, toggle); events.push('unchecked'); }},
   };
 }
 (async () => {
+await assert.rejects(
+  () => expect(page.getByRole('option', {name: '대상 생성'}))
+    .toHaveJSProperty('disabled', false),
+  {name: 'AssertionError'},
+);
+assert.deepEqual(events, [], 'disabled option must not pass the readiness guard');
 BLOCK
 assert.equal(selected, 'target_create_v2', 'target setup must not silently retain Agent scope');
 assert.deepEqual(events, [

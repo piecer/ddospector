@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import os
 import socket
 import sys
 import time
@@ -532,8 +533,9 @@ def test_filesystem_fault_fixture_seam_really_fires(tmp_path, mode):
 def test_sanitized_environment_is_absolute_and_offline(monkeypatch):
     for name in ("PGHOST", "PGPASSWORD", "DATABASE_URL", "OPENAI_API_KEY", "HTTP_PROXY"):
         monkeypatch.setenv(name, "SYNTHETIC-not-for-child")
+    monkeypatch.setenv("PYTHONPATH", "SYNTHETIC-untrusted-import-path")
     env = harness.clean_env()
-    assert env["PYTHONPATH"] == str(ROOT / "src")
+    assert env["PYTHONPATH"].split(os.pathsep) == [str(ROOT / "src"), str(ROOT)]
     assert env["npm_config_offline"] == "true"
     for name in ("npm_config_update_notifier", "npm_config_audit", "npm_config_fund"):
         assert env[name] == "false"

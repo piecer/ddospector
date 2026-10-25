@@ -244,7 +244,7 @@ test(
           .click();
         await expect(
           page.getByRole("option", { name: "스킬 생성" }),
-        ).toBeEnabled();
+        ).toHaveJSProperty("disabled", false);
         await scope.selectOption("skill_create_v3");
         await expect(scope).toHaveValue("skill_create_v3");
         await expect(page.getByTestId("chat-tools-toggle")).not.toBeChecked();
@@ -269,7 +269,7 @@ test(
           .click();
         await expect(
           page.getByRole("option", { name: "대상 생성" }),
-        ).toBeEnabled();
+        ).toHaveJSProperty("disabled", false);
         await scope.selectOption("target_create_v2");
         await expect(scope).toHaveValue("target_create_v2");
         await expect(
