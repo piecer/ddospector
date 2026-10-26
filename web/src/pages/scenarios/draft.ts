@@ -65,6 +65,8 @@ export function draftFromDefinition(definition: ScenarioDefinition): Draft {
 }
 const number = (s: string) => (/^(?:0|[1-9][0-9]*)$/.test(s) ? Number(s) : NaN);
 const optional = (s: string) => (s === "" ? null : number(s));
+// Reuse the manual ASCII-decimal parser without changing manual form behavior.
+export { number as parseScenarioInteger, optional as parseOptionalScenarioInteger };
 export function definitionFromDraft(draft: Draft) {
   const v = draft.values;
   const definition = {

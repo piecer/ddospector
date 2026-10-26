@@ -16,10 +16,11 @@ from .errors import DraftError
 
 
 class ChatRuntime(ToolRuntimeMixin):
-    def __init__(self, draft):
+    def __init__(self, draft, scenarios=None):
         self.draft = draft
+        self.scenarios = scenarios
         self.storage = ChatStorage(draft.path)
-        self.worker = DomainWorker(draft)
+        self.worker = DomainWorker(draft, scenarios)
         self.ledger = ToolLedger(self.storage)
         self.preparing = False
         self.stop_signal = threading.Event()

@@ -7,7 +7,8 @@ import {
   Notice,
   Panel,
 } from "../../components/ui";
-import type { PageProps } from "../../lib/contracts";
+import type { ScenarioReadback } from "../ai/useScenarioReadback";
+import type { PageProps, Locale } from "../../lib/contracts";
 import { choose } from "../../lib/i18n";
 import { scenarioAPI, ScenarioError } from "./client";
 import type {
@@ -26,6 +27,67 @@ import { ScenarioFields } from "./ScenarioFields";
 import { ScenarioDetails } from "./ScenarioDetails";
 import { canonical } from "./json";
 import "./scenarios.css";
+/** App renders this outside the mutation fieldset; never a second GET owner. */
+export function SelectedScenarioReadback({
+  readback,
+  locale,
+}: {
+  readback: ScenarioReadback;
+  locale: Locale;
+}) {
+  const c = (en: string, ko: string) => choose(locale, en, ko);
+  const messages: Record<ScenarioReadback["state"], [string, string]> = {
+    loading: ["Reading exact immutable version…", "정확한 불변 버전 읽는 중…"],
+    "current-only": [
+      "Current history only — no saved receipt expectation.",
+      "현재 이력만 확인 — 저장 영수증 기대값 없음.",
+    ],
+    "receipt-confirmed": [
+      "Saved receipt confirmed against complete immutable history.",
+      "전체 불변 이력에서 저장 영수증 확인됨.",
+    ],
+    discrepancy: [
+      "History differs from the selected version / receipt.",
+      "이력이 선택 버전 / 영수증과 다릅니다.",
+    ],
+    unavailable: [
+      "History unavailable. No save confirmation.",
+      "이력을 사용할 수 없습니다. 저장 확인 아님.",
+    ],
+    cancelled: ["Inspection cancelled.", "검사를 취소했습니다."],
+  };
+  return (
+    <section
+      className="scenario-library form-stack"
+      aria-label={c("Selected scenario version", "선택한 시나리오 버전")}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") readback.cancel();
+      }}
+    >
+      <p
+        role="status"
+        data-testid="scenario-readback-status"
+        data-readback={readback.state}
+      >
+        {c(...messages[readback.state])}
+      </p>
+      <div className="button-row">
+        <Button onClick={() => void readback.retry()}>
+          {c(
+            "Read selected scenario again (GET only)",
+            "선택 시나리오 다시 읽기 (GET 전용)",
+          )}
+        </Button>
+        <Button onClick={readback.cancel}>
+          {c("Cancel scenario inspection", "시나리오 검사 취소")}
+        </Button>
+      </div>
+      {readback.record && (
+        <ScenarioDetails record={readback.record} locale={locale} />
+      )}
+    </section>
+  );
+}
 type Session = {
   draft: Draft;
   revision: number;
@@ -39,7 +101,18 @@ export function ScenarioLibrary({
   data,
   locale,
   navigate,
-}: Pick<PageProps, "data" | "locale" | "navigate">) {
+  scenarioSelection,
+  scenarioReadback,
+  readScenarioHistory = scenarioAPI.history,
+}: Pick<
+  PageProps,
+  | "data"
+  | "locale"
+  | "navigate"
+  | "scenarioSelection"
+  | "scenarioReadback"
+  | "readScenarioHistory"
+>) {
   const c = (en: string, ko: string) => choose(locale, en, ko);
   const [page, setPage] = useState<ScenarioPage | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error" | "stale">(
@@ -49,12 +122,73 @@ export function ScenarioLibrary({
   const [offset, setOffset] = useState(0);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyId, setHistoryId] = useState("");
-  const [history, setHistory] = useState<ScenarioHistory | null>(null);
-  const [historyState, setHistoryState] = useState<
+  const [manualView, setManualView] = useState<{
+    history: ScenarioHistory;
+    version: number;
+  } | null>(null);
+  const [selectedChoice, setSelectedChoice] = useState<{
+    selection: NonNullable<PageProps["scenarioSelection"]>;
+    history: ScenarioHistory;
+    version: number;
+  } | null>(null);
+  const [manualHistoryState, setHistoryState] = useState<
     "loading" | "ready" | "error"
   >("loading");
-  const [version, setVersion] = useState(1);
+  const sharedHistory =
+    scenarioSelection?.id === historyId ? scenarioReadback : undefined;
+  const history = sharedHistory ? sharedHistory.history : manualView?.history;
+  // A selected dialog may browse independently, but never changes App's exact
+  // receipt selection or the retained manual snapshot's operator choice.
+  const version = sharedHistory
+    ? selectedChoice?.selection === scenarioSelection &&
+      selectedChoice?.history === history
+      ? selectedChoice?.version
+      : scenarioSelection?.version
+    : manualView?.version;
+  const record =
+    history?.scenario_id === historyId
+      ? history.versions.find(
+          (item) => item.id === historyId && item.version === version,
+        )
+      : undefined;
+  const sourceState = sharedHistory
+    ? ["receipt-confirmed", "current-only"].includes(sharedHistory.state)
+      ? "ready"
+      : sharedHistory.state === "loading"
+        ? "loading"
+        : "error"
+    : manualHistoryState;
+  // Membership is checked at both presentation and edit boundaries. A missing
+  // member is an explicit read error, never an implicit latest/clamped version.
+  const historyState =
+    sourceState === "ready" && !record ? "error" : sourceState;
   const historyRequest = useRef<AbortController | null>(null);
+  const selectedSource = sharedHistory ? scenarioSelection : undefined;
+  useEffect(() => {
+    if (selectedSource !== undefined) {
+      // Retire the manual view, not App's original transport lease. A late
+      // manual result must not replace the explicitly selected older version.
+      historyRequest.current?.abort();
+      // Retired work cannot publish; keep completed manual history readable.
+      setHistoryState((state) => (state === "loading" ? "error" : state));
+    }
+  }, [selectedSource]);
+  function chooseVersion(version: number) {
+    if (
+      historyState !== "ready" ||
+      !history ||
+      !history.versions.some(
+        (item) => item.id === historyId && item.version === version,
+      )
+    )
+      return;
+    if (sharedHistory && scenarioSelection)
+      setSelectedChoice({ selection: scenarioSelection, history, version });
+    else
+      setManualView((view) =>
+        view?.history === history ? { history, version } : view,
+      );
+  }
   const [session, setSession] = useState<Session | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [validation, setValidation] = useState(false);
@@ -106,11 +240,17 @@ export function ScenarioLibrary({
     const controller = new AbortController();
     historyRequest.current = controller;
     setHistoryId(id);
-    setHistory(null);
     setHistoryOpen(true);
+    if (scenarioSelection?.id === id && scenarioReadback) {
+      // No manual work was started, including reopen at the same selection.
+      setHistoryState((state) => (state === "loading" ? "error" : state));
+      setSelectedChoice(null);
+      return;
+    }
+    setManualView(null);
     setHistoryState("loading");
     try {
-      const value = await scenarioAPI.history(id, controller.signal);
+      const value = await readScenarioHistory(id, controller.signal);
       if (!controller.signal.aborted) {
         observe(value.revision);
         const listed = page?.items.find((item) => item.id === id);
@@ -119,8 +259,7 @@ export function ScenarioLibrary({
           !value.versions.some((item) => canonical(item) === canonical(listed))
         )
           throw new Error("Contradictory history.");
-        setHistory(value);
-        setVersion(value.versions.length);
+        setManualView({ history: value, version: value.versions.length });
         setHistoryState("ready");
       }
     } catch {
@@ -132,13 +271,13 @@ export function ScenarioLibrary({
     setHistoryOpen(false);
   }
   function edit() {
-    const selected = history?.versions[version - 1];
     if (
       storageBlocked ||
+      historyState !== "ready" ||
       !history ||
-      !selected ||
-      version !== history.versions.length ||
-      version >= 10 ||
+      !record ||
+      record.version !== history.versions.length ||
+      record.version >= 10 ||
       !ready ||
       state !== "ready" ||
       session
@@ -146,9 +285,9 @@ export function ScenarioLibrary({
       return;
     closeHistory();
     setSession({
-      draft: draftFromDefinition(selected.definition),
+      draft: draftFromDefinition(record.definition),
       revision: history.revision,
-      opened: { id: selected.id, version },
+      opened: { id: record.id, version: record.version },
       phase: "editing",
     });
     setEditorOpen(true);
@@ -471,17 +610,22 @@ export function ScenarioLibrary({
               "History could not be read. Editing is disabled.",
               "이력을 읽지 못했습니다. 수정이 비활성화되었습니다.",
             )}
-            <Button onClick={() => void showHistory(historyId)}>
+            <Button
+              onClick={() => {
+                if (sharedHistory) void sharedHistory.retry();
+                else void showHistory(historyId);
+              }}
+            >
               {c("Retry history read", "이력 읽기 재시도")}
             </Button>
           </Notice>
         )}
-        {history && historyState === "ready" && (
+        {history && record && historyState === "ready" && (
           <div className="form-stack">
             <Field label={c("Revision", "리비전")}>
               <select
                 value={version}
-                onChange={(e) => setVersion(Number(e.target.value))}
+                onChange={(e) => chooseVersion(Number(e.target.value))}
               >
                 {history.versions.map((item) => (
                   <option key={item.version} value={item.version}>
@@ -491,10 +635,7 @@ export function ScenarioLibrary({
                 ))}
               </select>
             </Field>
-            <ScenarioDetails
-              record={history.versions[version - 1]}
-              locale={locale}
-            />
+            <ScenarioDetails record={record} locale={locale} />
             {history.versions.length >= 10 && (
               <Notice tone="warning">
                 {c(
@@ -508,8 +649,8 @@ export function ScenarioLibrary({
                 storageBlocked ||
                 !ready ||
                 state !== "ready" ||
-                version !== history.versions.length ||
-                version >= 10 ||
+                record.version !== history.versions.length ||
+                record.version >= 10 ||
                 !!session
               }
               onClick={edit}

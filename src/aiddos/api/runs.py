@@ -21,9 +21,9 @@ async def disconnected(request):
             return
 
 
-def runs_router(drafts) -> APIRouter:
+def runs_router(drafts, scenarios=None) -> APIRouter:
     socket = startup_setting("RUN_DB_SOCKET")
-    peer = ScenarioStore(drafts, ticket=None)
+    peer = ScenarioStore(drafts, ticket=None) if scenarios is None else scenarios
     return _compose_runs(peer, socket)
 
 

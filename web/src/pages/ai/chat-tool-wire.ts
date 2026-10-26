@@ -1,3 +1,4 @@
+import { parseV4 } from "./chat-scenario-wire";
 import { parseSkillInput, validateSkillResult } from "./chat-skill-wire";
 import { parseTarget, parseTargetInput } from "./chat-target-wire";
 import { chatCodes } from "./chat-types";
@@ -6,13 +7,14 @@ import { canonical, digest, utf8Length } from "../scenarios/json";
 import { forbiddenText, pythonSpace } from "../ai-settings/unicode-text";
 import type {
   AgentConfig,
-  ToolGrant,
+  LegacyToolGrant,
   ToolDecision,
   ToolCall,
+  LegacyToolCall,
   ToolTranscript,
-  ToolResult,
+  LegacyToolResult,
   ToolFence,
-  ReconcileReceipt,
+  LegacyReconcileReceipt,
   TargetInspection,
   ToolRuntime,
 } from "./chat-tool-types";
@@ -32,7 +34,7 @@ export function parseFence(value: unknown): ToolFence {
   if (f.current_draft_revision !== null) integer(f.current_draft_revision);
   return value as ToolFence;
 }
-export function parseReconcile(value: unknown): ReconcileReceipt {
+export function parseReconcile(value: unknown): LegacyReconcileReceipt {
   const r = object(
     value,
     "schema_version request_id acknowledged_call_ids generation write_fenced prior_outcomes",
@@ -47,7 +49,7 @@ export function parseReconcile(value: unknown): ReconcileReceipt {
   array(r.acknowledged_call_ids, 1);
   check(r.acknowledged_call_ids.length === 1);
   r.acknowledged_call_ids.forEach(uuid);
-  return value as ReconcileReceipt;
+  return value as LegacyReconcileReceipt;
 }
 export function reconcileFence(
   previous: ToolFence,
@@ -71,7 +73,8 @@ export function reconcileTranscript(
   next: ToolTranscript,
 ): ToolTranscript {
   check(
-    next.turn_id === previous.turn_id &&
+    next.schema_version === previous.schema_version &&
+      next.turn_id === previous.turn_id &&
       next.revision >= previous.revision &&
       next.calls.length >= previous.calls.length,
   );
@@ -167,7 +170,7 @@ export function parseAgent(value: unknown): AgentConfig {
   ids(a.skill_ids);
   return value as AgentConfig;
 }
-export function parseGrant(value: unknown): ToolGrant {
+export function parseGrant(value: unknown): LegacyToolGrant {
   const version =
     value && typeof value === "object"
       ? Object.getOwnPropertyDescriptor(value, "schema_version")?.value
@@ -215,7 +218,7 @@ export function parseGrant(value: unknown): ToolGrant {
     );
   }
   check(utf8Length(canonical(value)) <= 8192);
-  return value as ToolGrant;
+  return value as LegacyToolGrant;
 }
 export function parseDecision(value: unknown): ToolDecision {
   const d = object(
@@ -288,7 +291,7 @@ function skill(v: unknown, detail: boolean) {
   }
   return s;
 }
-function resultFor(value: unknown, call: ToolCall): ToolResult {
+function resultFor(value: unknown, call: LegacyToolCall): LegacyToolResult {
   if (call.tool === "skill_create") {
     validateSkillResult(value, call);
   } else if (call.tool === "target_create") {
@@ -383,7 +386,7 @@ function resultFor(value: unknown, call: ToolCall): ToolResult {
     }
   }
   check(utf8Length(canonical(value)) <= 32768);
-  return value as ToolResult;
+  return value as LegacyToolResult;
 }
 export const isWrite = (tool: unknown) =>
   tool === "agent_profile_update" ||
@@ -401,7 +404,7 @@ export function parseTargetInspection(value: unknown): TargetInspection {
 }
 export const callTerminal = (c: ToolCall) =>
   !["requested", "awaiting_approval", "executing"].includes(c.status);
-async function parseCall(value: unknown): Promise<ToolCall> {
+async function parseCall(value: unknown): Promise<LegacyToolCall> {
   const c = object(
     value,
     "id index provider_call_id tool arguments args_digest grant_id actor status error_code proposal decision result started_at finished_at",
@@ -420,7 +423,7 @@ async function parseCall(value: unknown): Promise<ToolCall> {
   sha(c.args_digest);
   check(c.args_digest === (await digest(c.arguments)));
   timestamp(c.started_at);
-  const call = value as ToolCall;
+  const call = value as LegacyToolCall;
   if (c.proposal !== null) {
     check(isWrite(c.tool));
     const p = object(
@@ -550,6 +553,7 @@ async function parseCall(value: unknown): Promise<ToolCall> {
   return call;
 }
 export async function parseTranscript(value: unknown): Promise<ToolTranscript> {
+  if (wireVersion(value) === 4) return parseV4("TranscriptV4", value);
   const t = object(value, "schema_version turn_id revision calls");
   check(t.schema_version === 1);
   uuid(t.turn_id);
@@ -584,6 +588,19 @@ export function object(value: unknown, keys: string): Record<string, unknown> {
     check(descriptor && descriptor.enumerable && "value" in descriptor);
   }
   return value as Record<string, unknown>;
+}
+/** Async version dispatch; the legacy synchronous entrypoint stays unchanged. */
+export async function parseToolRuntimeResponse(
+  value: unknown,
+): Promise<ToolRuntime> {
+  return wireVersion(value) === 4
+    ? parseV4("RuntimeV4", value)
+    : parseToolRuntime(value);
+}
+function wireVersion(value: unknown): unknown {
+  return value && typeof value === "object"
+    ? Object.getOwnPropertyDescriptor(value, "schema_version")?.value
+    : undefined;
 }
 export function parseToolRuntime(value: unknown) {
   const r = object(

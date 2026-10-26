@@ -38,36 +38,91 @@ async function request<T>(
   method: "GET" | "POST",
   body: unknown,
   signal: AbortSignal | undefined,
-  consume: (r: Response) => Promise<T>,
+  consume: (
+    r: Response,
+    signal: AbortSignal,
+    checkDeadline: () => void,
+  ) => Promise<T>,
   ms = 10000,
   acceptedStatuses?: number[],
+  codecBoundary = false,
 ): Promise<T> {
   const controller = new AbortController();
   const abort = () => controller.abort();
   if (signal?.aborted) controller.abort();
   signal?.addEventListener("abort", abort, { once: true });
-  const timer = setTimeout(abort, ms);
-  try {
-    const response = await fetch(base + path, {
-      method,
-      headers: {
-        Accept: path.includes("/events?")
-          ? "text/event-stream"
-          : "application/json",
-        ...(method === "POST" ? { "Content-Type": "application/json" } : {}),
-      },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-      signal: controller.signal,
-      cache: "no-store",
-      redirect: "error",
-    });
-    if (!response.ok) {
-      const value = await jsonBody(
-        response,
-        path === "/tools/skills" || path.startsWith("/tools/skills/")
-          ? 131072
-          : JSON_LIMIT,
+  const started = performance.now();
+  const checkDeadline = () => {
+    if (!codecBoundary) return;
+    if (performance.now() - started >= ms)
+      controller.abort(
+        new DOMException("Chat request timed out.", "TimeoutError"),
       );
+    controller.signal.throwIfAborted();
+  };
+  let fetchPending = false;
+  const timer = setTimeout(() => {
+    abort();
+    // A caller abort may already have fired while fetch still owns its slot.
+    if (codecBoundary) rejectAbort(controller.signal.reason);
+  }, ms);
+  let rejectAbort!: (reason: unknown) => void;
+  const aborted = codecBoundary
+    ? new Promise<never>((_, reject) => {
+        rejectAbort = reject;
+      })
+    : null;
+  const onAbort = () => {
+    // Preserve the caller's in-flight lease until fetch retires. Once a response
+    // is owned, cancellation can interrupt a blocked reader/async codec safely.
+    if (!fetchPending) rejectAbort(controller.signal.reason);
+  };
+  if (codecBoundary)
+    controller.signal.addEventListener("abort", onAbort, { once: true });
+  async function perform(): Promise<T> {
+    checkDeadline();
+    fetchPending = true;
+    let response: Response;
+    try {
+      response = await fetch(base + path, {
+        method,
+        headers: {
+          Accept: path.includes("/events?")
+            ? "text/event-stream"
+            : "application/json",
+          ...(method === "POST" ? { "Content-Type": "application/json" } : {}),
+        },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        signal: controller.signal,
+        cache: "no-store",
+        redirect: "error",
+      });
+    } finally {
+      fetchPending = false;
+    }
+    try {
+      checkDeadline();
+    } catch (error) {
+      // Fetch may fulfill after expiry without delivering an abort event first.
+      void response.body?.cancel().catch(() => undefined);
+      throw error;
+    }
+    if (!response.ok) {
+      const value = codecBoundary
+        ? decodeJSON(
+            await rawCompanionBody(
+              response,
+              32768,
+              controller.signal,
+              checkDeadline,
+            ),
+          )
+        : await jsonBody(
+            response,
+            path === "/tools/skills" || path.startsWith("/tools/skills/")
+              ? 131072
+              : JSON_LIMIT,
+          );
       if (value && typeof value === "object" && !Array.isArray(value)) {
         const record = value as Record<string, unknown>;
         if (
@@ -77,6 +132,13 @@ async function request<T>(
           chatCodes.includes(record.code as ChatCode)
         ) {
           const code = record.code as ChatCode;
+          if (
+            code === "CHAT_SCENARIO_WRITE_FENCED" &&
+            (response.status !== 409 ||
+              record.message !==
+                "Scenario storage is write-quarantined. Chat acknowledgement does not recover it; follow offline scenario recovery.")
+          )
+            invalid();
           const definite =
             [409, 422, 429, 413].includes(response.status) &&
             !["CHAT_COMMIT_UNCERTAIN", "CHAT_STORAGE_ERROR"].includes(code);
@@ -98,9 +160,19 @@ async function request<T>(
       await response.body?.cancel();
       return invalid();
     }
-    return await consume(response);
+    const result = await consume(response, controller.signal, checkDeadline);
+    checkDeadline();
+    return result;
+  }
+  try {
+    const result = await (aborted
+      ? Promise.race([perform(), aborted])
+      : perform());
+    checkDeadline();
+    return result;
   } finally {
     clearTimeout(timer);
+    if (codecBoundary) controller.signal.removeEventListener("abort", onAbort);
     signal?.removeEventListener("abort", abort);
     controller.abort();
   }
@@ -140,6 +212,122 @@ async function jsonBody(
     reader.releaseLock();
   }
 }
+/** Fixed companion routes only. No caller-supplied budget or deadline. */
+export type ToolCompanionPath =
+  | "/tools/runtime"
+  | "/tools/fence"
+  | "/tools/scenarios/state"
+  | "/tools/reconcile"
+  | "/tool-grants"
+  | `/tool-grants/by-request/${string}`
+  | `/tool-grants/${string}/revoke`
+  | `/turns/${string}/tools`
+  | `/turns/by-request/${string}`
+  | `/sessions/${string}/tool-turns`
+  | `/tool-calls/${string}/decision`;
+function companionLimit(path: ToolCompanionPath): number {
+  if (
+    [
+      "/tools/runtime",
+      "/tools/fence",
+      "/tools/scenarios/state",
+      "/tools/reconcile",
+      "/tool-grants",
+    ].includes(path)
+  )
+    return 32768;
+  const match =
+    /^(?:\/tool-grants\/by-request\/([^/]+)|\/tool-grants\/([^/]+)\/revoke|\/turns\/([^/]+)\/tools|\/turns\/by-request\/([^/]+)|\/sessions\/([^/]+)\/tool-turns|\/tool-calls\/([^/]+)\/decision)$/.exec(
+      path,
+    );
+  if (!match) return invalid();
+  uuid(match.slice(1).find((v) => v !== undefined));
+  return path.startsWith("/tool-grants/") || path.startsWith("/tool-calls/")
+    ? 32768
+    : JSON_LIMIT;
+}
+async function rawCompanionBody(
+  response: Response,
+  limit: number,
+  signal: AbortSignal,
+  checkDeadline: () => void,
+): Promise<Uint8Array> {
+  if (
+    response.headers.get("content-type")?.split(";")[0].trim() !==
+      "application/json" ||
+    !response.body
+  ) {
+    void response.body?.cancel().catch(() => undefined);
+    return invalid();
+  }
+  const reader = response.body.getReader();
+  const cancel = () => {
+    void reader.cancel().catch(() => undefined);
+  };
+  signal.addEventListener("abort", cancel, { once: true });
+  const chunks: Uint8Array[] = [];
+  let size = 0,
+    complete = false;
+  try {
+    checkDeadline();
+    const length = response.headers.get("content-length");
+    if (length !== null && (!/^[0-9]+$/.test(length) || Number(length) > limit))
+      invalid();
+    while (true) {
+      const { value, done } = await reader.read();
+      checkDeadline();
+      if (done) break;
+      size += value.byteLength;
+      if (size > limit) invalid();
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    complete = true;
+    return bytes;
+  } finally {
+    signal.removeEventListener("abort", cancel);
+    if (!complete) cancel();
+    reader.releaseLock();
+  }
+}
+/** Raw lexical admission precedes P0 object validation, within the same clock. */
+export function chatToolJSON<T>(
+  path: ToolCompanionPath,
+  parse: (value: unknown) => Promise<T>,
+  method: "GET" | "POST" = "GET",
+  body?: unknown,
+  signal?: AbortSignal,
+  statuses?: number[],
+): Promise<T> {
+  const limit = companionLimit(path);
+  return request(
+    path,
+    method,
+    body,
+    signal,
+    async (response, activeSignal, checkDeadline) => {
+      const bytes = await rawCompanionBody(
+        response,
+        limit,
+        activeSignal,
+        checkDeadline,
+      );
+      checkDeadline();
+      const result = await parse(decodeJSON(bytes));
+      checkDeadline();
+      return result;
+    },
+    10000,
+    statuses,
+    true,
+  );
+}
+
 export const chatJSON = (
   path: string,
   method: "GET" | "POST" = "GET",

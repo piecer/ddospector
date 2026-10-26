@@ -40,6 +40,15 @@ export function AgentPage({
       <ChatPanel
         locale={locale}
         mutationsEnabled={mutationsEnabled}
+        targets={data?.targets}
+        contextKey={JSON.stringify(data ?? null)}
+        onScenarioSaved={(expectation) =>
+          navigate("profiles", {
+            id: expectation.scenario.id,
+            version: expectation.scenario.version,
+            expectation,
+          })
+        }
         onSaved={refresh}
         onViewSaved={viewSaved}
         onViewSkill={(expectation) =>

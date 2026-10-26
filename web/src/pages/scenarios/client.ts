@@ -130,6 +130,40 @@ async function request<T>(
     controller.signal.removeEventListener("abort", onAbort);
   }
 }
+// Trusted application codecs only; transport choices remain private and fixed.
+export async function readScenarioHistoryWith<T>(
+  id: string,
+  parse: (value: unknown, id: string) => Promise<T>,
+  signal?: AbortSignal,
+): Promise<T> {
+  if (!identifier(id)) return invalid();
+  return request(
+    "/" + encodeURIComponent(id),
+    "GET",
+    262144,
+    (value) => parse(value, id),
+    undefined,
+    signal,
+  );
+}
+
+export async function readScenarioPageWith<T>(
+  offset: number,
+  limit: number,
+  parse: (value: unknown, offset: number, limit: number) => Promise<T>,
+  signal?: AbortSignal,
+): Promise<T> {
+  if (!integer(offset, 0, 100) || !integer(limit, 1, 100)) return invalid();
+  return request(
+    `?offset=${offset}&limit=${limit}`,
+    "GET",
+    1048576,
+    (value) => parse(value, offset, limit),
+    undefined,
+    signal,
+  );
+}
+
 async function read(offset = 0, limit = 50, signal?: AbortSignal) {
   if (!integer(offset, 0, 100) || !integer(limit, 1, 100)) return invalid();
   return request(

@@ -1,3 +1,9 @@
+import type { ScenarioSelection } from "../pages/ai/chat-scenario-types";
+import type { ScenarioReadback } from "../pages/ai/useScenarioReadback";
+export type {
+  ScenarioSelection,
+  ScenarioExpectation,
+} from "../pages/ai/chat-scenario-types";
 import type { RouteId } from "./navigation";
 export type Locale = "en" | "ko";
 export type LocalizedText = { en: string; ko: string };
@@ -113,13 +119,17 @@ export type TargetSelection = { id: string; expectation?: TargetExpectation };
 export type NavigationArgs =
   | [route: RouteId]
   | [route: "targets", selection: TargetSelection]
-  | [route: "skills", selection: SkillSelection];
+  | [route: "skills", selection: SkillSelection]
+  | [route: "profiles", selection: ScenarioSelection];
 export type PageProps = {
   data: WorkspaceSnapshot;
   locale: Locale;
   navigate: (...args: NavigationArgs) => void;
   targetSelection?: TargetSelection;
   skillSelection?: SkillSelection;
+  scenarioSelection?: ScenarioSelection;
+  scenarioReadback?: ScenarioReadback;
+  readScenarioHistory?: ScenarioReadback["readManualHistory"];
   refresh: () => Promise<void>;
 };
 export type TargetInput = Pick<Target, "name" | "address" | "kind">;

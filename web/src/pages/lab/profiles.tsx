@@ -13,7 +13,14 @@ import type { PageProps } from "../../lib/contracts";
 import { ScenarioLibrary } from "../scenarios/ScenarioLibrary";
 import { choose, text } from "../../lib/i18n";
 
-export function ProfilesPage({ data, locale, navigate }: PageProps) {
+export function ProfilesPage({
+  data,
+  locale,
+  navigate,
+  scenarioSelection,
+  scenarioReadback,
+  readScenarioHistory,
+}: PageProps) {
   const c = (en: string, ko: string) => choose(locale, en, ko);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = data.profiles.find((profile) => profile.id === selectedId);
@@ -86,7 +93,14 @@ export function ProfilesPage({ data, locale, navigate }: PageProps) {
           </div>
         )}
       </Panel>
-      <ScenarioLibrary data={data} locale={locale} navigate={navigate} />
+      <ScenarioLibrary
+        data={data}
+        locale={locale}
+        navigate={navigate}
+        scenarioSelection={scenarioSelection}
+        scenarioReadback={scenarioReadback}
+        readScenarioHistory={readScenarioHistory}
+      />
       <Dialog
         open={Boolean(selected)}
         title={

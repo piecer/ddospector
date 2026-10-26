@@ -9,6 +9,8 @@ the real result/error so the producer can persist its receipt before retiring.
 import asyncio
 import threading
 from concurrent.futures import Future, ThreadPoolExecutor
+from contextlib import nullcontext
+from copy import deepcopy
 from time import monotonic
 
 from pydantic import TypeAdapter, ValidationError
@@ -17,6 +19,7 @@ from .catalog import initial_workspace
 from .chat_models import encoded
 from .errors import DraftError
 from .models import AgentProfileInput, SkillInput, TargetInput
+from .scenario_store import ScenarioAdmissionRefused
 from .validation import Identifier
 
 _TARGET_ID = TypeAdapter(Identifier)
@@ -39,8 +42,9 @@ def agent_config(profile):
 class DomainWorker:
     """One lazy native worker. Keep the owning event loop alive through shutdown."""
 
-    def __init__(self, draft):
+    def __init__(self, draft, scenarios=None):
         self.draft = draft
+        self.scenarios = scenarios
         self._executor = None
         self._active = None
         self._closed = False
@@ -51,7 +55,9 @@ class DomainWorker:
     def busy(self):
         return self._active is not None
 
-    async def _run(self, operation, *, deadline=None, stop=None, write=False):
+    async def _run(self, operation, *, deadline=None, stop=None, write=False, lock_policy="draft"):
+        if lock_policy not in ("draft", "operation"):
+            raise ValueError("Invalid internal lock policy")
         if self._closed or self.busy:
             raise DraftError("CHAT_BUSY")
         local_stop = threading.Event()
@@ -69,7 +75,7 @@ class DomainWorker:
 
         def owned():
             self._thread = threading.current_thread()
-            with self.draft.lock:
+            with self.draft.lock if lock_policy == "draft" else nullcontext():
                 check()
                 result = operation(check)
                 if not write:
@@ -94,7 +100,16 @@ class DomainWorker:
                     raise
                 # fsync cannot be killed. Do not lose an applied write's receipt.
             except DraftError as exc:
+                if isinstance(exc, ScenarioAdmissionRefused):
+                    raise DraftError("CHAT_SCENARIO_WRITE_FENCED") from None
                 code = {
+                    "SCENARIO_STATE_UNAVAILABLE": "CHAT_STORAGE_ERROR",
+                    "SCENARIO_STATE_CORRUPT": "CHAT_STORAGE_ERROR",
+                    "SCENARIO_COMMIT_UNCERTAIN": "CHAT_TOOL_UNCERTAIN",
+                    "SCENARIO_NOT_FOUND": "CHAT_NOT_FOUND",
+                    "SCENARIO_CONFLICT": "CHAT_TOOL_CONFLICT",
+                    "SCENARIO_LIMIT_REACHED": "CHAT_TOOL_LIMIT",
+                    "VALIDATION_ERROR": "CHAT_INVALID_REQUEST",
                     "STATE_UNAVAILABLE": "CHAT_STORAGE_ERROR",
                     "STATE_CORRUPT": "CHAT_STORAGE_ERROR",
                     "STATE_COMMIT_UNCERTAIN": "CHAT_TOOL_UNCERTAIN",
@@ -103,6 +118,90 @@ class DomainWorker:
                     "INVALID_REFERENCE": "CHAT_INVALID_REQUEST",
                 }.get(exc.code, exc.code)
                 raise DraftError(code) from None
+
+    def _scenario_store(self):
+        if self.scenarios is None:
+            raise DraftError("CHAT_STORAGE_ERROR")
+        return self.scenarios
+
+    async def scenario_state(self, *, deadline=None, stop=None):
+        return await self._run(
+            lambda check: self._scenario_store().inspect_state(),
+            deadline=deadline,
+            stop=stop,
+            lock_policy="operation",
+        )
+
+    async def read_scenario_configuration(self, grant, arguments, *, deadline=None, stop=None):
+        grant, arguments = deepcopy(grant), deepcopy(arguments)
+
+        def operation(check):
+            try:
+                return self._scenario_store().read_configuration(grant, arguments)
+            except (ValidationError, KeyError, TypeError, ValueError):
+                raise DraftError("CHAT_INVALID_REQUEST") from None
+
+        return await self._run(operation, deadline=deadline, stop=stop, lock_policy="operation")
+
+    async def resolve_scenario_intent(
+        self, intent, expected_settings_revision, *, deadline=None, stop=None
+    ):
+        intent = deepcopy(intent)
+
+        def operation(check):
+            try:
+                return self._scenario_store().resolve_intent(intent, expected_settings_revision)
+            except (ValidationError, KeyError, TypeError, ValueError):
+                raise DraftError("CHAT_INVALID_REQUEST") from None
+
+        return await self._run(operation, deadline=deadline, stop=stop, lock_policy="operation")
+
+    async def prepare_scenario(
+        self, grant, arguments, expected_settings_revision, *, deadline=None, stop=None
+    ):
+        grant, arguments = deepcopy(grant), deepcopy(arguments)
+
+        def operation(check):
+            try:
+                return self._scenario_store().prepare_scenario(
+                    grant, arguments, expected_settings_revision
+                )
+            except (ValidationError, KeyError, TypeError, ValueError):
+                raise DraftError("CHAT_INVALID_REQUEST") from None
+
+        return await self._run(operation, deadline=deadline, stop=stop, lock_policy="operation")
+
+    async def save_scenario(
+        self,
+        grant,
+        arguments,
+        proposal,
+        publication_guard,
+        expected_settings_revision,
+        *,
+        deadline=None,
+        stop=None,
+    ):
+        grant, arguments, proposal = deepcopy(grant), deepcopy(arguments), deepcopy(proposal)
+
+        def operation(check):
+            def guard():
+                check()
+                publication_guard()
+                check()
+
+            try:
+                return self._scenario_store().save_receipt(
+                    grant, arguments, proposal, guard, expected_settings_revision
+                )
+            except DraftError:
+                raise
+            except Exception:
+                raise DraftError("CHAT_TOOL_UNCERTAIN") from None
+
+        return await self._run(
+            operation, deadline=deadline, stop=stop, write=True, lock_policy="operation"
+        )
 
     def _prepare(self, expected_draft_revision, name, skill_ids, expected_settings_revision=None):
         state = self.draft._read()
@@ -134,6 +233,7 @@ class DomainWorker:
 
     async def targets_snapshot(self, *, deadline=None, stop=None):
         """Bounded, fresh operator inspection; not model authorization or cached receipt."""
+
         def operation(check):
             state = self.draft._read()
             result = {
@@ -149,6 +249,7 @@ class DomainWorker:
 
     async def skills_snapshot(self, *, deadline=None, stop=None):
         """Operator summaries only: finite catalog first, then stored custom order."""
+
         def operation(check):
             state = self.draft._read()
             fields = {"id", "name", "category", "status", "version"}
@@ -166,6 +267,7 @@ class DomainWorker:
 
     async def skill_snapshot(self, skill_id, *, deadline=None, stop=None):
         """One full actual record, never a retained receipt or inferred ownership."""
+
         def operation(check):
             try:
                 identifier = _SKILL_ID.validate_python(skill_id, strict=True)
@@ -345,6 +447,7 @@ class DomainWorker:
         stop=None,
     ):
         """Validate the literal proposed image without allocating any domain fields."""
+
         def operation(check):
             state, value = self._prepare_target(
                 expected_draft_revision, name, address, kind, expected_settings_revision
@@ -370,6 +473,7 @@ class DomainWorker:
         stop=None,
     ):
         """Own the native lease through publication/readback, even on cancellation."""
+
         def operation(check):
             before, value = self._prepare_target(
                 expected_draft_revision, name, address, kind, expected_settings_revision
@@ -399,7 +503,12 @@ class DomainWorker:
         return await self._run(operation, deadline=deadline, stop=stop, write=True)
 
     def _prepare_skill(
-        self, expected_draft_revision, name, description, instructions, category,
+        self,
+        expected_draft_revision,
+        name,
+        description,
+        instructions,
+        category,
         expected_settings_revision=None,
     ):
         state = self.draft._read()
@@ -430,9 +539,14 @@ class DomainWorker:
         stop=None,
     ):
         """Validate literal proposed Skill data without allocating domain fields."""
+
         def operation(check):
             state, value = self._prepare_skill(
-                expected_draft_revision, name, description, instructions, category,
+                expected_draft_revision,
+                name,
+                description,
+                instructions,
+                category,
                 expected_settings_revision,
             )
             return {
@@ -457,9 +571,14 @@ class DomainWorker:
         stop=None,
     ):
         """Own the native lease through publication/readback, even on cancellation."""
+
         def operation(check):
             before, value = self._prepare_skill(
-                expected_draft_revision, name, description, instructions, category,
+                expected_draft_revision,
+                name,
+                description,
+                instructions,
+                category,
                 expected_settings_revision,
             )
 
@@ -486,6 +605,33 @@ class DomainWorker:
             }
 
         return await self._run(operation, deadline=deadline, stop=stop, write=True)
+
+    async def locked_scenario_revisions(self, callback):
+        """Bridge to owner-loop SQLite while native scenario→draft locks stay held.
+
+        The synchronous callback must not await or acquire any domain/runtime lock.
+        This only observes revisions: it cannot consume tickets or recover S01.
+        """
+        loop = asyncio.get_running_loop()
+
+        def operation(check):
+            store = self._scenario_store()
+            with store.lock, self.draft.lock:
+                scenario_revision = store._read()["revision"]
+                draft_revision = self.draft._read().audit_total
+                reply = Future()
+
+                def decide():
+                    try:
+                        check()
+                        reply.set_result(callback(draft_revision, scenario_revision))
+                    except BaseException as exc:
+                        reply.set_exception(exc)
+
+                loop.call_soon_threadsafe(decide)
+                return reply.result()
+
+        return await self._run(operation, write=True, lock_policy="operation")
 
     async def locked_revision(self, callback):
         """Run a synchronous owner-loop decision while this native lease holds RLock.

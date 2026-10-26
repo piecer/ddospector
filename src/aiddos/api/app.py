@@ -35,6 +35,7 @@ from .models import (
 )
 from .preview import preview_context
 from .runs import runs_router
+from .scenario_store import ScenarioStore
 from .scenarios import scenario_router
 from .store import DraftStore
 
@@ -46,14 +47,14 @@ def create_app(*, state_path: str | Path | None = None) -> FastAPI:
         )
     )
 
-    scenarios = scenario_router(store, ticket=startup_setting("SCENARIO_RECOVERY_TICKET"))
-    runs = runs_router(store)
+    scenarios = ScenarioStore(store, ticket=startup_setting("SCENARIO_RECOVERY_TICKET"))
+    runs = runs_router(store, scenarios=scenarios)
     return _compose_app(store, scenarios, runs)
 
 
 @serialized
 def _compose_app(store, scenarios, runs) -> FastAPI:
-    chat = ChatRuntime(store)
+    chat = ChatRuntime(store, scenarios)
 
     @asynccontextmanager
     async def combined_lifespan(app):
@@ -140,7 +141,7 @@ def _compose_app(store, scenarios, runs) -> FastAPI:
     def deny_agent_execution():
         return error_response("AGENT_EXECUTION_NOT_AVAILABLE")
 
-    application.include_router(scenarios)
+    application.include_router(scenario_router(scenarios))
     application.include_router(chat_router(chat))
     application.include_router(tool_router(chat))
     application.include_router(runs)

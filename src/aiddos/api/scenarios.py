@@ -213,11 +213,8 @@ class ScenarioState(ClosedModel):
         return self
 
 
-def scenario_router(drafts, *, ticket=None) -> APIRouter:
-    # Storage imports the closed types, while wiring supplies the effective draft path.
-    from .scenario_store import ScenarioStore
-
-    store = ScenarioStore(drafts, ticket=ticket)
+def scenario_router(store) -> APIRouter:
+    # Borrow the app's single ticket-bearing store; never construct a peer.
     return _compose_scenarios(store)
 
 

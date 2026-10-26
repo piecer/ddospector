@@ -20,6 +20,13 @@ import {
   skillSelectionFromLocation,
   skillSelectionPath,
 } from "./lib/skill-selection";
+import {
+  cloneScenarioSelection,
+  scenarioSelectionPath,
+  scenarioSelectionFromLocation,
+} from "./lib/scenario-selection";
+import { useScenarioReadback } from "./pages/ai/useScenarioReadback";
+import { SelectedScenarioReadback } from "./pages/scenarios/ScenarioLibrary";
 import { SelectedSkillReadback } from "./pages/ai/SkillsPage";
 import { api } from "./lib/api";
 import { choose, text } from "./lib/i18n";
@@ -39,6 +46,18 @@ export function Application({ pages }: ApplicationProps) {
   const [skillSelection, setSkillSelection] = useState<
     SkillSelection | undefined
   >(() => skillSelectionFromLocation(window.location));
+  const navigationEpoch = useRef(0);
+  useEffect(
+    () => () => {
+      ++navigationEpoch.current;
+    },
+    [],
+  );
+  const [scenarioNavigationError, setScenarioNavigationError] = useState(false);
+  const [scenarioSelection, setScenarioSelection] = useState(() =>
+    scenarioSelectionFromLocation(window.location),
+  );
+  const scenarioReadback = useScenarioReadback(scenarioSelection);
   const [locale, setLocale] = useState<Locale>(() => {
     try {
       const saved = localStorage.getItem("aegis.locale");
@@ -78,6 +97,8 @@ export function Application({ pages }: ApplicationProps) {
   }, [refresh]);
   useEffect(() => {
     const back = () => {
+      ++navigationEpoch.current;
+      setScenarioSelection(scenarioSelectionFromLocation(window.location));
       setTargetSelection(targetSelectionFromLocation(window.location));
       setSkillSelection(skillSelectionFromLocation(window.location));
       setRoute(routeFromPath(window.location.pathname));
@@ -99,6 +120,28 @@ export function Application({ pages }: ApplicationProps) {
     }
   }, [locale]);
   const navigate = (...[next, selection]: NavigationArgs) => {
+    const epoch = ++navigationEpoch.current;
+    setScenarioNavigationError(false);
+    if (next === "profiles" && selection) {
+      void cloneScenarioSelection(selection).then(
+        (owned) => {
+          if (epoch !== navigationEpoch.current) return;
+          window.history.pushState(null, "", scenarioSelectionPath(owned));
+          setScenarioSelection(owned);
+          setTargetSelection(undefined);
+          setSkillSelection(undefined);
+          setRoute(next);
+          document
+            .getElementById("main-content")
+            ?.focus({ preventScroll: true });
+        },
+        () => {
+          if (epoch === navigationEpoch.current)
+            setScenarioNavigationError(true);
+        },
+      );
+      return;
+    }
     const owned =
       next === "targets" && selection
         ? cloneTargetSelection(selection)
@@ -116,6 +159,7 @@ export function Application({ pages }: ApplicationProps) {
           ? skillSelectionPath(ownedSkill)
           : "/" + next,
     );
+    setScenarioSelection(undefined);
     setTargetSelection(owned);
     setSkillSelection(ownedSkill);
     setRoute(next);
@@ -156,6 +200,18 @@ export function Application({ pages }: ApplicationProps) {
             </Button>
           </div>
         </section>
+      )}
+      {scenarioNavigationError && (
+        <Notice tone="danger">
+          {choose(
+            locale,
+            "Invalid scenario receipt; navigation refused.",
+            "잘못된 시나리오 영수증: 이동을 거부했습니다.",
+          )}
+        </Notice>
+      )}
+      {route === "profiles" && scenarioSelection && (
+        <SelectedScenarioReadback locale={locale} readback={scenarioReadback} />
       )}
       {!Page ? (
         <div className="page-stack">
@@ -206,6 +262,9 @@ export function Application({ pages }: ApplicationProps) {
               refresh={refresh}
               targetSelection={targetSelection}
               skillSelection={skillSelection}
+              scenarioSelection={scenarioSelection}
+              scenarioReadback={scenarioReadback}
+              readScenarioHistory={scenarioReadback.readManualHistory}
             />
           </fieldset>
         </>

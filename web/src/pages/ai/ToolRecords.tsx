@@ -1,4 +1,9 @@
 import { useEffect } from "react";
+import type { ScenarioCallContext } from "./chat-tool-client";
+import type {
+  ScenarioStateInspection,
+  ScenarioExpectation,
+} from "./chat-scenario-types";
 import type { ToolTranscript } from "./chat-tool-types";
 import type {
   Locale,
@@ -25,9 +30,14 @@ export function ToolRecords({
   onViewSaved,
   onViewTarget,
   onViewSkill,
+  onScenarioSaved,
   decisions,
   records,
   readGate,
+  scenarioContext,
+  scenarioState,
+  draftRevision,
+  onDecisionPending,
 }: {
   turn: ChatTurn;
   locale: Locale;
@@ -38,9 +48,14 @@ export function ToolRecords({
   onViewSaved?: () => void;
   onViewTarget?: (expectation: TargetExpectation) => void;
   onViewSkill?: (expectation: SkillExpectation) => void;
+  onScenarioSaved?: (expectation: ScenarioExpectation) => void;
   decisions?: DecisionLedger;
   records?: TranscriptLedger;
   readGate?: ToolReadGate;
+  scenarioContext?: ScenarioCallContext;
+  scenarioState?: ScenarioStateInspection | null;
+  draftRevision?: number | null;
+  onDecisionPending?: (turn: string, pending: boolean) => void;
 }) {
   const tools = useToolTranscript(
     turn,
@@ -49,10 +64,25 @@ export function ToolRecords({
     decisions,
     records,
     readGate,
+    scenarioContext,
   );
   useEffect(() => {
-    if (tools.record) onRecord?.(tools.record);
-  }, [tools.record, onRecord]);
+    if (tools.record && !tools.stale) onRecord?.(tools.record);
+  }, [tools.record, tools.stale, onRecord]);
+  useEffect(() => {
+    onDecisionPending?.(
+      turn.id,
+      tools.decisionState === "sending" || tools.decisionState === "unknown",
+    );
+  }, [turn.id, tools.decisionState, onDecisionPending]);
+  const scenarioAllowed = (
+    proposal: import("./chat-tool-types").ToolProposal,
+  ) =>
+    !("schema_version" in proposal) ||
+    proposal.schema_version !== 4 ||
+    (scenarioState?.registry_write_status === "available" &&
+      scenarioState.scenario_revision === proposal.expected_scenario_revision &&
+      draftRevision === proposal.expected_draft_revision);
   const c = (en: string, ko: string) => choose(locale, en, ko);
   if (!enabled) return null;
   return (
@@ -134,20 +164,26 @@ export function ToolRecords({
                 </div>
                 <div>
                   <h5>
-                    {call.tool === "skill_create"
+                    {"schema_version" in call.proposal &&
+                    call.proposal.schema_version === 4
                       ? c(
-                          "Create Skill — literal fields",
-                          "스킬 생성 — 원본 필드",
+                          "Complete scenario definition — proposed, not executed",
+                          "전체 시나리오 정의 — 제안, 미실행",
                         )
-                      : call.tool === "target_create"
+                      : call.tool === "skill_create"
                         ? c(
-                            "Create target — literal fields",
-                            "대상 생성 — 원본 필드",
+                            "Create Skill — literal fields",
+                            "스킬 생성 — 원본 필드",
                           )
-                        : c(
-                            "After (complete Skill list)",
-                            "변경 후 (전체 스킬 목록)",
-                          )}
+                        : call.tool === "target_create"
+                          ? c(
+                              "Create target — literal fields",
+                              "대상 생성 — 원본 필드",
+                            )
+                          : c(
+                              "After (complete Skill list)",
+                              "변경 후 (전체 스킬 목록)",
+                            )}
                   </h5>
                   {"operation" in call.proposal &&
                   call.proposal.operation === "skill_create" ? (
@@ -181,6 +217,43 @@ export function ToolRecords({
                   )}
                 </div>
               </div>
+              {"schema_version" in call.proposal &&
+                call.proposal.schema_version === 4 && (
+                  <>
+                    <h5>
+                      {c(
+                        "Input source and protected inputs digest",
+                        "입력 출처 및 보호 입력 다이제스트",
+                      )}
+                    </h5>
+                    <pre className="chat-text">
+                      {JSON.stringify(call.proposal.input_source, null, 2)}
+                    </pre>
+                    <p className="chat-text">{call.proposal.inputs_digest}</p>
+                    <h5>
+                      {c(
+                        "Declared snapshots (not verified hardware)",
+                        "선언된 스냅샷 (검증된 장비 아님)",
+                      )}
+                    </h5>
+                    <pre className="chat-text">
+                      {JSON.stringify(call.proposal.snapshots, null, 2)}
+                    </pre>
+                    <p>
+                      {c(
+                        "Scenario registry revision",
+                        "시나리오 레지스트리 리비전",
+                      )}{" "}
+                      · {call.proposal.expected_scenario_revision}
+                    </p>
+                    <p>
+                      {c(
+                        "Execution disabled. Null means not configured. Observation criteria are proposed, not measured.",
+                        "실행 비활성화. null은 미설정입니다. 관찰 기준은 제안이며 측정 결과가 아닙니다.",
+                      )}
+                    </p>
+                  </>
+                )}
               <p className="chat-text">{call.proposal.digest}</p>
               {call.status === "awaiting_approval" && (
                 <div className="button-row">
@@ -188,12 +261,21 @@ export function ToolRecords({
                     data-testid={`chat-tool-approve-${call.id}`}
                     disabled={
                       !canWrite ||
+                      !scenarioAllowed(call.proposal) ||
                       tools.stale ||
                       tools.decisionBlocked ||
                       terminal(turn) ||
                       Date.now() >= Date.parse(call.proposal.expires_at)
                     }
-                    onClick={() => void tools.decide(call, "approve", canWrite)}
+                    onClick={() =>
+                      void tools.decide(
+                        call,
+                        "approve",
+                        canWrite &&
+                          !!call.proposal &&
+                          scenarioAllowed(call.proposal),
+                      )
+                    }
                   >
                     {c("Approve this exact change", "이 변경만 승인")}
                   </Button>
@@ -298,6 +380,48 @@ export function ToolRecords({
                     {c(
                       "View saved Skill in library",
                       "라이브러리에서 저장된 스킬 보기",
+                    )}
+                  </Button>
+                )}
+              </div>
+            )}
+          {call.status === "succeeded" &&
+            (call.result?.kind === "scenario_created" ||
+              call.result?.kind === "scenario_appended") && (
+              <div>
+                <p>
+                  {c("Saved definition ·", "정의 저장됨 ·")}{" "}
+                  {call.result.before_scenario_revision} →{" "}
+                  {call.result.after_scenario_revision} ·{" "}
+                  {c("Source draft revision", "출처 초안 리비전")}{" "}
+                  {call.result.source_draft_revision}
+                </p>
+                <p>
+                  {c(
+                    "Server-retained authority and client-checked transcript consistency; fresh history confirmation is separate.",
+                    "서버 보존 권한 및 클라이언트 기록 일관성 검사. 새 이력 확인은 별도입니다.",
+                  )}
+                </p>
+                {onScenarioSaved && (
+                  <Button
+                    data-testid={`chat-tool-view-saved-${call.id}`}
+                    onClick={() => {
+                      if (
+                        call.result?.kind === "scenario_created" ||
+                        call.result?.kind === "scenario_appended"
+                      )
+                        onScenarioSaved(
+                          structuredClone({
+                            scenario: call.result.scenario,
+                            after_scenario_revision:
+                              call.result.after_scenario_revision,
+                          }),
+                        );
+                    }}
+                  >
+                    {c(
+                      "View saved scenario version",
+                      "저장된 시나리오 버전 보기",
                     )}
                   </Button>
                 )}

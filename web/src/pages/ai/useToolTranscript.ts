@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toolClient, bindDecision } from "./chat-tool-client";
-import type { DecisionInput } from "./chat-tool-client";
+import type { ScenarioCallContext, DecisionInput } from "./chat-tool-client";
 import { callTerminal, reconcileTranscript } from "./chat-tool-wire";
 import type { ChatTurn } from "./chat-types";
 import type { ToolCall, ToolTranscript } from "./chat-tool-types";
@@ -19,6 +19,7 @@ export function useToolTranscript(
   ledger?: DecisionLedger,
   records?: TranscriptLedger,
   sharedGate?: ToolReadGate,
+  scenarioContext?: ScenarioCallContext,
 ) {
   const ownLedger = useRef<DecisionLedger>(new Map());
   const decisions = ledger ?? ownLedger.current;
@@ -83,7 +84,11 @@ export function useToolTranscript(
       const finalRead = terminal(turnRef.current);
       controller = new AbortController();
       try {
-        const result = await toolClient.tools(turn.id, controller.signal);
+        const result = await toolClient.tools(
+          turn.id,
+          controller.signal,
+          scenarioContext,
+        );
         if (
           disposed ||
           token !== generation.current ||
@@ -147,7 +152,7 @@ export function useToolTranscript(
       wake.current = () => undefined;
       document.removeEventListener("visibilitychange", visibility);
     };
-  }, [turn.id, enabled, viewEpoch, decisions, history, gate]);
+  }, [turn.id, enabled, viewEpoch, decisions, history, gate, scenarioContext]);
   const isTerminal = terminal(turn);
   useEffect(() => {
     if (isTerminal) wake.current();

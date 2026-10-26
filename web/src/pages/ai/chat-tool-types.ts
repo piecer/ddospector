@@ -43,6 +43,8 @@ export type SkillReadArguments = Extract<
   { kind: "skills" | "skill" }
 >;
 export type ToolResult =
+  LegacyToolResult | import("./chat-scenario-types").ResultV4;
+export type LegacyToolResult =
   | {
       kind: "skill_created";
       before_revision: number;
@@ -87,9 +89,18 @@ export type ToolResult =
       agent_profile: AgentConfig;
       audit: AuditEvent;
     };
-export type RequestedAuthority =
+export type LegacyRequestedAuthority =
   "agent_v1" | "target_create_v2" | "skill_create_v3";
-export type ToolRuntime = {
+/** Retained legacy argument type; scenario sends require the full commitment. */
+export type RequestedAuthority = LegacyRequestedAuthority;
+export type ToolAuthoritySelection = RequestedAuthority | "scenario_write_v4";
+export type { ScenarioGrantCommitment } from "./chat-scenario-wire";
+export type ToolAuthority =
+  | LegacyRequestedAuthority
+  | import("./chat-scenario-wire").ScenarioGrantCommitment;
+export type ToolRuntime =
+  LegacyToolRuntime | import("./chat-scenario-types").RuntimeV4;
+export type LegacyToolRuntime = {
   mode: "operator_approved_settings";
   supported: boolean;
   reason: ChatCode | null;
@@ -112,7 +123,9 @@ export type ToolRuntime = {
       tools: ["configuration_read", "agent_profile_update", "target_create"];
     }
 );
-export type ToolGrant = {
+export type ToolGrant =
+  LegacyToolGrant | import("./chat-scenario-types").GrantV4;
+export type LegacyToolGrant = {
   id: string;
   request_id: string;
   session_id: string;
@@ -152,6 +165,8 @@ export type ToolDecision = {
   accepted_at: string;
 };
 export type ToolProposal =
+  LegacyToolProposal | import("./chat-scenario-types").ProposalV4;
+export type LegacyToolProposal =
   | {
       operation: "skill_create";
       digest: string;
@@ -185,7 +200,8 @@ export type ToolStatus =
   | "failed"
   | "uncertain"
   | "cancelled";
-export type ToolCall = {
+export type ToolCall = LegacyToolCall | import("./chat-scenario-types").CallV4;
+export type LegacyToolCall = {
   id: string;
   index: number;
   provider_call_id: string;
@@ -206,17 +222,19 @@ export type ToolCall = {
   actor: "operator_authorized_model";
   status: ToolStatus;
   error_code: ChatCode | null;
-  proposal: ToolProposal | null;
+  proposal: LegacyToolProposal | null;
   decision: ToolDecision | null;
-  result: ToolResult | null;
+  result: LegacyToolResult | null;
   started_at: string;
   finished_at: string | null;
 };
-export type ToolTranscript = {
+export type ToolTranscript =
+  LegacyToolTranscript | import("./chat-scenario-types").TranscriptV4;
+export type LegacyToolTranscript = {
   schema_version: 1;
   turn_id: string;
   revision: number;
-  calls: ToolCall[];
+  calls: LegacyToolCall[];
 };
 export type ToolFence = {
   schema_version: 1;
@@ -225,7 +243,9 @@ export type ToolFence = {
   call_ids: string[];
   current_draft_revision: number | null;
 };
-export type ReconcileReceipt = {
+export type ReconcileReceipt =
+  LegacyReconcileReceipt | import("./chat-scenario-types").ReconcileReceiptV4;
+export type LegacyReconcileReceipt = {
   schema_version: 1;
   request_id: string;
   acknowledged_call_ids: string[];

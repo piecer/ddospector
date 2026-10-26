@@ -8,14 +8,24 @@ import {
   observeTurn,
 } from "./chat-client";
 import { toolClient } from "./chat-tool-client";
+import type { ScenarioCallContext } from "./chat-tool-client";
 import { readChatMetadata } from "./chat-metadata";
-import type { RequestedAuthority, ToolGrant } from "./chat-tool-types";
+import type {
+  ToolAuthoritySelection,
+  ToolAuthority,
+  ToolGrant,
+} from "./chat-tool-types";
+import type { Intent, ProtectedInputs } from "./chat-scenario-types";
+export type ScenarioAuthorityInputs = {
+  intent: Intent;
+  resolved_inputs: ProtectedInputs;
+};
 import { terminal, validText } from "./chat-wire";
 type Submission = {
   session: ChatSession;
   request: string;
   text: string;
-  readonly requestedAuthority?: RequestedAuthority;
+  readonly requestedAuthority?: ToolAuthority;
   grantRequest?: string;
   grant?: ToolGrant;
   dispatched?: boolean;
@@ -24,10 +34,35 @@ export function useChat(
   locale: Locale,
   mutationsEnabled: boolean,
   toolsAllowed = false,
-  requestedAuthority: RequestedAuthority = "agent_v1",
+  requestedAuthority: ToolAuthoritySelection = "agent_v1",
+  scenarioInputs?: ScenarioAuthorityInputs | null,
 ) {
   const authority = useRef({ mutationsEnabled, toolsAllowed });
   authority.current = { mutationsEnabled, toolsAllowed };
+  const scenarioContexts = useRef(new Map<string, ScenarioCallContext>());
+  function retainScenarioContext(submission: Submission, turn: ChatTurn) {
+    if (submission.grant?.schema_version !== 4) return;
+    // accept_tool captures created_at and deadline_at from the SAME created value
+    // (chat_tool_runtime.py:305-308,349,354); public limits fix turn_seconds=120.
+    // Date handles only whole-second calendar arithmetic. Fractional microseconds
+    // never enter Date and are copied intact, rather than rounded to milliseconds.
+    const parts =
+      /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,6}))?(?:Z|\+00:00)$/.exec(
+        turn.created_at,
+      );
+    if (!parts) throw Error("Missing original scenario turn timestamp");
+    const seconds = new Date(Date.parse(parts[1] + "Z") + 120000)
+      .toISOString()
+      .slice(0, 19);
+    const fraction = (parts[2] ?? "").padEnd(6, "0");
+    const deadlineAt =
+      seconds + (fraction === "000000" ? "" : "." + fraction) + "+00:00";
+    if (!scenarioContexts.current.has(turn.id))
+      scenarioContexts.current.set(turn.id, {
+        grant: structuredClone(submission.grant),
+        deadlineAt,
+      });
+  }
   const [toolTurns, setToolTurns] = useState<string[]>([]);
   const [viewEpoch, setViewEpoch] = useState(0);
   const [runtime, setRuntime] = useState<ChatRuntime | null>(null);
@@ -215,7 +250,12 @@ export function useChat(
       releaseMutation(owner);
     }
   }
-  async function send(toolMode = false) {
+  async function send(
+    toolMode = false,
+    scenarioOverride?: ScenarioAuthorityInputs | null,
+  ) {
+    const inputs =
+      scenarioOverride === undefined ? scenarioInputs : scenarioOverride;
     if (
       locked.current ||
       pending.current ||
@@ -226,7 +266,9 @@ export function useChat(
       session.active_turn_id ||
       session.sequence >= 64 ||
       !validText(input, 8192, true) ||
-      (toolMode && !toolsAllowed)
+      (toolMode &&
+        (!toolsAllowed ||
+          (requestedAuthority === "scenario_write_v4" && !inputs)))
     )
       return;
     const owner = acquireMutation();
@@ -235,14 +277,36 @@ export function useChat(
     const token = generation.current,
       text = input;
     const request = crypto.randomUUID();
+    const grantRequest = toolMode ? crypto.randomUUID() : undefined;
+    // Snapshot all authority-bearing values synchronously, before any client await.
+    const captured: ToolAuthority | undefined = !toolMode
+      ? undefined
+      : requestedAuthority === "scenario_write_v4"
+        ? {
+            requestedAuthority,
+            request: {
+              schema_version: 4,
+              scope: "scenario_write",
+              request_id: grantRequest!,
+              session_id: session.id,
+              turn_request_id: request,
+              expected_sequence: session.sequence,
+              text,
+              intent: structuredClone(inputs!.intent),
+            },
+            settings_revision: session.settings_revision,
+            profile_id: session.profile_id,
+            resolved_inputs: structuredClone(inputs!.resolved_inputs),
+          }
+        : requestedAuthority;
     const submission: Submission = {
-      session,
+      session: structuredClone(session),
       request,
       text,
       ...(toolMode
         ? {
-            requestedAuthority,
-            grantRequest: crypto.randomUUID(),
+            requestedAuthority: captured,
+            grantRequest,
             dispatched: false,
           }
         : {}),
@@ -284,6 +348,7 @@ export function useChat(
             submission.requestedAuthority,
           )
         : await chatClient.submit(session.id, request, session.sequence, text);
+      retainScenarioContext(submission, accepted);
       // Bound acceptance can retire this request without adopting an old view.
       if (pending.current === submission) pending.current = null;
       if (token !== generation.current) return;
@@ -347,6 +412,7 @@ export function useChat(
         saved.sequence,
         text,
       );
+      retainScenarioContext(submission, accepted);
       // Bound acceptance can retire this request without adopting an old view.
       if (pending.current === submission) pending.current = null;
       if (token !== generation.current) return;
@@ -409,6 +475,7 @@ export function useChat(
         active_turn_id: terminal(accepted) ? null : accepted.id,
       });
       setTurns([accepted]);
+      retainScenarioContext(submission, accepted);
       setToolTurns([accepted.id]);
       setBefore(undefined);
       setNextBefore(accepted.sequence > 1 ? accepted.sequence : null);
@@ -517,6 +584,7 @@ export function useChat(
   }
   return {
     toolTurns,
+    scenarioContexts: scenarioContexts.current,
     viewEpoch,
     runtime,
     sessions,

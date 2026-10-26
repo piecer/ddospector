@@ -1,8 +1,10 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   Locale,
+  Target,
   TargetExpectation,
   SkillExpectation,
+  ScenarioExpectation,
 } from "../../lib/contracts";
 import { choose } from "../../lib/i18n";
 import { Badge, Button, Dialog, Field, Panel } from "../../components/ui";
@@ -14,7 +16,20 @@ import type {
   TranscriptLedger,
   ToolReadGate,
 } from "./useToolTranscript";
-import type { RequestedAuthority, ToolTranscript } from "./chat-tool-types";
+import {
+  buildScenarioInputResult,
+  newScenarioInputDraft,
+} from "./scenario-grant-inputs";
+import type { ScenarioInputDraft } from "./scenario-grant-inputs";
+import { chatScenarioClient } from "./chat-scenario-client";
+import type {
+  ScenarioHistory,
+  ScenarioPage,
+  ScenarioVersion,
+} from "../scenarios/types";
+import { ScenarioGrantInputs } from "./ScenarioGrantInputs";
+import type { ToolAuthoritySelection, ToolTranscript } from "./chat-tool-types";
+import { ScenarioDetails } from "../scenarios/ScenarioDetails";
 import { SkillDetails } from "./SkillDetails";
 import { ToolRecords } from "./ToolRecords";
 import "./chat.css";
@@ -25,24 +40,132 @@ export function ChatPanel({
   onViewSaved,
   onViewTarget,
   onViewSkill,
+  onScenarioSaved,
+  targets = [],
+  contextKey = "",
 }: {
   locale: Locale;
+  targets?: readonly Target[];
+  contextKey?: string;
   mutationsEnabled?: boolean;
   onSaved?: () => Promise<void>;
   onViewSaved?: () => void;
   onViewTarget?: (expectation: TargetExpectation) => void;
   onViewSkill?: (expectation: SkillExpectation) => void;
+  onScenarioSaved?: (expectation: ScenarioExpectation) => void;
 }) {
   const c = (en: string, ko: string) => choose(locale, en, ko);
   const authority = useToolAuthority(mutationsEnabled);
-  const [toolConsent, setToolConsent] = useState(false);
-  const [scope, setScope] = useState<RequestedAuthority>("agent_v1");
-  const canGrant =
+  const [consentKey, setConsentKey] = useState<string | null>(null);
+  const [scenarioDraft, setScenarioDraft] = useState<ScenarioInputDraft>(
+    newScenarioInputDraft,
+  );
+  const inputResult = buildScenarioInputResult(scenarioDraft, targets);
+  const [operation, setOperation] = useState<
+    "scenario_create" | "scenario_append"
+  >("scenario_create");
+  const [base, setBase] = useState<{
+    record: ScenarioVersion;
+    revision: number;
+  } | null>(null);
+  const [offered, setOffered] = useState<ScenarioVersion | null>(null);
+  const [sourcePage, setSourcePage] = useState<ScenarioPage | null>(null);
+  const [sourceHistory, setSourceHistory] = useState<ScenarioHistory | null>(
+    null,
+  );
+  const [sourceVersion, setSourceVersion] = useState(1);
+  const [inspectionVersion, setInspectionVersion] = useState(1);
+  const [sourceStatus, setSourceStatus] = useState("idle");
+  const sourceReader = useRef<AbortController | null>(null);
+  const [inputEpoch, setInputEpoch] = useState(0);
+  function resetScenarioInputs() {
+    setInputEpoch((n) => n + 1);
+    setScenarioDraft(newScenarioInputDraft());
+    setBase(null);
+    setOffered(null);
+    setSourcePage(null);
+    setSourceHistory(null);
+    setSourceStatus("idle");
+    sourceReader.current?.abort();
+    setConsentKey(null);
+  }
+  async function readSource(id?: string, offset = 0) {
+    sourceReader.current?.abort();
+    const controller = new AbortController();
+    sourceReader.current = controller;
+    setSourceStatus("loading");
+    setConsentKey(null);
+    try {
+      if (id) {
+        const history = await chatScenarioClient.history(id, controller.signal);
+        if (controller.signal.aborted) return;
+        setSourceHistory(history);
+        setSourceVersion(1);
+      } else {
+        const page = await chatScenarioClient.read(
+          offset,
+          50,
+          controller.signal,
+        );
+        if (controller.signal.aborted) return;
+        setSourcePage(page);
+        setSourceHistory(null);
+      }
+      setSourceStatus("ready");
+    } catch {
+      if (!controller.signal.aborted) setSourceStatus("unavailable");
+    }
+  }
+  useEffect(() => () => sourceReader.current?.abort(), []);
+  const [scope, setScope] = useState<ToolAuthoritySelection>("agent_v1");
+  const toolCapability =
     authority.canGrant &&
     (scope === "agent_v1" ||
       (scope === "target_create_v2" && authority.targetSupported) ||
-      (scope === "skill_create_v3" && authority.skillSupported));
-  const chat = useChat(locale, mutationsEnabled, canGrant, scope);
+      (scope === "skill_create_v3" && authority.skillSupported) ||
+      (scope === "scenario_write_v4" &&
+        authority.scenarioSupported &&
+        authority.scenarioState?.registry_write_status === "available"));
+  const canGrant =
+    toolCapability &&
+    (scope !== "scenario_write_v4" ||
+      (inputResult.valid &&
+        (operation === "scenario_create" ||
+          (base !== null &&
+            base.record.version < 10 &&
+            base.revision === authority.scenarioState?.scenario_revision))));
+  // A retained grant uses its captured authority, not the current unused form.
+  const chat = useChat(locale, mutationsEnabled, toolCapability, scope);
+  const currentConsentKey =
+    scope !== "scenario_write_v4"
+      ? scope
+      : JSON.stringify([
+          scope,
+          chat.input,
+          chat.session?.id,
+          chat.session?.settings_revision,
+          chat.session?.profile_id,
+          chat.runtime?.settings_revision,
+          chat.runtime?.profile,
+          scenarioDraft,
+          operation,
+          base,
+          offered,
+          sourceHistory,
+          targets,
+          contextKey,
+          authority.scenarioState,
+          authority.fence?.current_draft_revision,
+          authority.fence?.generation,
+        ]);
+  // Retire unused consent on the first observed authority transition. Merely
+  // hiding a mismatched key would resurrect it on A → B → A. This render-local
+  // state adjustment precedes child publication and never touches Pending.
+  if (consentKey !== null && consentKey !== currentConsentKey)
+    setConsentKey(null);
+  const toolConsent = consentKey === currentConsentKey;
+  const setToolConsent = (checked: boolean) =>
+    setConsentKey(checked ? currentConsentKey : null);
   const send = () => {
     if (toolConsent && !canGrant) return;
     if (
@@ -53,12 +176,62 @@ export function ChatPanel({
       !validText(chat.input, 8192, true)
     )
       return;
-    void chat.send(toolConsent);
+    const currentInputs = buildScenarioInputResult(scenarioDraft, targets);
+    if (toolConsent && scope === "scenario_write_v4" && !currentInputs.valid) {
+      setToolConsent(false);
+      return;
+    }
+    void chat.send(
+      toolConsent,
+      currentInputs.valid &&
+        authority.scenarioState &&
+        authority.fence?.current_draft_revision !== null &&
+        authority.fence?.current_draft_revision !== undefined
+        ? {
+            intent: {
+              operation,
+              expected_scenario_revision:
+                authority.scenarioState.scenario_revision,
+              expected_draft_revision: authority.fence.current_draft_revision,
+              base:
+                operation === "scenario_append" && base
+                  ? {
+                      id: base.record.id,
+                      version: base.record.version,
+                      digest: base.record.digest,
+                    }
+                  : null,
+              input_source: currentInputs.input_source,
+            },
+            resolved_inputs: currentInputs.resolved_inputs,
+          }
+        : null,
+    );
     setToolConsent(false);
   };
   const decisions = useRef<DecisionLedger>(new Map());
   const records = useRef<TranscriptLedger>(new Map());
   const readGate = useRef<ToolReadGate>({ owner: null, completed: -Infinity });
+  const [pendingDecisions, setPendingDecisions] = useState<ReadonlySet<string>>(
+    new Set(),
+  );
+  const decisionPending = useCallback(
+    (id: string, pending: boolean) =>
+      setPendingDecisions((old) => {
+        if (old.has(id) === pending) return old;
+        const next = new Set(old);
+        if (pending) next.add(id);
+        else next.delete(id);
+        return next;
+      }),
+    [],
+  );
+  const authorityLocked =
+    !mutationsEnabled ||
+    chat.busy ||
+    chat.uncertain ||
+    !!chat.session?.active_turn_id ||
+    pendingDecisions.size > 0;
   const savedSeen = useRef(new Set<string>());
   const [savedStale, setSavedStale] = useState(false);
   const refreshSaved = useCallback(async () => {
@@ -211,7 +384,10 @@ export function ChatPanel({
             data-testid={`chat-session-${s.id}`}
             disabled={chat.busy}
             aria-current={chat.session?.id === s.id ? "true" : undefined}
-            onClick={() => void chat.open(s.id)}
+            onClick={() => {
+              resetScenarioInputs();
+              void chat.open(s.id);
+            }}
           >
             {s.model} · {s.created_at} · {s.id}
           </Button>
@@ -350,9 +526,14 @@ export function ChatPanel({
               onViewSaved={onViewSaved}
               onViewTarget={onViewTarget}
               onViewSkill={onViewSkill}
+              onScenarioSaved={onScenarioSaved}
               decisions={decisions.current}
               records={records.current}
               readGate={readGate.current}
+              scenarioContext={chat.scenarioContexts.get(turn.id)}
+              scenarioState={authority.ready ? authority.scenarioState : null}
+              draftRevision={authority.fence?.current_draft_revision}
+              onDecisionPending={decisionPending}
             />
           </article>
         ))}
@@ -406,10 +587,7 @@ export function ChatPanel({
             data-testid="chat-tool-scope"
             value={scope}
             disabled={
-              !mutationsEnabled ||
-              chat.busy ||
-              chat.uncertain ||
-              !!chat.session?.active_turn_id ||
+              authorityLocked ||
               [...decisions.current.entries()].some(
                 ([turnId, d]) =>
                   !records.current
@@ -430,8 +608,11 @@ export function ChatPanel({
                 (e.target.value === "target_create_v2" &&
                   authority.targetSupported) ||
                 (e.target.value === "skill_create_v3" &&
-                  authority.skillSupported)
+                  authority.skillSupported) ||
+                (e.target.value === "scenario_write_v4" &&
+                  authority.scenarioSupported)
               ) {
+                resetScenarioInputs();
                 setScope(e.target.value);
                 setToolConsent(false);
               }
@@ -452,8 +633,160 @@ export function ChatPanel({
             >
               {c("Create Skill", "스킬 생성")}
             </option>
+            <option
+              value="scenario_write_v4"
+              disabled={!authority.scenarioSupported}
+            >
+              {c("Scenario definition", "시나리오 정의")}
+            </option>
           </select>
         </Field>
+      )}
+      {scope === "scenario_write_v4" && (
+        <section className="form-stack">
+          <Field label={c("Scenario operation", "시나리오 작업")}>
+            <select
+              value={operation}
+              disabled={authorityLocked}
+              onChange={(e) => {
+                setOperation(e.target.value as typeof operation);
+                setBase(null);
+                setToolConsent(false);
+              }}
+            >
+              <option value="scenario_create">
+                {c("Create definition", "정의 생성")}
+              </option>
+              <option value="scenario_append">
+                {c("Append version", "버전 추가")}
+              </option>
+            </select>
+          </Field>
+          <Button disabled={authorityLocked} onClick={() => void readSource()}>
+            {c("Browse scenario sources / bases", "시나리오 출처 / 기준 탐색")}
+          </Button>
+          {sourceStatus !== "idle" && (
+            <p role="status">
+              {c("Source inspection", "출처 검사")} · {sourceStatus}
+            </p>
+          )}
+          {sourceStatus === "loading" && (
+            <Button
+              onClick={() => {
+                sourceReader.current?.abort();
+                setSourceStatus("cancelled");
+              }}
+            >
+              {c("Cancel source inspection", "출처 검사 취소")}
+            </Button>
+          )}
+          {sourcePage && (
+            <div className="scenario-list">
+              {sourcePage.items.map((item) => (
+                <Button
+                  key={item.id}
+                  disabled={authorityLocked}
+                  onClick={() => void readSource(item.id)}
+                >
+                  {c("Read history ", "이력 읽기 ")}
+                  {item.id}
+                </Button>
+              ))}
+              <Button
+                disabled={sourcePage.offset === 0 || authorityLocked}
+                onClick={() =>
+                  void readSource(undefined, sourcePage.offset - 50)
+                }
+              >
+                {c("Previous source page", "이전 출처 페이지")}
+              </Button>
+              <Button
+                disabled={
+                  sourcePage.offset + sourcePage.limit >= sourcePage.total ||
+                  authorityLocked
+                }
+                onClick={() =>
+                  void readSource(undefined, sourcePage.offset + 50)
+                }
+              >
+                {c("Next source page", "다음 출처 페이지")}
+              </Button>
+            </div>
+          )}
+          {sourceHistory && (
+            <div className="form-stack">
+              <Field label={c("Source version", "출처 버전")}>
+                <select
+                  value={sourceVersion}
+                  disabled={authorityLocked}
+                  onChange={(e) => {
+                    setSourceVersion(Number(e.target.value));
+                    setToolConsent(false);
+                  }}
+                >
+                  {sourceHistory.versions.map((v) => (
+                    <option key={v.version} value={v.version}>
+                      {v.id} · {v.version} · {v.digest}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Button
+                disabled={authorityLocked}
+                onClick={() => {
+                  setOffered(
+                    structuredClone(sourceHistory.versions[sourceVersion - 1]),
+                  );
+                  setToolConsent(false);
+                }}
+              >
+                {c("Offer exact source version", "정확한 출처 버전 제공")}
+              </Button>
+              <Button
+                disabled={
+                  authorityLocked ||
+                  sourceHistory.versions.length >= 10 ||
+                  operation !== "scenario_append"
+                }
+                onClick={() => {
+                  setBase({
+                    record: structuredClone(sourceHistory.versions.at(-1)!),
+                    revision: sourceHistory.revision,
+                  });
+                  setToolConsent(false);
+                }}
+              >
+                {c(
+                  "Use latest as append base",
+                  "최신 버전을 추가 기준으로 사용",
+                )}
+              </Button>
+            </div>
+          )}
+          {base && (
+            <p className="chat-text">
+              {c("Captured append base", "확정한 추가 기준")} · {base.record.id}{" "}
+              · {base.record.version} · {base.record.digest} · {base.revision}
+            </p>
+          )}
+          <ScenarioGrantInputs
+            key={inputEpoch}
+            lang={locale}
+            disabled={authorityLocked}
+            targets={targets}
+            selectedVersion={offered}
+            onChange={(_result, draft) => {
+              setScenarioDraft(draft);
+              setToolConsent(false);
+            }}
+            onReset={() => setToolConsent(false)}
+            onRequestVersion={() => {
+              setOffered(null);
+              setToolConsent(false);
+              void readSource();
+            }}
+          />
+        </section>
       )}
       {chat.runtime?.supported && (
         <label className="chat-tool-consent">
@@ -461,32 +794,32 @@ export function ChatPanel({
             type="checkbox"
             data-testid="chat-tools-toggle"
             checked={toolConsent}
-            disabled={
-              !mutationsEnabled ||
-              chat.busy ||
-              chat.uncertain ||
-              !!chat.session?.active_turn_id
-            }
+            disabled={authorityLocked}
             onChange={(e) => {
               setToolConsent(e.target.checked);
               if (e.target.checked) void authority.refresh();
             }}
           />
           <span>
-            {scope === "skill_create_v3"
+            {scope === "scenario_write_v4"
               ? c(
-                  "For the exact next message only: allow Skill reads and one Skill creation proposal. No execution or Agent assignment. No write authority; separate exact approval is required.",
-                  "정확히 다음 메시지만: 스킬 읽기와 스킬 생성 제안 1건에 동의합니다. 실행이나 에이전트 할당은 없습니다. 저장 권한이 아니며 정확한 제안에 별도 승인이 필요합니다.",
+                  "For the exact next message: read scenario context and propose one definition. Execution disabled; separate exact approval required.",
+                  "정확히 다음 메시지: 시나리오 컨텍스트 읽기 및 정의 1건 제안. 실행 비활성화, 별도 정확한 승인이 필요합니다.",
                 )
-              : scope === "target_create_v2"
+              : scope === "skill_create_v3"
                 ? c(
-                    "For the exact next message only: allow target reads and one target creation proposal. No write authority; separate exact approval is required.",
-                    "정확히 다음 메시지만: 대상 읽기와 대상 생성 제안 1건에 동의합니다. 저장 권한이 아니며 정확한 제안에 별도 승인이 필요합니다.",
+                    "For the exact next message only: allow Skill reads and one Skill creation proposal. No execution or Agent assignment. No write authority; separate exact approval is required.",
+                    "정확히 다음 메시지만: 스킬 읽기와 스킬 생성 제안 1건에 동의합니다. 실행이나 에이전트 할당은 없습니다. 저장 권한이 아니며 정확한 제안에 별도 승인이 필요합니다.",
                   )
-                : c(
-                    "For the exact next message only: allow reading Agent/Skill configuration and proposing one Agent name / complete Skill-list change. This grants no write authority. A separate exact approval is always required.",
-                    "정확히 다음 메시지만: 에이전트/스킬 설정 읽기 및 에이전트 이름/전체 스킬 목록 변경 1건 제안에 동의합니다. 저장 권한은 부여하지 않으며 정확한 변경에 대한 별도 승인이 항상 필요합니다.",
-                  )}
+                : scope === "target_create_v2"
+                  ? c(
+                      "For the exact next message only: allow target reads and one target creation proposal. No write authority; separate exact approval is required.",
+                      "정확히 다음 메시지만: 대상 읽기와 대상 생성 제안 1건에 동의합니다. 저장 권한이 아니며 정확한 제안에 별도 승인이 필요합니다.",
+                    )
+                  : c(
+                      "For the exact next message only: allow reading Agent/Skill configuration and proposing one Agent name / complete Skill-list change. This grants no write authority. A separate exact approval is always required.",
+                      "정확히 다음 메시지만: 에이전트/스킬 설정 읽기 및 에이전트 이름/전체 스킬 목록 변경 1건 제안에 동의합니다. 저장 권한은 부여하지 않으며 정확한 변경에 대한 별도 승인이 항상 필요합니다.",
+                    )}
           </span>
         </label>
       )}
@@ -534,66 +867,167 @@ export function ChatPanel({
               {JSON.stringify(call, null, 2)}
             </pre>
           ))}
-          <div
-            data-testid={
-              authority.review.skills
-                ? "chat-tools-current-skills"
-                : authority.review.targets
-                  ? "chat-tools-current-targets"
-                  : "chat-tools-current-agent"
-            }
-          >
-            <h4>
-              {c(
-                authority.review.skills
-                  ? "Current Skill summaries — matching names do not prove ownership"
-                  : authority.review.targets
-                    ? "Independently refreshed current target inventory — matching names do not prove ownership"
-                    : "Independently refreshed current Agent",
-                authority.review.skills
-                  ? "현재 스킬 요약 — 같은 이름은 소유 증거 아님"
-                  : authority.review.targets
-                    ? "별도로 새로 읽은 현재 대상 목록 — 같은 이름은 소유 증거 아님"
-                    : "별도로 새로 읽은 현재 에이전트",
-              )}
-            </h4>
-            <p>
-              {c("Current draft revision", "현재 초안 리비전")}{" "}
-              {authority.review.fence.current_draft_revision}
-            </p>
-            {authority.review.skills ? (
-              <ul className="chat-skill-inventory">
-                {authority.review.skills.map((s) => (
-                  <li key={s.id}>
-                    <p className="chat-text">
-                      {s.id} · {s.name[locale]} · {s.category} · {s.status} ·{" "}
-                      {s.version}
-                    </p>
-                    <Button onClick={() => void authority.inspectSkill(s.id)}>
-                      {c(`Inspect Skill ${s.id}`, `스킬 검사 ${s.id}`)}
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <pre className="chat-text">
-                {JSON.stringify(
-                  authority.review.targets ?? authority.review.agent,
-                  null,
-                  2,
+          {authority.review.state && (
+            <section className="form-stack">
+              <h4>
+                {c(
+                  "Scenario inspection only — not save confirmation",
+                  "시나리오 검사 전용 — 저장 확인 아님",
                 )}
-              </pre>
-            )}
-            {authority.review.skillDetail && (
-              <div data-testid="chat-tools-skill-detail">
-                <SkillDetails
-                  skill={authority.review.skillDetail}
-                  locale={locale}
-                  showName
-                />
-              </div>
-            )}
-          </div>
+              </h4>
+              <p>
+                {c(
+                  "Chat acknowledgement does not recover scenario storage. Prior outcomes remain uncertain.",
+                  "대화 확인으로 시나리오 저장소가 복구되지 않습니다. 이전 결과는 미확인 상태로 유지됩니다.",
+                )}
+              </p>
+              <p>
+                {c("Scenario registry revision", "시나리오 레지스트리 리비전")}{" "}
+                · {authority.review.state.scenario_revision} ·{" "}
+                {authority.review.state.registry_write_status}
+              </p>
+              {authority.review.page && (
+                <>
+                  <p>
+                    {authority.review.page.offset} ·{" "}
+                    {authority.review.page.items.length} /{" "}
+                    {authority.review.page.total}
+                  </p>
+                  {authority.review.page.items.map((item) => (
+                    <div key={item.id}>
+                      <p className="chat-text">
+                        {item.definition.name} · {item.version} · {item.digest}
+                      </p>
+                      <Button
+                        onClick={() => {
+                          setInspectionVersion(1);
+                          void authority.inspect(item.id);
+                        }}
+                      >
+                        {c("Inspect scenario ", "시나리오 검사 ")}
+                        {item.id}
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    disabled={authority.review.page.offset === 0}
+                    onClick={() =>
+                      void authority.inspect(
+                        undefined,
+                        authority.review!.page!.offset - 50,
+                      )
+                    }
+                  >
+                    {c("Previous inspection page", "이전 검사 페이지")}
+                  </Button>
+                  <Button
+                    disabled={
+                      authority.review.page.offset + 50 >=
+                      authority.review.page.total
+                    }
+                    onClick={() =>
+                      void authority.inspect(
+                        undefined,
+                        authority.review!.page!.offset + 50,
+                      )
+                    }
+                  >
+                    {c("Next inspection page", "다음 검사 페이지")}
+                  </Button>
+                </>
+              )}
+              {authority.review.history && (
+                <>
+                  <Field
+                    label={c("Inspected history version", "검사 이력 버전")}
+                  >
+                    <select
+                      value={inspectionVersion}
+                      onChange={(e) =>
+                        setInspectionVersion(Number(e.target.value))
+                      }
+                    >
+                      {authority.review.history.versions.map((v) => (
+                        <option key={v.version} value={v.version}>
+                          {v.version}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  {authority.review.history.versions[inspectionVersion - 1] && (
+                    <ScenarioDetails
+                      record={
+                        authority.review.history.versions[inspectionVersion - 1]
+                      }
+                      locale={locale}
+                    />
+                  )}
+                </>
+              )}
+            </section>
+          )}
+          {!authority.review.state && (
+            <div
+              data-testid={
+                authority.review.skills
+                  ? "chat-tools-current-skills"
+                  : authority.review.targets
+                    ? "chat-tools-current-targets"
+                    : "chat-tools-current-agent"
+              }
+            >
+              <h4>
+                {c(
+                  authority.review.skills
+                    ? "Current Skill summaries — matching names do not prove ownership"
+                    : authority.review.targets
+                      ? "Independently refreshed current target inventory — matching names do not prove ownership"
+                      : "Independently refreshed current Agent",
+                  authority.review.skills
+                    ? "현재 스킬 요약 — 같은 이름은 소유 증거 아님"
+                    : authority.review.targets
+                      ? "별도로 새로 읽은 현재 대상 목록 — 같은 이름은 소유 증거 아님"
+                      : "별도로 새로 읽은 현재 에이전트",
+                )}
+              </h4>
+              <p>
+                {c("Current draft revision", "현재 초안 리비전")}{" "}
+                {authority.review.fence.current_draft_revision}
+              </p>
+              {authority.review.skills ? (
+                <ul className="chat-skill-inventory">
+                  {authority.review.skills.map((s) => (
+                    <li key={s.id}>
+                      <p className="chat-text">
+                        {s.id} · {s.name[locale]} · {s.category} · {s.status} ·{" "}
+                        {s.version}
+                      </p>
+                      <Button onClick={() => void authority.inspectSkill(s.id)}>
+                        {c(`Inspect Skill ${s.id}`, `스킬 검사 ${s.id}`)}
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <pre className="chat-text">
+                  {JSON.stringify(
+                    authority.review.targets ?? authority.review.agent,
+                    null,
+                    2,
+                  )}
+                </pre>
+              )}
+              {authority.review.skillDetail && (
+                <div data-testid="chat-tools-skill-detail">
+                  <SkillDetails
+                    skill={authority.review.skillDetail}
+                    locale={locale}
+                    showName
+                  />
+                </div>
+              )}
+            </div>
+          )}
           <p>
             {c(
               "I acknowledge the prior execution is not proven. This only clears this write fence; prior outcomes remain uncertain and no configuration is rewritten.",
@@ -732,7 +1166,10 @@ export function ChatPanel({
           disabled={!mutationsEnabled || chat.busy || chat.uncertainSession}
           onClick={() =>
             void chat.start().then((ok) => {
-              if (ok) setConsent(false);
+              if (ok) {
+                setConsent(false);
+                resetScenarioInputs();
+              }
             })
           }
         >

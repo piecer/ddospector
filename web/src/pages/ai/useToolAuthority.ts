@@ -11,7 +11,12 @@ import type {
 } from "./chat-tool-types";
 import type { OperatorSkillSummary } from "./chat-skill-wire";
 import type { Target, Skill } from "../../lib/contracts";
+import type { ScenarioStateInspection } from "./chat-scenario-types";
+import type { ScenarioHistory, ScenarioPage } from "../scenarios/types";
 type Review = {
+  state?: ScenarioStateInspection;
+  history?: ScenarioHistory;
+  page?: ScenarioPage;
   fence: ToolFence;
   agent?: AgentConfig;
   targets?: Target[];
@@ -22,6 +27,9 @@ type Review = {
 export function useToolAuthority(mutationsEnabled: boolean) {
   const [fence, setFence] = useState<ToolFence | null>(null);
   const [ready, setReady] = useState(false);
+  const [scenarioState, setScenarioState] =
+    useState<ScenarioStateInspection | null>(null);
+  const [scenarioSupported, setScenarioSupported] = useState(false);
   const [supported, setSupported] = useState(false);
   const [targetSupported, setTargetSupported] = useState(false);
   const [skillSupported, setSkillSupported] = useState(false);
@@ -63,19 +71,30 @@ export function useToolAuthority(mutationsEnabled: boolean) {
         controller.signal,
       );
       const next = await readChatMetadata(toolClient.fence, controller.signal);
+      const state =
+        runtime.schema_version === 4
+          ? await readChatMetadata(toolClient.scenarioState, controller.signal)
+          : null;
       if (
         !mounted.current ||
         token !== generation.current ||
         controller.signal.aborted
       )
         return;
+      setScenarioState(state);
+      setScenarioSupported(runtime.supported && runtime.schema_version === 4);
       adopt(next);
       setSupported(runtime.supported);
       setTargetSupported(
         runtime.supported &&
-          (runtime.schema_version === 2 || runtime.schema_version === 3),
+          (runtime.schema_version === 2 ||
+            runtime.schema_version === 3 ||
+            runtime.schema_version === 4),
       );
-      setSkillSupported(runtime.supported && runtime.schema_version === 3);
+      setSkillSupported(
+        runtime.supported &&
+          (runtime.schema_version === 3 || runtime.schema_version === 4),
+      );
       setReady(true);
     } catch {
       if (mounted.current && token === generation.current) setReady(false);
@@ -96,55 +115,75 @@ export function useToolAuthority(mutationsEnabled: boolean) {
     },
     [refresh],
   );
-  const inspect = useCallback(async () => {
-    const token = ++generation.current;
-    reader.current?.abort();
-    const controller = new AbortController();
-    reader.current = controller;
-    setReview(null);
-    setReviewState("loading");
-    setReady(false);
-    try {
-      const targetScope = known.current?.call_ids.some(
-        (id) => knownCalls.current.get(id)?.tool === "target_create",
-      );
-      const skillScope = known.current?.call_ids.some(
-        (id) => knownCalls.current.get(id)?.tool === "skill_create",
-      );
-      const current = skillScope
-        ? await toolClient.inspectSkills(controller.signal)
-        : targetScope
-          ? await toolClient.inspectTargets(controller.signal)
-          : await toolClient.inspectCurrent(controller.signal);
-      if (
-        !mounted.current ||
-        token !== generation.current ||
-        controller.signal.aborted
-      )
-        return;
-      adopt(current.fence);
-      const calls = current.fence.call_ids.map((id) =>
-        knownCalls.current.get(id),
-      );
-      if (
-        !current.fence.fenced ||
-        calls.some((c) => !c) ||
-        calls.some(
-          (c) =>
-            (c?.tool === "target_create") !== !!targetScope ||
-            (c?.tool === "skill_create") !== !!skillScope,
+  const inspect = useCallback(
+    async (scenarioId?: string, offset = 0) => {
+      const token = ++generation.current;
+      reader.current?.abort();
+      const controller = new AbortController();
+      reader.current = controller;
+      setReview(null);
+      setReviewState("loading");
+      setReady(false);
+      try {
+        const scenarioScope =
+          known.current?.call_ids.some((id) =>
+            ["scenario_create", "scenario_append"].includes(
+              knownCalls.current.get(id)?.tool ?? "",
+            ),
+          ) || !!scenarioId;
+        const targetScope = known.current?.call_ids.some(
+          (id) => knownCalls.current.get(id)?.tool === "target_create",
+        );
+        const skillScope = known.current?.call_ids.some(
+          (id) => knownCalls.current.get(id)?.tool === "skill_create",
+        );
+        const current = scenarioScope
+          ? scenarioId
+            ? await toolClient.inspectScenario(scenarioId, controller.signal)
+            : await toolClient.inspectScenarioPage(
+                offset,
+                50,
+                controller.signal,
+              )
+          : skillScope
+            ? await toolClient.inspectSkills(controller.signal)
+            : targetScope
+              ? await toolClient.inspectTargets(controller.signal)
+              : await toolClient.inspectCurrent(controller.signal);
+        if (
+          !mounted.current ||
+          token !== generation.current ||
+          controller.signal.aborted
         )
-      ) {
-        setReviewState("history-required");
-        return;
+          return;
+        adopt(current.fence);
+        if ("state" in current) setScenarioState(current.state);
+        const calls = current.fence.call_ids.map((id) =>
+          knownCalls.current.get(id),
+        );
+        if (
+          !current.fence.fenced ||
+          calls.some((c) => !c) ||
+          calls.some(
+            (c) =>
+              ["scenario_create", "scenario_append"].includes(c?.tool ?? "") !==
+                !!scenarioScope ||
+              (c?.tool === "target_create") !== !!targetScope ||
+              (c?.tool === "skill_create") !== !!skillScope,
+          )
+        ) {
+          setReviewState("history-required");
+          return;
+        }
+        setReview({ ...current, calls: calls as ToolCall[] });
+        setReviewState("review");
+      } catch {
+        if (mounted.current && token === generation.current)
+          setReviewState("unknown");
       }
-      setReview({ ...current, calls: calls as ToolCall[] });
-      setReviewState("review");
-    } catch {
-      if (mounted.current && token === generation.current)
-        setReviewState("unknown");
-    }
-  }, [adopt]);
+    },
+    [adopt],
+  );
   async function inspectSkill(id: string) {
     if (
       !review?.skills?.some((s) => s.id === id) ||
@@ -190,14 +229,18 @@ export function useToolAuthority(mutationsEnabled: boolean) {
     const request = crypto.randomUUID(),
       requestOwner = Symbol();
     owner.current = requestOwner;
-    const held = { request, fence: review.fence };
+    const held = { request, fence: review.fence, state: review.state };
     unresolved.current = held;
     setReconciling(true);
     setReady(false);
     setReview(null);
     setReviewState("sending");
     try {
-      const result = await toolClient.reconcile(request, held.fence);
+      const result = await toolClient.reconcile(
+        request,
+        held.fence,
+        held.state,
+      );
       if (mounted.current) {
         setReceipt(result);
         setReviewState("acknowledged");
@@ -223,6 +266,15 @@ export function useToolAuthority(mutationsEnabled: boolean) {
   }, []);
   return {
     fence,
+    scenarioState,
+    scenarioSupported: ready && scenarioSupported,
+    canScenarioWrite:
+      mutationsEnabled &&
+      ready &&
+      scenarioSupported &&
+      !fence?.fenced &&
+      fence?.current_draft_revision !== null &&
+      scenarioState?.registry_write_status === "available",
     ready,
     refresh,
     observe,

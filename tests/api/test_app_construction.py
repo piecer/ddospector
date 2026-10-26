@@ -164,7 +164,9 @@ def test_native_exception_restores_filters_and_releases_builder(tmp_path, builde
         if builder == "app":
             return create_app(state_path=tmp_path / "draft.json")
         drafts = DraftStore(tmp_path / "draft.json")
-        return (scenario_router if builder == "scenario" else runs_router)(drafts)
+        if builder == "scenario":
+            return scenario_router(ScenarioStore(drafts))
+        return runs_router(drafts)
 
     original = RuntimeError("construction-only native adapter entry fault")
     fired = []
@@ -226,7 +228,9 @@ def test_nested_prepared_builders_are_reentrant(tmp_path):
     assert warnings.filters == before
 
 
-@pytest.mark.parametrize("preparation", ["scenario_router", "runs_router"])
+# Both former app sites (scenario_router, runs_router) now borrow the one
+# create_app store. One real constructor selector, not two aliases of it.
+@pytest.mark.parametrize("preparation", ["create_app"])
 def test_actual_app_waiting_store_allows_unrelated_app_and_request(tmp_path, preparation):
     from concurrent.futures import ThreadPoolExecutor
 
@@ -270,7 +274,7 @@ def test_actual_app_waiting_store_allows_unrelated_app_and_request(tmp_path, pre
         future = pool.submit(waiting)
         try:
             assert selected.wait(5)
-            # For runs preparation the actual scenario router has already completed.
+            # The actual app constructor waits before any router composition.
             with peer.lock:
                 proceed.set()
                 assert attempted.wait(5)
@@ -289,11 +293,11 @@ def test_sibling_builders_share_one_composition_boundary(tmp_path, left, right):
     from concurrent.futures import ThreadPoolExecutor
 
     peer = ScenarioStore(DraftStore(tmp_path / "draft.json"))
-    scenario, runs = scenario_router(peer.drafts), runs_router(peer.drafts)
+    runs = runs_router(peer.drafts, scenarios=peer)
     builders = {
         "scenario": lambda: _compose_scenarios(peer),
         "runs": lambda: _compose_runs(peer, None),
-        "app": lambda: _compose_app(peer.drafts, scenario, runs),
+        "app": lambda: _compose_app(peer.drafts, peer, runs),
     }
     a_inside, b_admitted, b_inside, release = (threading.Event() for _ in range(4))
     construction_file = Path(__file__).resolve().parents[2] / "src/aiddos/api/construction.py"
