@@ -163,9 +163,9 @@ not authentication against a writer able to replace the entire database.
 Complete prospective receipt/call/exchange/context sizing precedes approval wait.
 Sizing witnesses are never saved or reported as actual results. Original deadline
 and captured Stop checks extend through synchronous admission and publication.
-Scenario approval is rejected by runtime and ledger, and no scenario save adapter
-is dispatched. Denial, cancellation, expiry and restart settle retained work without
-changing the scenario registry. Public metadata remains version3; JavaScript byte
+In stage 2, scenario approval is rejected and no save adapter is dispatched.
+Its denial, cancellation, expiry and restart paths do not change the scenario
+registry. Public metadata remains version3; JavaScript byte
 parity, actual provider integration and public activation are later gates.
 
 Successful-read publication checks original authority on both retained-exchange
@@ -173,6 +173,49 @@ and exchange-overflow exits; on-time overflow can retain the read fact without a
 provider continuation, but a late read is rolled back. This is not a rule to erase
 an already durable write receipt. Decision publication checks the captured Stop
 object and deadline, not a subsequently replaced runtime reference.
+
+## Private scenario approval and saves (stage 3)
+
+Private approval and reconciliation validate actual recursive model data before
+serialization and retain detached checked values across awaits. Regression tests
+preserve the copied-model unknown fields that originally bypassed validation.
+Independent source/readback review supports the correction; fresh Codex-sandbox
+tests timed out and are not counted as passes. The operator explicitly waived
+that sandbox rerun for progression. Ordinary offline integration gates remain
+required; browser/model/public activation are separate stage-4 obligations.
+
+The private approval entry takes a separate exact operator decision for the
+retained proposal. It uses
+the same owner and ledger transaction to retain an executing intent before waking
+the existing native scenario save worker. Public approval and default ledger
+approval remain closed for v4; no model text or public feature flag grants consent.
+
+Both create and append use the existing scenario store and immutable version
+readback. Success binds the full saved definition, snapshots, proposal, grant and
+decision, not merely a current latest-version ID. A later append does not erase
+the earlier saved version. Original captured Stop/deadline and publication guards
+still apply before mutation, without erasing a completed native acknowledgement.
+
+Scenario outcome publication and provider-exchange delivery use separate SQLite
+transactions. A failed delivery cannot roll back an already retained save receipt.
+Registry JSON and chat SQLite are not atomic together: receipt-commit uncertainty
+can leave durable executing intent for uncertain recovery. Restart does not repeat
+the save or model request; executing writes become uncertain and fenced. Retained
+terminal receipts may settle their missing exchange without domain execution.
+This is not universal exchange repair: a retired call may retain a missing
+exchange after logical refusal, and generalized near-cap recovery is not proven.
+
+Private scenario reconciliation requires idle ownership, exact fence generation
+and both draft/scenario revisions observed under the existing native lock bridge.
+Its v4 receipt preserves `prior_outcomes:remain_uncertain` and
+`scenario_recovery:not_performed`. Legacy reconciliation cannot clear a scenario
+write fence. No scenario recovery ticket is consumed, registry quarantine is not
+cleared, and old outcomes are not promoted to success. Exact reconciliation replay
+returns historical facts without reacquiring mutable revisions.
+
+Controlled model-final failure can still fail the conversation after a successful
+save; the real receipt remains. This is not acceptance of the historical A-FINAL
+issue, actual provider/browser integration, or public v4 activation.
 
 ## Actual publication, conflict and recovery
 

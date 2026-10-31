@@ -450,6 +450,12 @@ class ToolRuntimeMixin:
                 self.decision_ready = asyncio.Event()
                 self.tool_deadline = deadline
                 self.tool_grant_deadline = self.grant_deadlines[value.grant_id]
+                if scenario_entry:
+                    self._scenario_authority = (
+                        turn["id"],
+                        stop,
+                        min(deadline, self.tool_grant_deadline),
+                    )
                 self.started = self.finalizing = False
                 self.task = asyncio.create_task(
                     self.produce_tools(turn, session, profile, endpoint, payload, deadline)
@@ -474,10 +480,20 @@ class ToolRuntimeMixin:
             raise
 
     async def decide_tool(self, call_id, value):
+        return await self._decide_tool(call_id, value)
+
+    async def _decide_scenario_tool(self, call_id, value):
+        checked = scenario.DecisionInput.model_validate(value)
+        return await self._decide_tool(call_id, checked, scenario_entry=True)
+
+    async def _decide_tool(self, call_id, value, *, scenario_entry=False):
         stop = self.stop_signal
         deadline = min(self.tool_deadline, self.tool_grant_deadline)
+        owner = self.active
+        if scenario_entry:
+            owner, stop, deadline = getattr(self, "_scenario_authority", (None, stop, 0))
         async with self.lock:
-            if value.decision == "approve":
+            if value.decision == "approve" and not scenario_entry:
                 call = self.ledger.call(call_id)
                 if self.ledger.grant(call["grant_id"])["schema_version"] == 4:
                     raise DraftError("CHAT_TOOL_APPROVAL_CONFLICT")
@@ -491,13 +507,15 @@ class ToolRuntimeMixin:
                     self.check_target_projection(turn, session, call)
                 if (
                     self.active != turn_id
+                    or (scenario_entry and owner != turn_id)
                     or self.stopping
                     or stop.is_set()
                     or monotonic() >= deadline
                 ):
                     raise DraftError("CHAT_TOOL_APPROVAL_CONFLICT")
 
-            decision, replay = self.ledger.decide(
+            decide = self.ledger._decide_scenario if scenario_entry else self.ledger.decide
+            decision, replay = decide(
                 call_id,
                 value.model_dump(),
                 active_turn_id=self.active,
@@ -532,13 +550,24 @@ class ToolRuntimeMixin:
             return self.ledger.fence(revision)
 
     async def reconcile_tools(self, value):
+        return await self._reconcile_tools(value)
+
+    async def _reconcile_scenario_tools(self, value):
+        checked = scenario.ReconcileInputV4.model_validate(value)
+        return await self._reconcile_tools(checked, scenario_entry=True)
+
+    async def _reconcile_tools(self, value, *, scenario_entry=False):
         body = value.model_dump()
+        reconcile = self.ledger._reconcile_scenario if scenario_entry else self.ledger.reconcile
         async with self.lock:
             # Replay lookup precedes present ownership/freshness. False idle can
             # only replay; it cannot clear a fence using an unlocked observation.
             try:
-                receipt, _ = self.ledger.reconcile(
-                    body, current_draft_revision=None, owner_idle=False
+                receipt, _ = reconcile(
+                    body,
+                    current_draft_revision=None,
+                    owner_idle=False,
+                    **({"current_scenario_revision": None} if scenario_entry else {}),
                 )
                 return receipt, 200
             except DraftError as exc:
@@ -548,12 +577,22 @@ class ToolRuntimeMixin:
             self.preparing = True
         try:
 
-            def decide(revision):
+            def decide(revision, scenario_revision=None):
                 if self.stopping or self.active is not None:
                     raise DraftError("CHAT_BUSY")
-                return self.ledger.reconcile(body, current_draft_revision=revision, owner_idle=True)
+                return reconcile(
+                    body,
+                    current_draft_revision=revision,
+                    owner_idle=True,
+                    **({"current_scenario_revision": scenario_revision} if scenario_entry else {}),
+                )
 
-            receipt, replay = await self.worker.locked_revision(decide)
+            inspect = (
+                self.worker.locked_scenario_revisions
+                if scenario_entry
+                else self.worker.locked_revision
+            )
+            receipt, replay = await inspect(decide)
             return receipt, 200 if replay else 201
         finally:
             self.preparing = False
@@ -570,11 +609,15 @@ class ToolRuntimeMixin:
         grant = self.ledger.grant(self.ledger.binding(turn["id"])["grant_id"])
         v4 = grant["schema_version"] == 4
         stop = self.stop_signal
+        if v4:
+            _, stop, original_deadline = self._scenario_authority
+            deadline = min(deadline, original_deadline)
 
         def guard():
-            if stop.is_set():
+            if stop.is_set() or self.stopping:
                 raise DraftError("CHAT_CANCELLED")
-            self.authority(grant, deadline)
+            if monotonic() >= deadline or instant(now()) >= instant(grant["expires_at"]):
+                raise DraftError("CHAT_TIMEOUT")
 
         try:
             call = self.ledger.request_call(
@@ -598,6 +641,8 @@ class ToolRuntimeMixin:
                         args, session["locale"], deadline=deadline, stop=self.stop_signal
                     )
             elif v4 and call["tool"] in SCENARIO_WRITES:
+                if self.ledger.fence()["fenced"]:
+                    raise DraftError("CHAT_TOOL_WRITE_FENCED")
                 prepared = await self.worker.prepare_scenario(
                     grant, args, session["settings_revision"], deadline=deadline, stop=stop
                 )
@@ -614,10 +659,22 @@ class ToolRuntimeMixin:
                 self.decision_ready.clear()
                 self.ledger.propose(call["id"], proposal, admission_guard=guard)
                 await self.decision_ready.wait()
-                # Only deny can wake this path; no mutation adapter exists in stage 2.
-                if self.ledger.call(call["id"])["status"] != "denied":
+                call = self.ledger.call(call["id"])
+                if call["status"] == "denied":
+                    return
+                self.ledger._validate_call(turn["id"], call)
+                if call["status"] != "executing" or call["decision"]["decision"] != "approve":
                     raise DraftError("CHAT_TOOL_APPROVAL_CONFLICT")
-                return
+                guard()
+                result = await self.worker.save_scenario(
+                    grant,
+                    args,
+                    proposal,
+                    guard,
+                    session["settings_revision"],
+                    deadline=deadline,
+                    stop=stop,
+                )
             elif call["tool"] in WRITE_TOOLS:
                 if self.ledger.fence()["fenced"]:
                     raise DraftError("CHAT_TOOL_WRITE_FENCED")
@@ -751,7 +808,7 @@ class ToolRuntimeMixin:
 
         except Exception:
             current = self.ledger.call(call["id"])
-            if current["tool"] in WRITE_TOOLS and current["status"] == "executing":
+            if current["tool"] in ALL_WRITES and current["status"] == "executing":
                 self.ledger.finish_call(call["id"], "uncertain", error_code="CHAT_TOOL_UNCERTAIN")
                 raise DraftError("CHAT_TOOL_UNCERTAIN") from None
             raise
@@ -849,7 +906,7 @@ class ToolRuntimeMixin:
             for call in self.ledger.transcript(turn["id"])["calls"]:
                 if call["status"] not in TERMINAL:
                     failure = "CHAT_TIMEOUT" if code == "CHAT_TIMEOUT" else "CHAT_CANCELLED"
-                    uncertain = call["tool"] in WRITE_TOOLS and call["status"] == "executing"
+                    uncertain = call["tool"] in ALL_WRITES and call["status"] == "executing"
                     self.ledger.finish_call(
                         call["id"],
                         "uncertain"

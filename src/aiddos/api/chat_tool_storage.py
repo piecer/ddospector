@@ -151,8 +151,8 @@ class DecisionReplay(ToolModel):
 
 
 class ReconcileReplay(ToolModel):
-    input: ReconcileInput
-    receipt: ReconcileReceipt
+    input: ReconcileInput | scenario.ReconcileInputV4
+    receipt: ReconcileReceipt | scenario.ReconcileReceiptV4
 
 
 class Reservation(ToolModel):
@@ -315,9 +315,11 @@ class ToolLedger:
                 if any(existing.get(key) != value for key, value in commitment.items()):
                     raise DraftError("CHAT_TOOL_GRANT_CONFLICT")
                 return existing, True
-            if scenario and commitment["text_sha256"] != hashlib.sha256(
-                body["text"].encode("utf-8")
-            ).hexdigest():
+            if (
+                scenario
+                and commitment["text_sha256"]
+                != hashlib.sha256(body["text"].encode("utf-8")).hexdigest()
+            ):
                 raise DraftError("CHAT_TOOL_GRANT_INVALID")
             if scenario and (
                 type(resolved) is not dict or set(resolved) != {"resolved_inputs", "inputs_digest"}
@@ -603,9 +605,16 @@ class ToolLedger:
             checked = scenario.validate_call_binding(
                 call, grant, deadline_at=binding["deadline_at"]
             )
-            # Stage 2 has no scenario write execution, even in a retained graph.
-            if checked["decision"] is not None and checked["decision"]["decision"] == "approve":
-                raise ValueError("Scenario approval is not enabled")
+            decision = checked["decision"]
+            if decision is not None and decision["decision"] == "approve":
+                replay = self._get("tool_decisions", decision["request_id"])
+                expected = dict(
+                    call_id=checked["id"],
+                    input={k: decision[k] for k in ("request_id", "proposal_digest", "decision")},
+                    receipt=decision,
+                )
+                if replay != expected or not binding["write_slot"]:
+                    raise ValueError("Scenario approval is not durably bound")
             return checked
         return ToolCall.model_validate(call).model_dump()
 
@@ -855,8 +864,40 @@ class ToolLedger:
     def decide(
         self, call_id, body, *, active_turn_id, timestamp=None, stopped=False, admission_guard=None
     ):
+        return self._decide(
+            call_id,
+            body,
+            active_turn_id=active_turn_id,
+            timestamp=timestamp,
+            stopped=stopped,
+            admission_guard=admission_guard,
+        )
+
+    def _decide_scenario(self, call_id, body, *, active_turn_id, admission_guard):
+        body = scenario.DecisionInput.model_validate(body).model_dump()
+        call = self.call(call_id)
+        scenario.GrantV4.model_validate(self.grant(call["grant_id"]))
+        return self._decide(
+            call_id,
+            body,
+            active_turn_id=active_turn_id,
+            admission_guard=admission_guard,
+            scenario_entry=True,
+        )
+
+    def _decide(
+        self,
+        call_id,
+        body,
+        *,
+        active_turn_id,
+        timestamp=None,
+        stopped=False,
+        admission_guard=None,
+        scenario_entry=False,
+    ):
         body = DecisionInput.model_validate(body).model_dump()
-        if body["decision"] == "approve":
+        if body["decision"] == "approve" and not scenario_entry:
             call = self.call(call_id)
             if self.grant(call["grant_id"])["schema_version"] == 4:
                 raise DraftError("CHAT_TOOL_APPROVAL_CONFLICT")
@@ -985,6 +1026,10 @@ class ToolLedger:
         Returns (call, exchange_retained). False requires conversation failure and
         no provider continuation; it never changes a known successful receipt.
         """
+        if self.call(call_id)["tool"] in SCENARIO_WRITES:
+            return self._finish_scenario_write(
+                call_id, status, result=result, error_code=error_code, timestamp=timestamp
+            )
         with self.storage.transaction():
             row = self._get("tool_calls", call_id)
             if row is None:
@@ -1044,6 +1089,44 @@ class ToolLedger:
                 admission_guard()
             return call, retained
 
+    def _finish_scenario_write(self, call_id, status, *, result, error_code, timestamp):
+        # The JSON registry and SQLite are not a distributed transaction. First
+        # retain the actual native outcome; delivery is a separate transaction.
+        # A failed receipt COMMIT leaves executing intent for uncertain recovery.
+        with self.storage.transaction():
+            row = self._get("tool_calls", call_id)
+            turn_id, old = row["turn_id"], row["call"]
+            if old["status"] in TERMINAL:
+                raise DraftError("CHAT_TOOL_CONFLICT")
+            if status not in TERMINAL:
+                raise ValueError("Terminal outcome required")
+            if status == "succeeded" and old["status"] != "executing":
+                raise DraftError("CHAT_TOOL_CONFLICT")
+            call = self._save_call(
+                turn_id,
+                old
+                | dict(
+                    status=status,
+                    result=result,
+                    error_code=error_code,
+                    finished_at=timestamp or now(),
+                ),
+            )
+            if status == "uncertain":
+                self._install_fence(turn_id, call_id)
+        try:
+            with self.storage.transaction():
+                self._settle_message(turn_id, call)
+        except DraftError as exc:
+            if exc.code != "CHAT_TOOL_LIMIT":
+                raise
+            with self.storage.transaction():
+                reservation = self.reservation(turn_id)
+                reservation["exchange_hold"] = 0
+                self._put("tool_reservations", turn_id, reservation)
+            return call, False
+        return call, True
+
     def append_final(self, turn_id, content):
         with self.storage.transaction():
             self._active(turn_id)
@@ -1079,7 +1162,26 @@ class ToolLedger:
             self._retire(turn_id)
 
     def reconcile(self, body, *, current_draft_revision, owner_idle):
-        body = ReconcileInput.model_validate(body).model_dump()
+        return self._reconcile(
+            ReconcileInput.model_validate(body).model_dump(),
+            current_draft_revision=current_draft_revision,
+            owner_idle=owner_idle,
+        )
+
+    def _reconcile_scenario(
+        self, body, *, current_draft_revision, current_scenario_revision, owner_idle
+    ):
+        return self._reconcile(
+            scenario.ReconcileInputV4.model_validate(body).model_dump(),
+            current_draft_revision=current_draft_revision,
+            current_scenario_revision=current_scenario_revision,
+            owner_idle=owner_idle,
+        )
+
+    def _reconcile(
+        self, body, *, current_draft_revision, owner_idle, current_scenario_revision=None
+    ):
+        v4 = body.get("schema_version") == 4
         with self.storage.transaction():
             prior = self._get("tool_reconciliations", body["request_id"])
             if prior is not None:
@@ -1093,19 +1195,31 @@ class ToolLedger:
                 not fence["fenced"]
                 or fence["generation"] != body["expected_generation"]
                 or current_draft_revision != body["expected_draft_revision"]
+                or (v4 and current_scenario_revision != body["expected_scenario_revision"])
                 or fence["generation"] >= SAFE_INT
             ):
                 raise DraftError("CHAT_TOOL_CONFLICT")
             row = self._get("tool_calls", fence["call_ids"][0])
             turn_id = row["turn_id"]
-            receipt = ReconcileReceipt.model_validate(
+            if (row["call"]["tool"] in SCENARIO_WRITES) != v4:
+                raise DraftError("CHAT_TOOL_CONFLICT")
+            model = scenario.ReconcileReceiptV4 if v4 else ReconcileReceipt
+            receipt = model.model_validate(
                 dict(
-                    schema_version=1,
+                    schema_version=4 if v4 else 1,
                     request_id=body["request_id"],
                     acknowledged_call_ids=fence["call_ids"],
                     generation=fence["generation"] + 1,
                     write_fenced=False,
                     prior_outcomes="remain_uncertain",
+                    **(
+                        dict(
+                            observed_scenario_revision=current_scenario_revision,
+                            scenario_recovery="not_performed",
+                        )
+                        if v4
+                        else {}
+                    ),
                 )
             ).model_dump()
             self._put(
@@ -1355,6 +1469,7 @@ class ToolLedger:
         for key, row in tables["tool_reconciliations"].items():
             body, receipt = row["input"], row["receipt"]
             ids = receipt["acknowledged_call_ids"]
+            v4 = body.get("schema_version") == 4
             if (
                 key != body["request_id"]
                 or key != receipt["request_id"]
@@ -1362,6 +1477,12 @@ class ToolLedger:
                 or receipt["generation"] in generations
                 or acknowledged.intersection(ids)
                 or any(i not in calls or calls[i]["call"]["status"] != "uncertain" for i in ids)
+                or (receipt["schema_version"] == 4) != v4
+                or any((calls[i]["call"]["tool"] in SCENARIO_WRITES) != v4 for i in ids)
+                or (
+                    v4
+                    and receipt["observed_scenario_revision"] != body["expected_scenario_revision"]
+                )
             ):
                 raise ValueError("Reconciliation history")
             acknowledged.update(ids)
@@ -1389,8 +1510,19 @@ class ToolLedger:
             for _, row in self._rows("tool_calls"):
                 call = row["call"]
                 if call["status"] in TERMINAL:
+                    # Receipt publication can precede exchange delivery. Repair
+                    # only the retained native exchange, never domain/model work.
+                    if (
+                        call["tool"] in SCENARIO_WRITES
+                        and not self.reservation(row["turn_id"])["retired"]
+                    ):
+                        messages = self.exchanges(row["turn_id"])
+                        if not any(
+                            m.get("tool_call_id") == call["provider_call_id"] for m in messages
+                        ):
+                            self._settle_message(row["turn_id"], call)
                     continue
-                uncertain = call["tool"] in WRITE_TOOLS and call["status"] == "executing"
+                uncertain = call["tool"] in ALL_WRITES and call["status"] == "executing"
                 call.update(
                     status="uncertain" if uncertain else "cancelled",
                     finished_at=max(now(), call["started_at"], key=instant),
