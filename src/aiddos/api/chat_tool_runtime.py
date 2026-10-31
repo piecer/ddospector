@@ -10,6 +10,7 @@ from uuid import uuid4
 from pydantic import TypeAdapter
 
 from .chat_models import encoded, now, runtime_view, selected
+from .chat_scenario_models import ScenarioStateInspection
 from .chat_tool_models import (
     TERMINAL,
     WRITE_TOOLS,
@@ -169,6 +170,25 @@ class ToolRuntimeMixin:
             async with asyncio.timeout_at(deadline):
                 value = await self.worker.targets_snapshot(deadline=deadline)
                 result = TargetsInspection.model_validate(value).model_dump()
+                if monotonic() >= deadline:
+                    raise DraftError("CHAT_TIMEOUT")
+                return result
+        except TimeoutError:
+            raise DraftError("CHAT_TIMEOUT") from None
+        except ValueError:
+            raise DraftError("CHAT_STORAGE_ERROR") from None
+        finally:
+            self.preparing = False
+
+    async def tools_scenario_state(self):
+        deadline = monotonic() + self.turn_seconds
+        async with self.lock:
+            self.check_idle()
+            self.preparing = True
+        try:
+            async with asyncio.timeout_at(deadline):
+                value = await self.worker.scenario_state(deadline=deadline)
+                result = ScenarioStateInspection.model_validate(value).model_dump()
                 if monotonic() >= deadline:
                     raise DraftError("CHAT_TIMEOUT")
                 return result

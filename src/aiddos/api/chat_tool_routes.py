@@ -23,6 +23,11 @@ def tool_router(runtime):
         query(request)
         return response(await runtime.tools_targets())
 
+    @router.get("/tools/scenarios/state")
+    async def scenario_state(request: Request):
+        query(request)
+        return response(await runtime.tools_scenario_state())
+
     @router.get("/tools/skills")
     async def skills(request: Request):
         query(request)

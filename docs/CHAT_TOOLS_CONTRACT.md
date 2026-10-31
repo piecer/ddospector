@@ -43,6 +43,7 @@ Existing v1 Session, Turn, ordinary Runtime and text SSE keys remain unchanged. 
 | GET `/tools/targets` | Complete current target inventory and draft revision; operator inspection only, no query parameters or model authority |
 | GET `/tools/skills` | Current localized-name summaries and draft revision; operator inspection only, no query parameters or model authority |
 | GET `/tools/skills/{skill_id}` | One full actual Skill and draft revision; operator inspection only, no query parameters or audit |
+| GET `/tools/scenarios/state` | Read-only scenario registry revision and quarantine observation; no query parameters, recovery or model authority |
 | POST `/tools/reconcile` | Explicit operator acknowledgement of uncertainty; never a model tool |
 
 Grant creation requires request_id, session_id, turn_request_id, expected_sequence and text. Text is subject to the existing 8KiB limit; retained authority uses its digest, not another message copy. A grant lasts at most300 seconds and never extends the turn's original deadline. There is at most one pending grant per session and2048 retained grants. Restart expires unused authority rather than renewing it.
@@ -64,6 +65,32 @@ SkillCreateProposal contains operation=`skill_create`, digest, expected_draft_re
 SkillCreatedResult has exactly `{kind:"skill_created",before_revision,after_revision,skill,audit}`. Its complete Skill has all ten fields: `id`, `name`, `description`, `instructions`, `version`, `category`, `status`, `allowed_operations`, `required_capabilities`, `safety_rules`. The producer generates a fresh UUID4; the three text fields are closed `{en,ko}` copies of the exact approved literals, not translations. Version is1.0.0, status is draft, both operation/capability lists are empty, and safety_rules equals the existing catalog SAFETY_RULES. There is **no Skill created_at**. The audit has exactly `id`, `action`, `entity_id`, `created_at`, `origin`: a separately generated ID distinct from the Skill ID, action=skill.created, entity_id=skill.id, valid timestamp and origin=local_operator. No Skill/audit timestamp equality is invented. Arguments, proposal, both saved locales/category and the receipt must agree; before_revision equals the approved revision and after_revision is exactly one greater.
 
 New failures use fixed nonreflecting CHAT_TOOL_* codes: GRANT_CONFLICT, GRANT_INVALID, APPROVAL_CONFLICT, CONFLICT, WRITE_FENCED, DENIED, LIMIT, PROTOCOL and UNCERTAIN. Existing chat input, busy, timeout, cancellation, storage and retention failures still apply. Invalid native syntax fails before dispatch; oversized valid Skill details produce a bounded failure rather than truncation.
+
+## Read-only scenario-state inspection (B3 incremental slice)
+
+GET `/api/v1/chat/tools/scenarios/state` connects the existing operator client to
+the same runtime-owned domain worker and scenario store. Its closed response is
+exactly `{schema_version:4,scenario_revision,registry_write_status}`: the revision
+is an integer from0 through1000, and the status is `available` or `quarantined`.
+Boolean/coerced revisions, unknown keys and malformed worker responses are not
+successful observations. Unknown or duplicate query parameters are rejected
+before worker admission. A JSON-framed POST is unsupported; the existing HTTP
+boundary rejects an unframed mutation before routing.
+
+Inspection does not save a scenario, change an audit, clear a fence, consume a
+recovery ticket or repair retained files. A readable registry with a malformed
+admission receipt remains observable as quarantined. An unreadable/corrupt
+registry or receipt I/O failure remains `CHAT_STORAGE_ERROR`, not availability.
+Each read observes current state through the shared no-queue lease, uses the
+original deadline and rechecks it before returning the validated result.
+Timeout/cancellation releases the preparing lease but does not declare a still
+running native read retired: the worker stays busy until it actually completes.
+
+The response's schema4 is only the existing inspection format. Native tool
+metadata remains version3 with the same four tool names; scenario grant/write
+adapters remain unsupported. Normal UI scenario-write controls therefore remain
+disabled. This endpoint is not acceptance of the complete B3 write workflow,
+NORMAL execution, browser integration or actual DUT testing.
 
 ## Actual publication, conflict and recovery
 
