@@ -7,6 +7,7 @@ from pydantic import Field, TypeAdapter
 
 from .catalog import SAFETY_RULES
 from .chat_models import SAFE_INT, ChatID, ChatTime, Counter, Session, Turn, TurnInput, encoded, now
+from .chat_scenario_models import GrantInputV4, GrantV4, json_value
 from .chat_storage import storage_read
 from .chat_tool_models import (
     CALL_BYTES,
@@ -198,19 +199,38 @@ class ToolLedger:
             }
             | {"text_sha256": digest(body["text"]), "schema_version": body.get("schema_version", 1)}
             | ({"scope": body["scope"]} if "scope" in body else {})
+            | ({"intent": body["intent"]} if "intent" in body else {})
         )
 
-    def create_grant(self, body, *, timestamp=None):
-        body = GrantRequest.model_validate(body).model_dump()
+    def create_grant(self, body, *, timestamp=None, resolved=None, publication_guard=None):
+        """Publish new authority only while the caller's synchronous guard permits.
+
+        The optional internal guard takes no arguments, performs no I/O or writes,
+        and raises on lost authority. It runs after preparation and after the pool
+        scan, inside the same transaction; denial rolls back expiry updates too.
+        Replay never calls it. Existing transaction error/fence semantics apply.
+        This is a cooperative precommit fence, not an interrupt of SQLite COMMIT.
+        """
+        # Internal only: the runtime supplies the actual DomainWorker resolution.
+        # A matching digest establishes consistency, never source authority.
+        scenario = isinstance(body, GrantInputV4) or (
+            isinstance(body, dict) and body.get("schema_version") == 4
+        )
+        body = (GrantInputV4 if scenario else GrantRequest).model_validate(body).model_dump()
         timestamp = timestamp or now()
         with self.storage.transaction():
             commitment = self._grant_commitment(body)
             grants = self._rows("tool_grants")
             existing = next((g for _, g in grants if g["request_id"] == body["request_id"]), None)
             if existing is not None:
-                if any(existing[key] != value for key, value in commitment.items()):
+                if any(existing.get(key) != value for key, value in commitment.items()):
                     raise DraftError("CHAT_TOOL_GRANT_CONFLICT")
                 return existing, True
+            if scenario and (
+                type(resolved) is not dict
+                or set(resolved) != {"resolved_inputs", "inputs_digest"}
+            ):
+                raise DraftError("CHAT_TOOL_GRANT_INVALID")
             session, _ = self.storage.session(body["session_id"])
             if (
                 session["sequence"] != body["expected_sequence"]
@@ -228,7 +248,7 @@ class ToolLedger:
                 elif grant["status"] == "pending" and grant["session_id"] == session["id"]:
                     raise DraftError("CHAT_TOOL_GRANT_CONFLICT")
             grant = (
-                TypeAdapter(GrantRecord)
+                TypeAdapter(GrantV4 if scenario else GrantRecord)
                 .validate_python(
                     dict(
                         id=str(uuid4()),
@@ -239,7 +259,15 @@ class ToolLedger:
                         expires_at=(instant(timestamp) + timedelta(seconds=300)).isoformat(),
                         status="pending",
                         **(
-                            dict(read_scope=["targets", "target"], proposal_tools=["target_create"])
+                            dict(
+                                read_scope=["scenario_context", "scenarios", "scenario"],
+                                proposal_tools=[body["intent"]["operation"]],
+                                **json_value(resolved),
+                            )
+                            if scenario
+                            else dict(
+                                read_scope=["targets", "target"], proposal_tools=["target_create"]
+                            )
                             if commitment["schema_version"] == 2
                             else dict(
                                 read_scope=["skills", "skill"], proposal_tools=["skill_create"]
@@ -254,7 +282,11 @@ class ToolLedger:
                 )
                 .model_dump()
             )
+            if publication_guard is not None:
+                publication_guard()
             self._put("tool_grants", grant["id"], grant)
+            if publication_guard is not None:
+                publication_guard()
             return grant, False
 
     def revoke(self, grant_id):
@@ -269,6 +301,15 @@ class ToolLedger:
             return grant
 
     def admit(self, grant_id, session, turn, commitment, *, timestamp=None, deadline_at=None):
+        # Independent of the runtime guard; no transaction or turn mutation.
+        try:
+            grant = self.grant(grant_id)
+        except DraftError as exc:
+            if exc.code != "CHAT_NOT_FOUND":
+                raise
+        else:
+            if grant["schema_version"] == 4:
+                raise DraftError("CHAT_TOOL_GRANT_INVALID")
         Session.model_validate(session)
         Turn.model_validate(turn)
         body = TurnInput.model_validate(
@@ -887,7 +928,9 @@ class ToolLedger:
                 if not isinstance(key, str) or len(encoded(value)) > CAPS[table]:
                     raise ValueError("Record cap")
                 if table == "tool_grants":
-                    TypeAdapter(GrantRecord).validate_python(value)
+                    TypeAdapter(
+                        GrantV4 if value.get("schema_version") == 4 else GrantRecord
+                    ).validate_python(value)
                 elif table in models:
                     models[table].model_validate(value)
         usage = self.usage()
@@ -914,6 +957,12 @@ class ToolLedger:
                 raise ValueError("Grant identity")
             requests.add(grant["request_id"])
             session = sessions[grant["session_id"]]
+            if grant["schema_version"] == 4 and (
+                grant["status"] == "consumed"
+                or grant["expected_sequence"] >= 64
+                or grant["expected_sequence"] > session["sequence"]
+            ):
+                raise ValueError("Invalid staged scenario grant")
             if (
                 grant["settings_revision"] != session["settings_revision"]
                 or grant["profile_id"] != session["profile_id"]
@@ -933,6 +982,8 @@ class ToolLedger:
                 raise ValueError("Tool binding")
             bound.add(binding["grant_id"])
             grant, turn = grants[binding["grant_id"]], turns[key]
+            if grant["schema_version"] == 4:
+                raise ValueError("Staged scenario grant cannot bind a turn")
             if (
                 grant["status"] not in {"consumed", "revoked"}
                 or grant["session_id"] != turn["session_id"]

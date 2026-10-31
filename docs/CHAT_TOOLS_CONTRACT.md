@@ -87,10 +87,44 @@ Timeout/cancellation releases the preparing lease but does not declare a still
 running native read retired: the worker stays busy until it actually completes.
 
 The response's schema4 is only the existing inspection format. Native tool
-metadata remains version3 with the same four tool names; scenario grant/write
+metadata remains version3 with the same four tool names; public scenario grant/write
 adapters remain unsupported. Normal UI scenario-write controls therefore remain
 disabled. This endpoint is not acceptance of the complete B3 write workflow,
 NORMAL execution, browser integration or actual DUT testing.
+
+## Internal scenario grant lifecycle (stage 1, not public activation)
+
+The internal runtime can resolve a validated `GrantInputV4` through its existing
+domain worker and retain a closed `GrantV4` in the same chat ledger. The commitment
+includes the complete intent, source/base references, revisions and operation,
+alongside the existing session/sequence/text binding. Resolved protected inputs
+come from the real domain resolver. A matching digest proves consistency, not
+source authority; the ledger's resolved-input argument is a trusted internal
+interface, not a model-facing authentication mechanism.
+
+Exact replay returns the retained grant before fresh settings/source resolution,
+without renewing its identity, expiry or resolved inputs. Lookup and revoke use
+the existing ledger. Reopen validates the complete retained graph before recovery
+and expires pending grants without dispatch. The existing 300-second lifetime,
+8192-byte record limit, 2048-grant limit and shared retention budgets are unchanged.
+
+New internal scenario grants retain the original preparation deadline and captured
+Stop event through synchronous ledger work. A trusted, non-I/O publication guard
+runs before insertion and after pool accounting, inside the existing transaction.
+Denial rolls back the new grant and pending-expiry updates; failed rollback keeps
+the storage fence and does not prove absence or transaction closure. Exact replay
+does not invoke this guard. This cooperative precommit check cannot interrupt an
+already-running SQLite COMMIT; no postcommit timeout is reported as if durable
+authority had never been saved.
+
+Public v4 grant POST remains rejected with `CHAT_INVALID_REQUEST`. A known staged
+v4 grant cannot be sent: both runtime and direct-ledger admission return
+`CHAT_TOOL_GRANT_INVALID` before turn/reservation/producer allocation or grant
+consumption. Consumed v4 grants and v4-bound turn graphs are invalid at this stage.
+Native metadata remains version3; no new provider tool is advertised. The fixed
+409 `CHAT_SCENARIO_WRITE_FENCED` error reports quarantine without clearing it.
+This internal lifecycle is not a scenario proposal, approval, save or UI-writing
+feature; those adapters and their acceptance gates remain subsequent stages.
 
 ## Actual publication, conflict and recovery
 

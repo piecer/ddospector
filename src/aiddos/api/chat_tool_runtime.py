@@ -10,7 +10,7 @@ from uuid import uuid4
 from pydantic import TypeAdapter
 
 from .chat_models import encoded, now, runtime_view, selected
-from .chat_scenario_models import ScenarioStateInspection
+from .chat_scenario_models import GrantInputV4, ScenarioStateInspection
 from .chat_tool_models import (
     TERMINAL,
     WRITE_TOOLS,
@@ -240,6 +240,8 @@ class ToolRuntimeMixin:
         return endpoint
 
     async def create_grant(self, value):
+        if isinstance(value, GrantInputV4):
+            return await self._create_scenario_grant(value)
         body = value.model_dump()
         async with self.lock:
             try:
@@ -262,6 +264,72 @@ class ToolRuntimeMixin:
                 self.grant_deadlines[grant["id"]] = grant_deadline
             return grant, 200 if replay else 201
 
+    async def _create_scenario_grant(self, value):
+        # Revalidate the instance itself: model_dump can erase copied extras.
+        body = GrantInputV4.model_validate(value).model_dump()
+        deadline = monotonic() + self.turn_seconds
+        async with self.lock:
+            try:
+                self.ledger.grant(body["request_id"], by_request=True)
+            except DraftError as exc:
+                if exc.code != "CHAT_NOT_FOUND":
+                    raise
+            else:
+                grant, _ = self.ledger.create_grant(body)
+                return grant, 200
+            self.check_idle()
+            session, profile = self.storage.session(body["session_id"])
+            self.preparing = True
+            stop = self.stop_signal = threading.Event()
+
+        def publication_guard():
+            # Retain this request's original clock and captured Stop through the
+            # synchronous ledger tail, including its final pool scan. Never turn
+            # a successful durable commit into a postcommit timeout response.
+            if self.stopping:
+                raise DraftError("CHAT_SHUTTING_DOWN")
+            if stop.is_set():
+                raise DraftError("CHAT_CANCELLED")
+            if self.storage.fenced:
+                raise DraftError("CHAT_COMMIT_UNCERTAIN")
+            if monotonic() >= deadline:
+                raise DraftError("CHAT_TIMEOUT")
+
+        try:
+            async with asyncio.timeout_at(deadline):
+                snapshot = await self.worker.ai_snapshot(deadline=deadline, stop=stop)
+                self.check_binding(snapshot, session, profile)
+                resolved = await self.worker.resolve_scenario_intent(
+                    body["intent"], session["settings_revision"], deadline=deadline, stop=stop
+                )
+                snapshot = await self.worker.ai_snapshot(deadline=deadline, stop=stop)
+                async with self.lock:
+                    if self.stopping:
+                        raise DraftError("CHAT_SHUTTING_DOWN")
+                    if stop.is_set():
+                        raise DraftError("CHAT_CANCELLED")
+                    if self.storage.fenced:
+                        raise DraftError("CHAT_COMMIT_UNCERTAIN")
+                    self.check_binding(snapshot, session, profile)
+                    if self.storage.session(body["session_id"]) != (session, profile):
+                        raise DraftError("CHAT_TOOL_GRANT_INVALID")
+                    if monotonic() >= deadline:
+                        raise DraftError("CHAT_TIMEOUT")
+                    grant_deadline = monotonic() + 300
+                    grant, replay = self.ledger.create_grant(
+                        body,
+                        resolved=resolved,
+                        timestamp=now(),
+                        publication_guard=publication_guard,
+                    )
+                    if not replay:
+                        self.grant_deadlines[grant["id"]] = grant_deadline
+                    return grant, 200 if replay else 201
+        except TimeoutError:
+            raise DraftError("CHAT_TIMEOUT") from None
+        finally:
+            self.preparing = False
+
     def check_idle(self):
         if self.stopping:
             raise DraftError("CHAT_SHUTTING_DOWN")
@@ -276,6 +344,15 @@ class ToolRuntimeMixin:
         deadline_at = (instant(created) + timedelta(seconds=self.turn_seconds)).isoformat()
         commitment = {"session_id": session_id, **value.model_dump(exclude={"grant_id"})}
         async with self.lock:
+            # Staged authority is durable but cannot reach native preparation.
+            try:
+                grant = self.ledger.grant(value.grant_id)
+            except DraftError as exc:
+                if exc.code != "CHAT_NOT_FOUND":
+                    raise
+            else:
+                if grant["schema_version"] == 4:
+                    raise DraftError("CHAT_TOOL_GRANT_INVALID")
             session, profile = self.storage.session(session_id)
             try:
                 prior = self.storage.turn(value.request_id, by_request=True)

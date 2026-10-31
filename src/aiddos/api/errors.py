@@ -10,6 +10,9 @@ ERRORS = {
     ),
     "CHAT_TOOL_CONFLICT": (409, "Configuration changed; review a new proposal."),
     "CHAT_TOOL_WRITE_FENCED": (409, "Tool writes are fenced; inspect and explicitly reconcile."),
+    "CHAT_SCENARIO_WRITE_FENCED": (
+        409, "Scenario writes are quarantined; inspect storage before retrying."
+    ),
     "CHAT_TOOL_DENIED": (403, "The proposed tool operation was not authorized."),
     "CHAT_TOOL_LIMIT": (413, "Tool processing exceeded a resource limit."),
     "CHAT_TOOL_PROTOCOL": (502, "The provider returned an unsupported tool response."),
