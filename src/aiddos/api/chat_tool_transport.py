@@ -19,7 +19,14 @@ TOOL_NAMES = ("configuration_read", "agent_profile_update", "target_create", "sk
 class NativeParser:
     """Accumulate a single native call; terminal events are withheld until EOF."""
 
-    def __init__(self, *, allow_tools=True):
+    def __init__(self, *, allow_tools=True, tool_names=TOOL_NAMES):
+        if tool_names not in (
+            TOOL_NAMES,
+            ("configuration_read", "scenario_create"),
+            ("configuration_read", "scenario_append"),
+        ):
+            raise ValueError("Invalid native tool selection")
+        self.tool_names = tool_names
         self.allow_tools = allow_tools
         self.buffer = bytearray()
         self._scan = 0
@@ -66,7 +73,7 @@ class NativeParser:
             if not isinstance(function, dict) or function.keys() - {"name", "arguments"}:
                 raise ValueError
             self.name += function.get("name", "")
-            if not any(name.startswith(self.name) for name in TOOL_NAMES):
+            if not any(name.startswith(self.name) for name in self.tool_names):
                 raise ValueError
             fragment = valid_text(function.get("arguments", ""))
             self.argument_bytes += len(fragment.encode())
@@ -163,7 +170,7 @@ class NativeParser:
             if self.has_call:
                 if not self.identifier or self.call_type != "function":
                     raise ValueError
-                if self.name not in TOOL_NAMES:
+                if self.name not in self.tool_names:
                     raise ValueError
                 arguments = strict_json(self.arguments.encode())
                 if not isinstance(arguments, dict):
@@ -187,7 +194,8 @@ class NativeParser:
 class ToolTransport:
     """One context per turn; iterate each round completely (or explicitly close it)."""
 
-    def __init__(self, profile, endpoint):
+    def __init__(self, profile, endpoint, *, tool_names=TOOL_NAMES):
+        self.tool_names = NativeParser(tool_names=tool_names).tool_names
         match = re.fullmatch(
             r"http://(localhost|127\.0\.0\.1|\[::1\])(?::([0-9]{1,5}))?/v1/chat/completions",
             endpoint,
@@ -264,7 +272,12 @@ class ToolTransport:
                     or response.headers.get("content-type", "").split(";")[0] != expected
                 ):
                     raise DraftError("CHAT_TOOL_PROTOCOL")
-                parser, raw = NativeParser(allow_tools=bool(payload.get("tools"))), bytearray()
+                parser, raw = (
+                    NativeParser(
+                        allow_tools=bool(payload.get("tools")), tool_names=self.tool_names
+                    ),
+                    bytearray(),
+                )
                 async for chunk in response.aiter_raw():
                     self.upstream_bytes += len(chunk)
                     if self.upstream_bytes > UPSTREAM_BYTES:

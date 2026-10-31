@@ -118,13 +118,61 @@ already-running SQLite COMMIT; no postcommit timeout is reported as if durable
 authority had never been saved.
 
 Public v4 grant POST remains rejected with `CHAT_INVALID_REQUEST`. A known staged
-v4 grant cannot be sent: both runtime and direct-ledger admission return
+v4 grant cannot be sent publicly: public runtime and default direct-ledger admission return
 `CHAT_TOOL_GRANT_INVALID` before turn/reservation/producer allocation or grant
-consumption. Consumed v4 grants and v4-bound turn graphs are invalid at this stage.
+consumption. Stage 1 rejected all consumed v4 grants and v4-bound turn graphs;
+stage 2 admits only the fully linked internal graphs described below.
 Native metadata remains version3; no new provider tool is advertised. The fixed
 409 `CHAT_SCENARIO_WRITE_FENCED` error reports quarantine without clearing it.
-This internal lifecycle is not a scenario proposal, approval, save or UI-writing
-feature; those adapters and their acceptance gates remain subsequent stages.
+Grant staging alone is not a scenario save or UI-writing feature.
+
+## Internal native scenario proposals (stage 2, no save activation)
+
+Independent review closed ambiguous old/new text-hash replay, the exchange-limit
+read-publication bypass, and replaceable Stop/deadline references. The retained
+regressions cover these repairs and the exact storage-observer adaptations.
+This acceptance remains limited to the internal proposal path, not scenario saves
+or public activation.
+
+A private entry uses the same runtime owner, worker, turn and reservation to read
+grant-scoped scenario context/details and prepare either `scenario_create` or
+`scenario_append`. The selected native vocabulary is configuration_read plus the
+grant's single operation. Legacy parser/transport defaults remain unchanged.
+Real native arguments retain their original bytes; protected numeric inputs come
+from the resolved grant, not model-supplied fields.
+
+The complete proposal is retained in a version4 transcript at awaiting_approval.
+Its call, arguments, operation, source/base versions, revisions, snapshots and
+expiry bind to the retained grant. The scenario turn binding also commits the
+immutable grant fields. Reopen validates that complete graph before recovery;
+unlinked consumed grants and substitutions into legacy bindings remain invalid.
+New v4 grants hash raw UTF-8 user text as required by the v4 bound-grant consumer.
+Earlier stage-1 grants replay unchanged, without reissue, renewed expiry or silent
+conversion into internally sendable authority; legacy v1–v3 hashes are unchanged.
+
+Encoding provenance is private persisted metadata, not inferred from a hash match.
+New v4 rows use a closed `{storage_version:1,text_encoding:"raw-utf8",grant,
+authority_digest}` envelope in the existing grant table. The public grant shape
+does not change. Validate the complete envelope before exposing its grant;
+malformed-present metadata cannot fall back to a legacy record. Bare historical
+records use only their original JSON-string commitment and cannot admit scenario
+turns. Status updates preserve provenance. The whole stored envelope counts
+against the unchanged record/pool limits. Its digest establishes consistency,
+not authentication against a writer able to replace the entire database.
+
+Complete prospective receipt/call/exchange/context sizing precedes approval wait.
+Sizing witnesses are never saved or reported as actual results. Original deadline
+and captured Stop checks extend through synchronous admission and publication.
+Scenario approval is rejected by runtime and ledger, and no scenario save adapter
+is dispatched. Denial, cancellation, expiry and restart settle retained work without
+changing the scenario registry. Public metadata remains version3; JavaScript byte
+parity, actual provider integration and public activation are later gates.
+
+Successful-read publication checks original authority on both retained-exchange
+and exchange-overflow exits; on-time overflow can retain the read fact without a
+provider continuation, but a late read is rolled back. This is not a rule to erase
+an already durable write receipt. Decision publication checks the captured Stop
+object and deadline, not a subsequently replaced runtime reference.
 
 ## Actual publication, conflict and recovery
 

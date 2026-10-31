@@ -101,7 +101,11 @@ def test_sync_ledger_cannot_publish_after_original_clock(client, monkeypatch, mo
             runtime.storage.db.set_trace_callback(None)
         rows = runtime.ledger._rows("tool_grants")
         observations["final_count"] = len(rows)
-        observations["retained_new"] = [g for _, g in rows if g["request_id"] == body["request_id"]]
+        observations["retained_new"] = [
+            g
+            for key, _ in rows
+            if (g := runtime.ledger.grant(key))["request_id"] == body["request_id"]
+        ]
         observations["grant_deadlines"] = dict(runtime.grant_deadlines)
         observations["preparing"] = runtime.preparing
         observations["in_transaction"] = runtime.storage.db.in_transaction
@@ -223,7 +227,8 @@ def test_runtime_guard_after_real_preparation_rolls_back(client, monkeypatch, ph
     def usage_then_invalidate():
         result = real_usage()
         if runtime.storage.db.execute(
-            "SELECT 1 FROM tool_grants WHERE json_extract(data, '$.request_id')=?",
+            "SELECT 1 FROM tool_grants WHERE COALESCE("
+            "json_extract(data, '$.grant.request_id'), json_extract(data, '$.request_id'))=?",
             (body["request_id"],),
         ).fetchone():
             invalidate()
@@ -360,7 +365,8 @@ def test_real_sql_abort_precedes_postwrite_stop_guard(client):
         runtime.storage.db.create_function("stop_grant", 0, stop)
         runtime.storage.db.execute(
             "CREATE TEMP TRIGGER stop_abort BEFORE INSERT ON tool_grants "
-            "WHEN json_extract(NEW.data, '$.schema_version')=4 "
+            "WHEN COALESCE(json_extract(NEW.data, '$.grant.schema_version'), "
+            "json_extract(NEW.data, '$.schema_version'))=4 "
             "BEGIN SELECT stop_grant(); SELECT RAISE(ABORT, 'owned SQL fault'); END"
         )
 

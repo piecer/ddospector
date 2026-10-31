@@ -1,13 +1,16 @@
 """Companion ledger in the exclusively owned ChatStorage connection."""
 
+import hashlib
 from datetime import timedelta
 from uuid import uuid4
 
 from pydantic import Field, TypeAdapter
 
+from . import chat_scenario_models as scenario
 from .catalog import SAFETY_RULES
 from .chat_models import SAFE_INT, ChatID, ChatTime, Counter, Session, Turn, TurnInput, encoded, now
 from .chat_scenario_models import GrantInputV4, GrantV4, json_value
+from .chat_scenario_orchestration import SCENARIO_WRITES, projected_receipt
 from .chat_storage import storage_read
 from .chat_tool_models import (
     CALL_BYTES,
@@ -29,6 +32,7 @@ from .chat_tool_models import (
     ReconcileInput,
     ReconcileReceipt,
     Result,
+    ScenarioAssistantCall,
     ToolCall,
     ToolModel,
     ToolTranscript,
@@ -41,6 +45,8 @@ from .chat_tool_models import (
 )
 from .encoding import strict_json
 from .errors import DraftError
+
+ALL_WRITES = WRITE_TOOLS | SCENARIO_WRITES
 
 TABLES = (
     "tool_grants",
@@ -81,9 +87,61 @@ class Binding(ToolModel):
     write_slot: bool
 
 
+class ScenarioBinding(Binding):
+    grant_digest: scenario.Digest
+
+
+def grant_text_digest(version, text):
+    # V4 companions commit raw UTF-8; v1-v3 retain their canonical JSON-string hash.
+    return hashlib.sha256(text.encode("utf-8")).hexdigest() if version == 4 else digest(text)
+
+
+def scenario_grant_digest(grant):
+    # Commit the entire immutable authority, not merely its discriminator.
+    scenario.GrantV4.model_validate(grant)
+    return scenario.digest({k: v for k, v in grant.items() if k != "status"})
+
+
+def _scenario_grant_envelope(grant):
+    # Private persistence only. Neither this marker nor its consistency digest
+    # authenticates a database against an arbitrary full-database writer.
+    immutable = {k: v for k, v in grant.items() if k != "status"}
+    return dict(
+        storage_version=1,
+        text_encoding="raw-utf8",
+        grant=grant,
+        authority_digest=scenario.digest({"text_encoding": "raw-utf8", "grant": immutable}),
+    )
+
+
+def _unwrap_grant(value):
+    if type(value) is not dict:
+        raise ValueError("Invalid stored grant")
+    private_keys = {"storage_version", "text_encoding", "grant", "authority_digest"}
+    if not private_keys.intersection(value):
+        # Absence denotes historical storage, never new internal v4 authority.
+        return value
+    if (
+        set(value) != private_keys
+        or type(value["storage_version"]) is not int
+        or value["storage_version"] != 1
+        or value["text_encoding"] != "raw-utf8"
+    ):
+        raise ValueError("Invalid stored grant encoding")
+    GrantV4.model_validate(value["grant"])
+    if value != _scenario_grant_envelope(value["grant"]):
+        raise ValueError("Stored grant commitment mismatch")
+    return value["grant"]
+
+
 class StoredCall(ToolModel):
     turn_id: ChatID
     call: ToolCall
+
+
+class StoredScenarioCall(ToolModel):
+    turn_id: ChatID
+    call: scenario.CallV4
 
 
 class DecisionReplay(ToolModel):
@@ -145,6 +203,16 @@ class ToolLedger:
         reserved = sum(v["remaining"] for _, v in self._rows("tool_reservations"))
         return {"actual": actual, "reserved": reserved, "limit": POOL_BYTES}
 
+    def _grants(self):
+        return [(key, _unwrap_grant(value)) for key, value in self._rows("tool_grants")]
+
+    def _raw_text_authority(self, grant_id):
+        value = self._get("tool_grants", grant_id)
+        if value is None:
+            return False
+        _unwrap_grant(value)
+        return "text_encoding" in value
+
     def _raw_put(self, table, key, value):
         self.db.execute(
             f"INSERT INTO {table} VALUES (?,?) ON CONFLICT(key) DO UPDATE SET data=excluded.data",
@@ -152,9 +220,19 @@ class ToolLedger:
         )
 
     def _put(self, table, key, value, turn_id=None):
+        old = self._get(table, key)
+        if table == "tool_grants":
+            _unwrap_grant(value)
+            if old is not None:
+                prior = _unwrap_grant(old)
+                if "text_encoding" in value:
+                    raise ValueError("Stored grant encoding cannot be replaced")
+                if "text_encoding" in old:
+                    if scenario_grant_digest(prior) != scenario_grant_digest(value):
+                        raise ValueError("Stored grant authority cannot be replaced")
+                    value = old | {"grant": value}
         if len(encoded(value)) > CAPS[table]:
             raise DraftError("CHAT_TOOL_LIMIT")
-        old = self._get(table, key)
         delta = max(0, charge(key, value) - (charge(key, old) if old is not None else 0))
         if table == "tool_reservations" and old is not None:
             if value["remaining"] < delta:
@@ -176,13 +254,13 @@ class ToolLedger:
         if not self.storage.open():
             raise DraftError("CHAT_NOT_FOUND")
         value = (
-            next((v for _, v in self._rows("tool_grants") if v["request_id"] == identifier), None)
+            next((v for _, v in self._grants() if v["request_id"] == identifier), None)
             if by_request
             else self._get("tool_grants", identifier)
         )
         if value is None:
             raise DraftError("CHAT_NOT_FOUND")
-        return value
+        return _unwrap_grant(value)
 
     @storage_read
     def reservation(self, turn_id):
@@ -197,7 +275,10 @@ class ToolLedger:
                 key: body[key]
                 for key in ("request_id", "session_id", "turn_request_id", "expected_sequence")
             }
-            | {"text_sha256": digest(body["text"]), "schema_version": body.get("schema_version", 1)}
+            | {
+                "text_sha256": grant_text_digest(body.get("schema_version", 1), body["text"]),
+                "schema_version": body.get("schema_version", 1),
+            }
             | ({"scope": body["scope"]} if "scope" in body else {})
             | ({"intent": body["intent"]} if "intent" in body else {})
         )
@@ -220,15 +301,26 @@ class ToolLedger:
         timestamp = timestamp or now()
         with self.storage.transaction():
             commitment = self._grant_commitment(body)
-            grants = self._rows("tool_grants")
+            grants = self._grants()
             existing = next((g for _, g in grants if g["request_id"] == body["request_id"]), None)
             if existing is not None:
+                # Select exactly one encoding from persistent provenance, never
+                # from the hash contents. Bare S1 records remain replay-only.
+                if (
+                    scenario
+                    and existing.get("schema_version") == 4
+                    and not self._raw_text_authority(existing["id"])
+                ):
+                    commitment = commitment | {"text_sha256": digest(body["text"])}
                 if any(existing.get(key) != value for key, value in commitment.items()):
                     raise DraftError("CHAT_TOOL_GRANT_CONFLICT")
                 return existing, True
+            if scenario and commitment["text_sha256"] != hashlib.sha256(
+                body["text"].encode("utf-8")
+            ).hexdigest():
+                raise DraftError("CHAT_TOOL_GRANT_INVALID")
             if scenario and (
-                type(resolved) is not dict
-                or set(resolved) != {"resolved_inputs", "inputs_digest"}
+                type(resolved) is not dict or set(resolved) != {"resolved_inputs", "inputs_digest"}
             ):
                 raise DraftError("CHAT_TOOL_GRANT_INVALID")
             session, _ = self.storage.session(body["session_id"])
@@ -284,7 +376,9 @@ class ToolLedger:
             )
             if publication_guard is not None:
                 publication_guard()
-            self._put("tool_grants", grant["id"], grant)
+            self._put(
+                "tool_grants", grant["id"], _scenario_grant_envelope(grant) if scenario else grant
+            )
             if publication_guard is not None:
                 publication_guard()
             return grant, False
@@ -301,6 +395,47 @@ class ToolLedger:
             return grant
 
     def admit(self, grant_id, session, turn, commitment, *, timestamp=None, deadline_at=None):
+        return self._admit(
+            grant_id, session, turn, commitment, timestamp=timestamp, deadline_at=deadline_at
+        )
+
+    def _admit_scenario(
+        self,
+        grant_id,
+        session,
+        turn,
+        commitment,
+        *,
+        publication_guard,
+        timestamp=None,
+        deadline_at=None,
+    ):
+        scenario.GrantV4.model_validate(self.grant(grant_id))
+        if not callable(publication_guard):
+            raise ValueError("Internal scenario admission requires the original authority guard")
+        return self._admit(
+            grant_id,
+            session,
+            turn,
+            commitment,
+            timestamp=timestamp,
+            deadline_at=deadline_at,
+            scenario_entry=True,
+            publication_guard=publication_guard,
+        )
+
+    def _admit(
+        self,
+        grant_id,
+        session,
+        turn,
+        commitment,
+        *,
+        timestamp=None,
+        deadline_at=None,
+        scenario_entry=False,
+        publication_guard=None,
+    ):
         # Independent of the runtime guard; no transaction or turn mutation.
         try:
             grant = self.grant(grant_id)
@@ -308,7 +443,7 @@ class ToolLedger:
             if exc.code != "CHAT_NOT_FOUND":
                 raise
         else:
-            if grant["schema_version"] == 4:
+            if grant["schema_version"] == 4 and not scenario_entry:
                 raise DraftError("CHAT_TOOL_GRANT_INVALID")
         Session.model_validate(session)
         Turn.model_validate(turn)
@@ -338,6 +473,7 @@ class ToolLedger:
             old_session, _ = self.storage.session(session["id"])
             if (
                 grant["status"] != "pending"
+                or (grant["schema_version"] == 4 and not self._raw_text_authority(grant_id))
                 or instant(timestamp) >= instant(grant["expires_at"])
                 or instant(timestamp) >= instant(deadline_at)
                 or instant(deadline_at) > instant(turn["created_at"]) + timedelta(seconds=120)
@@ -345,7 +481,7 @@ class ToolLedger:
                 or commitment["session_id"] != session["id"]
                 or grant["turn_request_id"] != turn["request_id"]
                 or body["request_id"] != turn["request_id"]
-                or grant["text_sha256"] != digest(body["text"])
+                or grant["text_sha256"] != grant_text_digest(grant["schema_version"], body["text"])
                 or body["text"] != turn["user_text"]
                 or grant["expected_sequence"] != body["expected_sequence"]
                 or old_session["sequence"] != body["expected_sequence"]
@@ -364,6 +500,8 @@ class ToolLedger:
             usage = self.usage()
             if usage["actual"] + usage["reserved"] + TURN_RESERVATION > POOL_BYTES:
                 raise DraftError("CHAT_TOOL_LIMIT")
+            if publication_guard is not None:
+                publication_guard()
             reservation = {
                 "turn_id": turn["id"],
                 "remaining": TURN_RESERVATION,
@@ -384,10 +522,13 @@ class ToolLedger:
                     "deadline_at": deadline_at,
                     "revision": 0,
                     "write_slot": False,
+                    **({"grant_digest": scenario_grant_digest(grant)} if scenario_entry else {}),
                 },
                 turn["id"],
             )
             self._put("tool_exchanges", turn["id"], [], turn["id"])
+            if publication_guard is not None:
+                publication_guard()
             return turn, False
 
     @storage_read
@@ -399,7 +540,9 @@ class ToolLedger:
             key=lambda c: c["index"],
         )
         return {
-            "schema_version": 1,
+            "schema_version": 4
+            if binding and self.grant(binding["grant_id"])["schema_version"] == 4
+            else 1,
             "turn_id": turn_id,
             "revision": binding["revision"] if binding else 0,
             "calls": calls,
@@ -448,8 +591,26 @@ class ToolLedger:
             raise DraftError("CHAT_TOOL_APPROVAL_CONFLICT")
         return turn
 
+    def _validate_call(self, turn_id, call):
+        binding = self.binding(turn_id)
+        grant = self.grant(binding["grant_id"])
+        if grant["schema_version"] == 4:
+            ScenarioBinding.model_validate(binding)
+            if not self._raw_text_authority(grant["id"]) or binding[
+                "grant_digest"
+            ] != scenario_grant_digest(grant):
+                raise ValueError("Scenario authority commitment mismatch")
+            checked = scenario.validate_call_binding(
+                call, grant, deadline_at=binding["deadline_at"]
+            )
+            # Stage 2 has no scenario write execution, even in a retained graph.
+            if checked["decision"] is not None and checked["decision"]["decision"] == "approve":
+                raise ValueError("Scenario approval is not enabled")
+            return checked
+        return ToolCall.model_validate(call).model_dump()
+
     def _save_call(self, turn_id, call):
-        call = ToolCall.model_validate(call).model_dump()
+        call = self._validate_call(turn_id, call)
         self._put("tool_calls", call["id"], {"turn_id": turn_id, "call": call}, turn_id)
         binding = self.binding(turn_id)
         if binding["revision"] >= SAFE_INT:
@@ -461,7 +622,7 @@ class ToolLedger:
     def _append(self, turn_id, message, *, settling=False):
         messages = self.exchanges(turn_id) + [message]
         try:
-            validate_exchange(messages)
+            validate_exchange(messages, grant=self.grant(self.binding(turn_id)["grant_id"]))
         except ValueError:
             raise DraftError("CHAT_TOOL_LIMIT") from None
         reservation = self.reservation(turn_id)
@@ -470,16 +631,27 @@ class ToolLedger:
             raise DraftError("CHAT_TOOL_LIMIT")
         self._put("tool_exchanges", turn_id, messages, turn_id)
 
-    def request_call(self, turn_id, native_message, *, timestamp=None):
+    def request_call(self, turn_id, native_message, *, timestamp=None, admission_guard=None):
         # Parsing precedes any durable Call. Original argument string is retained once.
-        native = AssistantCall.model_validate(native_message).model_dump()
+        binding = self.binding(turn_id)
+        grant = self.grant(binding["grant_id"])
+        v4 = grant["schema_version"] == 4
+        native = (
+            (ScenarioAssistantCall if v4 else AssistantCall)
+            .model_validate(native_message)
+            .model_dump()
+        )
         function = native["tool_calls"][0]
-        arguments = parse_arguments(function["function"]["name"], function["function"]["arguments"])
+        arguments = (scenario.parse_arguments if v4 else parse_arguments)(
+            function["function"]["name"], function["function"]["arguments"]
+        )
         with self.storage.transaction():
             self._active(turn_id)
             binding = self.binding(turn_id)
             grant = self.grant(binding["grant_id"])
-            if not allows_call(grant, function["function"]["name"], arguments):
+            if not (scenario.allows_call if v4 else allows_call)(
+                grant, function["function"]["name"], arguments
+            ):
                 raise DraftError("CHAT_TOOL_DENIED")
             timestamp = timestamp or now()
             if grant["status"] != "consumed":
@@ -494,11 +666,13 @@ class ToolLedger:
                 raise DraftError("CHAT_TOOL_PROTOCOL")
             if (
                 binding["write_slot"]
-                or any(c["tool"] in WRITE_TOOLS for c in calls)
+                or any(c["tool"] in ALL_WRITES for c in calls)
                 or len(calls) >= 3
                 or any(c["status"] not in TERMINAL for c in calls)
             ):
                 raise DraftError("CHAT_TOOL_LIMIT")
+            if admission_guard is not None:
+                admission_guard()
             binding = self.binding(turn_id)
             call = dict(
                 id=str(uuid4()),
@@ -518,11 +692,16 @@ class ToolLedger:
                 finished_at=None,
             )
             self._append(turn_id, native)
-            return self._save_call(turn_id, call)
+            saved = self._save_call(turn_id, call)
+            if admission_guard is not None:
+                admission_guard()
+            return saved
 
     @staticmethod
     def projected_receipt(call):
         """Sizing witness only, never published as a saved fact."""
+        if call["tool"] in SCENARIO_WRITES:
+            return projected_receipt(call)
         if call["tool"] not in WRITE_TOOLS:
             raise ValueError("Not a write operation")
         proposal = call["proposal"]
@@ -628,7 +807,16 @@ class ToolLedger:
         return growth
 
     def propose(self, call_id, proposal, *, timestamp=None, admission_guard=None):
-        proposal = TypeAdapter(ProposalRecord).validate_python(proposal).model_dump()
+        row = self._get("tool_calls", call_id)
+        if row is None:
+            raise DraftError("CHAT_NOT_FOUND")
+        binding = self.binding(row["turn_id"])
+        v4 = self.grant(binding["grant_id"])["schema_version"] == 4
+        proposal = (
+            TypeAdapter(scenario.ProposalV4 if v4 else ProposalRecord)
+            .validate_python(proposal)
+            .model_dump()
+        )
         timestamp = timestamp or now()
         with self.storage.transaction():
             row = self._get("tool_calls", call_id)
@@ -636,7 +824,7 @@ class ToolLedger:
                 raise DraftError("CHAT_NOT_FOUND")
             turn_id, call = row["turn_id"], row["call"]
             self._active(turn_id)
-            if call["tool"] not in WRITE_TOOLS or call["status"] != "requested":
+            if call["tool"] not in ALL_WRITES or call["status"] != "requested":
                 raise DraftError("CHAT_TOOL_APPROVAL_CONFLICT")
             if self.fence()["fenced"]:
                 raise DraftError("CHAT_TOOL_WRITE_FENCED")
@@ -650,21 +838,28 @@ class ToolLedger:
                 != min(instant(grant["expires_at"]), instant(self.binding(turn_id)["deadline_at"]))
             ):
                 raise DraftError("CHAT_TOOL_GRANT_INVALID")
-            prospective = ToolCall.model_validate(
-                call | {"status": "awaiting_approval", "proposal": proposal}
-            ).model_dump()
+            prospective = self._validate_call(
+                turn_id, call | {"status": "awaiting_approval", "proposal": proposal}
+            )
             growth = self._projection(turn_id, prospective)
             if admission_guard is not None:
                 admission_guard()
             reservation = self.reservation(turn_id)
             reservation["exchange_hold"] = growth
             self._put("tool_reservations", turn_id, reservation)
-            return self._save_call(turn_id, prospective)
+            saved = self._save_call(turn_id, prospective)
+            if v4 and admission_guard is not None:
+                admission_guard()
+            return saved
 
     def decide(
         self, call_id, body, *, active_turn_id, timestamp=None, stopped=False, admission_guard=None
     ):
         body = DecisionInput.model_validate(body).model_dump()
+        if body["decision"] == "approve":
+            call = self.call(call_id)
+            if self.grant(call["grant_id"])["schema_version"] == 4:
+                raise DraftError("CHAT_TOOL_APPROVAL_CONFLICT")
         checked_at = timestamp or now()
         with self.storage.transaction():
             prior = self._get("tool_decisions", body["request_id"])
@@ -731,6 +926,8 @@ class ToolLedger:
             self._save_call(turn_id, call)
             if body["decision"] == "deny":
                 self._settle_message(turn_id, call)
+            if grant["schema_version"] == 4 and admission_guard is not None:
+                admission_guard(turn_id)
             return receipt, False
 
     def start_read(self, call_id, *, timestamp=None):
@@ -780,8 +977,10 @@ class ToolLedger:
         fence.update(generation=fence["generation"] + 1, fenced=True, call_ids=[call_id])
         self._put("tool_fence", "singleton", fence, turn_id)
 
-    def finish_call(self, call_id, status, *, result=None, error_code=None, timestamp=None):
-        """Persist authoritative fact first. Oversized exchange cannot erase the fact.
+    def finish_call(
+        self, call_id, status, *, result=None, error_code=None, timestamp=None, admission_guard=None
+    ):
+        """Preserve write facts; fence new read observations before publication.
 
         Returns (call, exchange_retained). False requires conversation failure and
         no provider continuation; it never changes a known successful receipt.
@@ -796,18 +995,24 @@ class ToolLedger:
             if status not in TERMINAL:
                 raise ValueError("Terminal outcome required")
             if status == "succeeded" and old["tool"] == "configuration_read":
-                checked = TypeAdapter(Result).validate_python(result).model_dump()
+                v4 = self.grant(self.binding(turn_id)["grant_id"])["schema_version"] == 4
+                checked = (
+                    TypeAdapter(scenario.ResultV4 if v4 else Result)
+                    .validate_python(result)
+                    .model_dump()
+                )
                 if len(encoded(checked)) > RESULT_BYTES:
                     status, result, error_code = "failed", None, "CHAT_TOOL_LIMIT"
-            call = ToolCall.model_validate(
+            call = self._validate_call(
+                turn_id,
                 old
                 | dict(
                     status=status,
                     result=result,
                     error_code=error_code,
                     finished_at=timestamp or now(),
-                )
-            ).model_dump()
+                ),
+            )
             if status == "succeeded" and old["status"] != "executing":
                 raise DraftError("CHAT_TOOL_CONFLICT")
             self._save_call(turn_id, call)
@@ -815,6 +1020,7 @@ class ToolLedger:
                 self._install_fence(turn_id, call_id)
             # Use a savepoint: logical exchange refusal must not roll back known facts.
             self.db.execute("SAVEPOINT exchange_receipt")
+            retained = True
             try:
                 self._settle_message(turn_id, call)
             except DraftError as exc:
@@ -825,9 +1031,18 @@ class ToolLedger:
                 reservation = self.reservation(turn_id)
                 reservation["exchange_hold"] = 0
                 self._put("tool_reservations", turn_id, reservation)
-                return call, False
-            self.db.execute("RELEASE exchange_receipt")
-            return call, True
+                retained = False
+            else:
+                self.db.execute("RELEASE exchange_receipt")
+            # Both exchange exits publish the read for the first time. A read
+            # has no irreversible domain-write fact to preserve on guard failure.
+            if (
+                admission_guard is not None
+                and status == "succeeded"
+                and old["tool"] == "configuration_read"
+            ):
+                admission_guard()
+            return call, retained
 
     def append_final(self, turn_id, content):
         with self.storage.transaction():
@@ -915,6 +1130,11 @@ class ToolLedger:
                 if encoded(strict_json(raw.encode())).decode() != raw:
                     raise ValueError("Noncanonical retained JSON")
         tables = {name: dict(self._rows(name)) for name in TABLES}
+        raw_grants = tables["tool_grants"]
+        # Check stored bytes BEFORE projection; envelope overhead is not free.
+        if any(len(encoded(value)) > CAPS["tool_grants"] for value in raw_grants.values()):
+            raise ValueError("Record cap")
+        tables["tool_grants"] = {key: _unwrap_grant(value) for key, value in raw_grants.items()}
         models = {
             "tool_grants": None,
             "tool_bindings": Binding,
@@ -931,6 +1151,24 @@ class ToolLedger:
                     TypeAdapter(
                         GrantV4 if value.get("schema_version") == 4 else GrantRecord
                     ).validate_python(value)
+                elif table == "tool_bindings":
+                    grant = tables["tool_grants"].get(value.get("grant_id"))
+                    v4 = grant is not None and grant.get("schema_version") == 4
+                    (ScenarioBinding if v4 else Binding).model_validate(value)
+                    if v4 and (
+                        "text_encoding" not in raw_grants[value["grant_id"]]
+                        or value["grant_digest"] != scenario_grant_digest(grant)
+                    ):
+                        raise ValueError("Scenario authority commitment mismatch")
+                elif table == "tool_calls":
+                    binding = tables["tool_bindings"].get(value.get("turn_id"))
+                    grant = tables["tool_grants"].get(binding["grant_id"]) if binding else None
+                    model = (
+                        StoredScenarioCall
+                        if grant and grant.get("schema_version") == 4
+                        else StoredCall
+                    )
+                    model.model_validate(value)
                 elif table in models:
                     models[table].model_validate(value)
         usage = self.usage()
@@ -958,9 +1196,7 @@ class ToolLedger:
             requests.add(grant["request_id"])
             session = sessions[grant["session_id"]]
             if grant["schema_version"] == 4 and (
-                grant["status"] == "consumed"
-                or grant["expected_sequence"] >= 64
-                or grant["expected_sequence"] > session["sequence"]
+                grant["expected_sequence"] >= 64 or grant["expected_sequence"] > session["sequence"]
             ):
                 raise ValueError("Invalid staged scenario grant")
             if (
@@ -982,8 +1218,6 @@ class ToolLedger:
                 raise ValueError("Tool binding")
             bound.add(binding["grant_id"])
             grant, turn = grants[binding["grant_id"]], turns[key]
-            if grant["schema_version"] == 4:
-                raise ValueError("Staged scenario grant cannot bind a turn")
             if (
                 grant["status"] not in {"consumed", "revoked"}
                 or grant["session_id"] != turn["session_id"]
@@ -992,7 +1226,8 @@ class ToolLedger:
                 <= instant(turn["created_at"]) + timedelta(seconds=120)
                 or grant["turn_request_id"] != turn["request_id"]
                 or grant["expected_sequence"] + 1 != turn["sequence"]
-                or grant["text_sha256"] != digest(turn["user_text"])
+                or grant["text_sha256"]
+                != grant_text_digest(grant["schema_version"], turn["user_text"])
             ):
                 raise ValueError("Grant turn commitment")
         if any(g["status"] == "consumed" and key not in bound for key, g in grants.items()):
@@ -1005,7 +1240,11 @@ class ToolLedger:
                 or call["grant_id"] != bindings[row["turn_id"]]["grant_id"]
             ):
                 raise ValueError("Call linkage")
-            if not allows_call(grants[call["grant_id"]], call["tool"], call["arguments"]):
+            self._validate_call(row["turn_id"], call)
+            grant = grants[call["grant_id"]]
+            if not (scenario.allows_call if grant["schema_version"] == 4 else allows_call)(
+                grant, call["tool"], call["arguments"]
+            ):
                 raise ValueError("Call outside grant scope")
             if call["proposal"] is not None and instant(call["proposal"]["expires_at"]) != min(
                 instant(grants[call["grant_id"]]["expires_at"]),
@@ -1039,7 +1278,8 @@ class ToolLedger:
             raise ValueError("Missing reservation/exchange")
         for key, binding in bindings.items():
             transcript = self.transcript(key)
-            ToolTranscript.model_validate(transcript)
+            v4 = grants[binding["grant_id"]]["schema_version"] == 4
+            (scenario.TranscriptV4 if v4 else ToolTranscript).model_validate(transcript)
             ordered = transcript["calls"]
             if (
                 grants[binding["grant_id"]]["schema_version"] in (2, 3)
@@ -1052,7 +1292,7 @@ class ToolLedger:
             ):
                 raise ValueError("Write slot or revision")
             messages = tables["tool_exchanges"][key]
-            validate_exchange(messages)
+            validate_exchange(messages, grant=grants[binding["grant_id"]])
             native = [m for m in messages if "tool_calls" in m]
             if len(native) != len(ordered):
                 raise ValueError("Missing native exchange")
@@ -1061,7 +1301,9 @@ class ToolLedger:
                 if (
                     function["id"] != call["provider_call_id"]
                     or function["function"]["name"] != call["tool"]
-                    or parse_arguments(call["tool"], function["function"]["arguments"])
+                    or (scenario.parse_arguments if v4 else parse_arguments)(
+                        call["tool"], function["function"]["arguments"]
+                    )
                     != call["arguments"]
                 ):
                     raise ValueError("Native call mismatch")
@@ -1141,7 +1383,7 @@ class ToolLedger:
     def recover(self):
         """Startup only: never dispatch; a persisted executing write is uncertain."""
         with self.storage.transaction():
-            for key, grant in self._rows("tool_grants"):
+            for key, grant in self._grants():
                 if grant["status"] == "pending":
                     self._put("tool_grants", key, grant | {"status": "expired"})
             for _, row in self._rows("tool_calls"):
@@ -1155,6 +1397,8 @@ class ToolLedger:
                     error_code="CHAT_TOOL_UNCERTAIN" if uncertain else "CHAT_CANCELLED",
                 )
                 self._save_call(row["turn_id"], call)
+                if self.grant(call["grant_id"])["schema_version"] == 4:
+                    self._settle_message(row["turn_id"], call)
                 if uncertain:
                     self._install_fence(row["turn_id"], call["id"])
             for key, reservation in self._rows("tool_reservations"):

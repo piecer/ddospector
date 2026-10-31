@@ -7,6 +7,7 @@ from typing import Annotated, Literal
 
 from pydantic import AfterValidator, Field, RootModel, TypeAdapter, model_validator
 
+from . import chat_scenario_models as scenario
 from .ai_settings import AIIdentifier
 from .catalog import SAFETY_RULES, SKILLS_V1
 from .chat_models import ChatID, ChatTime, Counter, TurnInput, encoded, user_text, valid_text
@@ -899,19 +900,64 @@ class ToolMessage(ToolModel):
         return self
 
 
-def validate_exchange(messages):
+class ScenarioFunction(ToolModel):
+    name: Literal["configuration_read", "scenario_create", "scenario_append"]
+    arguments: str
+
+    @model_validator(mode="after")
+    def native(self):
+        scenario.parse_arguments(self.name, self.arguments)
+        return self
+
+
+class ScenarioNativeCall(NativeCall):
+    function: ScenarioFunction
+
+
+class ScenarioAssistantCall(AssistantCall):
+    tool_calls: list[ScenarioNativeCall] = Field(min_length=1, max_length=1)
+
+
+class ScenarioToolMessage(ToolModel):
+    role: Literal["tool"]
+    tool_call_id: ProviderID
+    content: str
+
+    @model_validator(mode="after")
+    def envelope(self):
+        value = scenario.ToolEnvelopeV4.model_validate(
+            strict_json(self.content.encode())
+        ).model_dump()
+        if encoded(value).decode() != self.content:
+            raise ValueError("Noncanonical tool envelope")
+        return self
+
+
+def validate_exchange(messages, *, grant=None):
+    # Version selection comes from retained authority, never a message tag.
+    v4 = grant is not None and grant.get("schema_version") == 4
+    if v4:
+        scenario.GrantV4.model_validate(grant)
     if not isinstance(messages, list) or len(encoded(messages)) > EXCHANGE_BYTES:
         raise ValueError("Exchange byte limit")
     pending = None
     seen = set()
     for index, message in enumerate(messages):
         if pending is not None:
-            parsed = ToolMessage.model_validate(message)
+            parsed = (ScenarioToolMessage if v4 else ToolMessage).model_validate(message)
             if parsed.tool_call_id != pending:
                 raise ValueError("Wrong provider linkage")
             pending = None
         elif "tool_calls" in message:
-            parsed = AssistantCall.model_validate(message)
+            parsed = (ScenarioAssistantCall if v4 else AssistantCall).model_validate(message)
+            if v4:
+                function = parsed.tool_calls[0].function
+                if not scenario.allows_call(
+                    grant,
+                    function.name,
+                    scenario.parse_arguments(function.name, function.arguments),
+                ):
+                    raise ValueError("Native call outside grant")
             pending = parsed.tool_calls[0].id
             if pending in seen or len(seen) >= 3:
                 raise ValueError("Repeated provider call")

@@ -9,8 +9,10 @@ from uuid import uuid4
 
 from pydantic import TypeAdapter
 
+from . import chat_scenario_models as scenario
 from .chat_models import encoded, now, runtime_view, selected
 from .chat_scenario_models import GrantInputV4, ScenarioStateInspection
+from .chat_scenario_orchestration import SCENARIO_PROMPT, SCENARIO_WRITES
 from .chat_tool_models import (
     TERMINAL,
     WRITE_TOOLS,
@@ -30,6 +32,16 @@ from .chat_tool_models import (
 from .chat_tool_storage import ToolLedger
 from .chat_tool_transport import ToolTransport
 from .errors import DraftError
+
+ALL_WRITES = WRITE_TOOLS | SCENARIO_WRITES
+
+
+def _bound_prompt(grant):
+    if grant["schema_version"] == 4:
+        scenario.GrantV4.model_validate(grant)
+        return SCENARIO_PROMPT
+    return tool_prompt(grant)
+
 
 TOOL_PROMPT = (
     "You may read Agent and Skill configuration and propose one Agent name/Skill-list update. "
@@ -339,10 +351,32 @@ class ToolRuntimeMixin:
             raise DraftError("CHAT_BUSY")
 
     async def accept_tool(self, session_id, value):
+        return await self._accept_tool(session_id, value)
+
+    async def _accept_scenario_tool(self, session_id, value):
+        # Internal staging only: no public route, flag or provider setting.
+        scenario.GrantV4.model_validate(self.ledger.grant(value.grant_id))
+        return await self._accept_tool(session_id, value, scenario_entry=True)
+
+    async def _accept_tool(self, session_id, value, *, scenario_entry=False):
         deadline = monotonic() + self.turn_seconds
         created = now()
         deadline_at = (instant(created) + timedelta(seconds=self.turn_seconds)).isoformat()
         commitment = {"session_id": session_id, **value.model_dump(exclude={"grant_id"})}
+        stop = threading.Event()
+
+        def publication_guard():
+            if self.stopping:
+                raise DraftError("CHAT_SHUTTING_DOWN")
+            if stop.is_set():
+                raise DraftError("CHAT_CANCELLED")
+            if self.storage.fenced:
+                raise DraftError("CHAT_COMMIT_UNCERTAIN")
+            if monotonic() >= min(deadline, self.grant_deadlines.get(value.grant_id, 0)):
+                raise DraftError("CHAT_TIMEOUT")
+
+        admit = self.ledger._admit_scenario if scenario_entry else self.ledger.admit
+        guard = {"publication_guard": publication_guard} if scenario_entry else {}
         async with self.lock:
             # Staged authority is durable but cannot reach native preparation.
             try:
@@ -351,7 +385,7 @@ class ToolRuntimeMixin:
                 if exc.code != "CHAT_NOT_FOUND":
                     raise
             else:
-                if grant["schema_version"] == 4:
+                if grant["schema_version"] == 4 and not scenario_entry:
                     raise DraftError("CHAT_TOOL_GRANT_INVALID")
             session, profile = self.storage.session(session_id)
             try:
@@ -361,12 +395,21 @@ class ToolRuntimeMixin:
                     raise
             else:
                 # Ledger checks exact legacy commitment + binding before present authority.
-                prior, _ = self.ledger.admit(value.grant_id, session, prior, commitment)
+                prior, _ = admit(value.grant_id, session, prior, commitment, **guard)
                 return prior, 200
             self.check_idle()
             self.preparing = True
+            if scenario_entry:
+                self.stop_signal = stop
         try:
-            snapshot = await self.worker.ai_snapshot(deadline=deadline)
+            if scenario_entry:
+                try:
+                    async with asyncio.timeout_at(deadline):
+                        snapshot = await self.worker.ai_snapshot(deadline=deadline, stop=stop)
+                except TimeoutError:
+                    raise DraftError("CHAT_TIMEOUT") from None
+            else:
+                snapshot = await self.worker.ai_snapshot(deadline=deadline)
             async with self.lock:
                 if self.stopping:
                     raise DraftError("CHAT_SHUTTING_DOWN")
@@ -375,9 +418,13 @@ class ToolRuntimeMixin:
                     raise DraftError("CHAT_TOOL_GRANT_INVALID")
                 payload = self.context(session, profile, value.text)
                 grant = self.ledger.grant(value.grant_id)
-                payload["messages"][0]["content"] = tool_prompt(grant)
-                payload["tools"] = schemas(grant)
+                payload["messages"][0]["content"] = _bound_prompt(grant)
+                payload["tools"] = (
+                    scenario.native_schemas(grant) if scenario_entry else schemas(grant)
+                )
                 ToolLedger.check_payload(payload)
+                if scenario_entry:
+                    publication_guard()
                 turn = {
                     "schema_version": 1,
                     "id": str(uuid4()),
@@ -395,11 +442,11 @@ class ToolRuntimeMixin:
                     "finished_at": None,
                 }
                 advanced = session | {"sequence": turn["sequence"], "active_turn_id": turn["id"]}
-                turn, _ = self.ledger.admit(
-                    value.grant_id, advanced, turn, commitment, deadline_at=deadline_at
+                turn, _ = admit(
+                    value.grant_id, advanced, turn, commitment, deadline_at=deadline_at, **guard
                 )
                 self.active = turn["id"]
-                self.stop_signal = threading.Event()
+                self.stop_signal = stop
                 self.decision_ready = asyncio.Event()
                 self.tool_deadline = deadline
                 self.tool_grant_deadline = self.grant_deadlines[value.grant_id]
@@ -412,12 +459,12 @@ class ToolRuntimeMixin:
             self.preparing = False
 
     def check_target_projection(self, turn, session, call):
-        if call["tool"] not in {"target_create", "skill_create"}:
+        if call["tool"] not in {"target_create", "skill_create"} | SCENARIO_WRITES:
             return
         _, profile = self.storage.session(session["id"])
         try:
             payload = self.context(session, profile, turn["user_text"])
-            payload["messages"][0]["content"] = tool_prompt(self.ledger.grant(call["grant_id"]))
+            payload["messages"][0]["content"] = _bound_prompt(self.ledger.grant(call["grant_id"]))
             payload["messages"].extend(self.ledger.exchanges(turn["id"]))
             payload["messages"].append(self.ledger.projected_message(call))
             ToolLedger.check_payload(payload)
@@ -427,7 +474,13 @@ class ToolRuntimeMixin:
             raise
 
     async def decide_tool(self, call_id, value):
+        stop = self.stop_signal
+        deadline = min(self.tool_deadline, self.tool_grant_deadline)
         async with self.lock:
+            if value.decision == "approve":
+                call = self.ledger.call(call_id)
+                if self.ledger.grant(call["grant_id"])["schema_version"] == 4:
+                    raise DraftError("CHAT_TOOL_APPROVAL_CONFLICT")
 
             def admission_guard(turn_id):
                 # Invoked synchronously after ledger preparation, never for replay.
@@ -439,8 +492,8 @@ class ToolRuntimeMixin:
                 if (
                     self.active != turn_id
                     or self.stopping
-                    or self.stop_signal.is_set()
-                    or monotonic() >= min(self.tool_deadline, self.tool_grant_deadline)
+                    or stop.is_set()
+                    or monotonic() >= deadline
                 ):
                     raise DraftError("CHAT_TOOL_APPROVAL_CONFLICT")
 
@@ -514,8 +567,19 @@ class ToolRuntimeMixin:
             raise DraftError("CHAT_TIMEOUT")
 
     async def execute_call(self, turn, session, native, deadline):
+        grant = self.ledger.grant(self.ledger.binding(turn["id"])["grant_id"])
+        v4 = grant["schema_version"] == 4
+        stop = self.stop_signal
+
+        def guard():
+            if stop.is_set():
+                raise DraftError("CHAT_CANCELLED")
+            self.authority(grant, deadline)
+
         try:
-            call = self.ledger.request_call(turn["id"], native)
+            call = self.ledger.request_call(
+                turn["id"], native, **({"admission_guard": guard} if v4 else {})
+            )
         except ValueError:
             raise DraftError("CHAT_TOOL_PROTOCOL") from None
         grant = self.ledger.grant(call["grant_id"])
@@ -524,9 +588,36 @@ class ToolRuntimeMixin:
             args = call["arguments"]
             if call["tool"] == "configuration_read":
                 self.ledger.start_read(call["id"])
-                result = await self.worker.read_configuration(
-                    args, session["locale"], deadline=deadline, stop=self.stop_signal
+                if v4:
+                    result = await self.worker.read_scenario_configuration(
+                        grant, args, deadline=deadline, stop=stop
+                    )
+                    guard()
+                else:
+                    result = await self.worker.read_configuration(
+                        args, session["locale"], deadline=deadline, stop=self.stop_signal
+                    )
+            elif v4 and call["tool"] in SCENARIO_WRITES:
+                prepared = await self.worker.prepare_scenario(
+                    grant, args, session["settings_revision"], deadline=deadline, stop=stop
                 )
+                guard()
+                binding = self.ledger.binding(turn["id"])
+                proposal = dict(
+                    schema_version=4,
+                    operation=call["tool"],
+                    **prepared,
+                    expires_at=min(grant["expires_at"], binding["deadline_at"], key=instant),
+                )
+                proposal["digest"] = scenario.proposal_digest(call["id"], grant["id"], proposal)
+                self.check_target_projection(turn, session, call | {"proposal": proposal})
+                self.decision_ready.clear()
+                self.ledger.propose(call["id"], proposal, admission_guard=guard)
+                await self.decision_ready.wait()
+                # Only deny can wake this path; no mutation adapter exists in stage 2.
+                if self.ledger.call(call["id"])["status"] != "denied":
+                    raise DraftError("CHAT_TOOL_APPROVAL_CONFLICT")
+                return
             elif call["tool"] in WRITE_TOOLS:
                 if self.ledger.fence()["fenced"]:
                     raise DraftError("CHAT_TOOL_WRITE_FENCED")
@@ -607,7 +698,16 @@ class ToolRuntimeMixin:
                 )
             else:
                 raise DraftError("CHAT_TOOL_PROTOCOL")
-            _, retained = self.ledger.finish_call(call["id"], "succeeded", result=result)
+            _, retained = self.ledger.finish_call(
+                call["id"],
+                "succeeded",
+                result=result,
+                **(
+                    {"admission_guard": guard}
+                    if v4 and call["tool"] == "configuration_read"
+                    else {}
+                ),
+            )
             if not retained:
                 raise DraftError("CHAT_TOOL_LIMIT")
         except asyncio.CancelledError:
@@ -629,18 +729,20 @@ class ToolRuntimeMixin:
                 status = {
                     "CHAT_TOOL_CONFLICT": "conflict",
                     "CHAT_TOOL_WRITE_FENCED": "denied",
+                    "CHAT_SCENARIO_WRITE_FENCED": "denied",
                     "CHAT_TOOL_UNCERTAIN": "uncertain",
                     "CHAT_CANCELLED": "cancelled",
                 }.get(exc.code, "failed")
                 _, retained = self.ledger.finish_call(call["id"], status, error_code=exc.code)
                 if not retained:
                     raise DraftError("CHAT_TOOL_LIMIT") from None
-            if call["tool"] == "skill_create" and exc.code == "CHAT_TOOL_LIMIT":
+            if (v4 or call["tool"] == "skill_create") and exc.code == "CHAT_TOOL_LIMIT":
                 # No provider continuation follows a denied prospective envelope.
                 raise exc
             if exc.code not in {
                 "CHAT_TOOL_CONFLICT",
                 "CHAT_TOOL_WRITE_FENCED",
+                "CHAT_SCENARIO_WRITE_FENCED",
                 "CHAT_INVALID_REQUEST",
                 "CHAT_NOT_FOUND",
                 "CHAT_TOOL_LIMIT",
@@ -668,7 +770,12 @@ class ToolRuntimeMixin:
             )
             async with asyncio.timeout_at(deadline):
                 self.authority(grant, deadline)
-                async with ToolTransport(profile, endpoint) as transport:
+                selection = (
+                    {"tool_names": ("configuration_read", grant["intent"]["operation"])}
+                    if grant["schema_version"] == 4
+                    else {}
+                )
+                async with ToolTransport(profile, endpoint, **selection) as transport:
                     for _ in range(4):
                         self.authority(grant, deadline)
                         ToolLedger.check_payload(payload)
@@ -721,10 +828,10 @@ class ToolRuntimeMixin:
                         payload["messages"] = self.context(session, profile, turn["user_text"])[
                             "messages"
                         ]
-                        payload["messages"][0]["content"] = tool_prompt(grant)
+                        payload["messages"][0]["content"] = _bound_prompt(grant)
                         payload["messages"].extend(self.ledger.exchanges(turn["id"]))
                         calls = self.ledger.transcript(turn["id"])["calls"]
-                        if len(calls) >= 3 or any(c["tool"] in WRITE_TOOLS for c in calls):
+                        if len(calls) >= 3 or any(c["tool"] in ALL_WRITES for c in calls):
                             payload.pop("tools", None)
                     else:
                         raise DraftError("CHAT_TOOL_LIMIT")
