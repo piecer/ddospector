@@ -495,10 +495,12 @@ class ToolRuntimeMixin:
         if scenario_entry:
             owner, stop, deadline = getattr(self, "_scenario_authority", (None, stop, 0))
         async with self.lock:
-            if value.decision == "approve" and not scenario_entry:
-                call = self.ledger.call(call_id)
-                if self.ledger.grant(call["grant_id"])["schema_version"] == 4:
-                    raise DraftError("CHAT_TOOL_APPROVAL_CONFLICT")
+            if (
+                value.decision == "approve"
+                and not scenario_entry
+                and self.ledger.is_scenario_call(call_id)
+            ):
+                raise DraftError("CHAT_TOOL_APPROVAL_CONFLICT")
 
             def admission_guard(turn_id):
                 # Invoked synchronously after ledger preparation, never for replay.

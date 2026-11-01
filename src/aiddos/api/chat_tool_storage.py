@@ -566,6 +566,18 @@ class ToolLedger:
         return row["call"]
 
     @storage_read
+    def is_scenario_call(self, call_id):
+        # Variant discovery must not preempt legacy decision replay/conflicts.
+        # Known v4 calls still fail closed at every default approval entrypoint.
+        try:
+            call = self.call(call_id)
+        except DraftError as exc:
+            if exc.code != "CHAT_NOT_FOUND":
+                raise
+            return False
+        return self.grant(call["grant_id"])["schema_version"] == 4
+
+    @storage_read
     def exchanges(self, turn_id):
         self.storage.turn(turn_id)
         return self._get("tool_exchanges", turn_id) or []
@@ -897,10 +909,10 @@ class ToolLedger:
         scenario_entry=False,
     ):
         body = DecisionInput.model_validate(body).model_dump()
-        if body["decision"] == "approve" and not scenario_entry:
-            call = self.call(call_id)
-            if self.grant(call["grant_id"])["schema_version"] == 4:
-                raise DraftError("CHAT_TOOL_APPROVAL_CONFLICT")
+        if body["decision"] == "approve" and not scenario_entry and self.is_scenario_call(call_id):
+            raise DraftError("CHAT_TOOL_APPROVAL_CONFLICT")
+        if not self.storage.open():
+            raise DraftError("CHAT_NOT_FOUND")
         checked_at = timestamp or now()
         with self.storage.transaction():
             prior = self._get("tool_decisions", body["request_id"])

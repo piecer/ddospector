@@ -64,7 +64,7 @@ def run_variant(app, provider, variant):
     before = agent.workspace(app)
     status, runtime = app.request("/api/v1/chat/tools/runtime")
     assert status == 200 and type(runtime["schema_version"]) is int
-    assert runtime["schema_version"] == 3
+    assert runtime["schema_version"] in (3, 4)
     assert runtime["supported"] is True and runtime["requires_write_approval"] is True
     assert runtime["max_calls"] == 3 and runtime["max_writes"] == 1
     assert runtime["tools"] == [
@@ -72,7 +72,7 @@ def run_variant(app, provider, variant):
         "agent_profile_update",
         "target_create",
         "skill_create",
-    ]
+    ] + (["scenario_create", "scenario_append"] if runtime["schema_version"] == 4 else [])
     provider.scenarios = tuple(harness.plan(before, fixture_case=variant))
     if variant == "agent":
         integration, grant = agent, agent.grant

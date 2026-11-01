@@ -77,11 +77,12 @@ def test_operator_detail_is_get_only_and_bounded(tmp_path, monkeypatch):
         product.close()
 
 
-def test_inspection_no_queue_and_current_runtime_v3(tmp_path, monkeypatch):
+def test_inspection_no_queue_and_current_runtime_v4(tmp_path, monkeypatch):
     import asyncio
     import threading
     from concurrent.futures import ThreadPoolExecutor
 
+    from aiddos.api import chat_scenario_models as scenario
     from aiddos.api import chat_tool_models as m
 
     product = LiveProduct(tmp_path)
@@ -96,15 +97,17 @@ def test_inspection_no_queue_and_current_runtime_v3(tmp_path, monkeypatch):
     monkeypatch.setattr(product.runtime.worker, "skills_snapshot", listing, raising=False)
     try:
         status, value = product.request("/api/v1/chat/tools/runtime")
-        assert status == 200 and value["schema_version"] == 3
+        assert status == 200 and value["schema_version"] == 4
         assert value["tools"] == [
             "configuration_read",
             "agent_profile_update",
             "target_create",
             "skill_create",
+            "scenario_create",
+            "scenario_append",
         ]
-        assert m.ToolRuntimeV3.model_validate(value).model_dump() == value
-        for old in (m.ToolRuntime, m.ToolRuntimeV2):
+        assert scenario.RuntimeV4.model_validate(value).model_dump() == value
+        for old in (m.ToolRuntime, m.ToolRuntimeV2, m.ToolRuntimeV3):
             with pytest.raises(ValueError):
                 old.model_validate(value)
         with ThreadPoolExecutor(max_workers=1) as pool:

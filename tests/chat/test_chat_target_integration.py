@@ -239,6 +239,10 @@ def test_target_runtime_and_get_only_inventory(product):
     expected = {
         2: ["configuration_read", "agent_profile_update", "target_create"],
         3: ["configuration_read", "agent_profile_update", "target_create", "skill_create"],
+        4: [
+            "configuration_read", "agent_profile_update", "target_create", "skill_create",
+            "scenario_create", "scenario_append",
+        ],
     }
     assert runtime["schema_version"] in expected
     assert runtime["tools"] == expected[runtime["schema_version"]]

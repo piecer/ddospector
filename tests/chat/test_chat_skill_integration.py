@@ -254,15 +254,17 @@ def assert_saved(product, before, call):
     return after
 
 
-def test_current_runtime_is_explicit_v3(product):
+def test_current_runtime_is_explicit_v4(product):
     status, runtime = product.request("/api/v1/chat/tools/runtime")
     assert status == 200 and type(runtime["schema_version"]) is int
-    assert runtime["schema_version"] == 3
+    assert runtime["schema_version"] == 4
     assert runtime["tools"] == [
         "configuration_read",
         "agent_profile_update",
         "target_create",
         "skill_create",
+        "scenario_create",
+        "scenario_append",
     ]
     assert runtime["max_calls"] == 3 and runtime["max_writes"] == 1
     assert runtime["requires_write_approval"] is True

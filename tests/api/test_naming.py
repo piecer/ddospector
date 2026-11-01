@@ -26,8 +26,8 @@ def setting(monkeypatch, suffix, old, new):
 
 
 def app_inputs(monkeypatch):
-    monkeypatch.setattr(app_module, "scenario_router", lambda store, *, ticket: ticket)
-    monkeypatch.setattr(app_module, "runs_router", lambda store: None)
+    monkeypatch.setattr(app_module, "ScenarioStore", lambda store, *, ticket: ticket)
+    monkeypatch.setattr(app_module, "runs_router", lambda store, *, scenarios: None)
     monkeypatch.setattr(app_module, "_compose_app", lambda store, ticket, runs: (store, ticket))
 
 

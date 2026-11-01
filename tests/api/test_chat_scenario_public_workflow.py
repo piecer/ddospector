@@ -223,7 +223,9 @@ def test_public_reconcile_preserves_uncertain_outcome_and_checks_all_revisions(c
     client.portal.call(exercise)
 
 
-def test_current_public_runtime_reaches_existing_acceptance_selectors(client, monkeypatch, tmp_path):
+def test_current_public_runtime_reaches_existing_acceptance_selectors(
+    client, monkeypatch, tmp_path
+):
     bootstrap(client)
     source = Path(__file__).resolve().parents[2]
     monkeypatch.syspath_prepend(str(source / "tools"))

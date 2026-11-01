@@ -31,7 +31,7 @@ type Variant = {
   cleanup: { cleanup_verified: boolean; actual_exit: number };
 };
 const bundleBytes = readFileSync(
-  resolve("src/pages/ai/chat-skill-producer-data/producer.json"),
+  resolve("src/pages/ai/chat-skill-producer-data/producer-compatibility.json"),
 );
 const bundle = JSON.parse(bundleBytes.toString("utf8")) as {
   schema_version: number;
@@ -115,7 +115,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 it("requires genuine current native v1/v2/v3 closure and exact live producer hashes/modes", () => {
   expect(sha(bundleBytes)).toBe(
-    "cb3b7e080c6f59a5669429f9722a1ceddd057b949030971f0a8f2b933dda8732",
+    "2baa29172cdef232472f78e55f45d1b3e142cd8b430d638724353af7c25739ff",
   );
   expect(bundle.schema_version).toBe(1);
   expect(bundle.provenance).toBe(
@@ -134,7 +134,7 @@ it("requires genuine current native v1/v2/v3 closure and exact live producer has
   expect(bundle.source_post).toEqual(bundle.source_pre);
   expect(sha(canonical(bundle.source_pre))).toBe(bundle.capture.source_sha256);
   expect(bundle.capture.source_sha256).toBe(
-    "b7da80d6fd376bf7dc583a10ec7f18452cdc69e478dae6a67a5bb8c51d0ea3fb",
+    "258140d84717c9280f41269d7ad381dd37eb485bbf951f4fbf4a2d6d5e96f0c7",
   );
   expect(bundle.producer_inputs).toEqual(
     bundle.source_pre.filter(
@@ -143,8 +143,8 @@ it("requires genuine current native v1/v2/v3 closure and exact live producer has
         ["pyproject.toml", "uv.lock"].includes(entry.path),
     ),
   );
-  expect(bundle.producer_inputs).toHaveLength(100);
-  expect(new Set(bundle.producer_inputs.map((p) => p.path)).size).toBe(100);
+  expect(bundle.producer_inputs).toHaveLength(102);
+  expect(new Set(bundle.producer_inputs.map((p) => p.path)).size).toBe(102);
   for (const required of [
     "tests/chat/chat_skill_capture.py",
     "tests/chat/provider_fixture.py",
@@ -164,7 +164,7 @@ it("requires genuine current native v1/v2/v3 closure and exact live producer has
       pin.mode,
     );
   }
-  const counts = { agent: 20, target: 22, skill: 23 };
+  const counts = { agent: 20, target: 22, skill: 24 };
   for (const v of bundle.capture.variants) {
     expect(v.verdict).toBe("ACTUAL_NATIVE_CAPTURE_NOT_REAL_MODEL");
     expect(v.synthetic_provider_requests).toBe(3);
@@ -213,7 +213,7 @@ it.each(["agent", "target", "skill"] as const)(
     const toolRuntime = rows(v, "/api/v1/chat/tools/runtime")[0];
     fetch = fetchOne(toolRuntime);
     expect(await toolClient.runtime()).toEqual(JSON.parse(raw(toolRuntime)));
-    expect(JSON.parse(raw(toolRuntime)).schema_version).toBe(3);
+    expect(JSON.parse(raw(toolRuntime)).schema_version).toBe(4);
     expect(fetch).toHaveBeenCalledTimes(1);
     const input = {
       ...(name === "agent"

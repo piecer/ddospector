@@ -66,7 +66,13 @@ def tool_router(runtime):
         identifier(session_id)
         value = await body(request, ToolTurnInput)
         async with runtime.lock:
-            is_scenario = runtime.ledger.grant(value.grant_id)["schema_version"] == 4
+            try:
+                is_scenario = runtime.ledger.grant(value.grant_id)["schema_version"] == 4
+            except DraftError as exc:
+                if exc.code != "CHAT_NOT_FOUND":
+                    raise
+                # Legacy admission owns missing-grant and session/replay precedence.
+                is_scenario = False
         accept = runtime._accept_scenario_tool if is_scenario else runtime.accept_tool
         result, status = await accept(session_id, value)
         return response(result, status)
@@ -82,9 +88,9 @@ def tool_router(runtime):
     async def decide(call_id: str, request: Request):
         identifier(call_id)
         query(request)
+        value = await body(request, DecisionInput)
         async with runtime.lock:
-            call = runtime.ledger.call(call_id)
-            is_scenario = runtime.ledger.grant(call["grant_id"])["schema_version"] == 4
+            is_scenario = runtime.ledger.is_scenario_call(call_id)
         if is_scenario:
             try:
                 value = scenario.DecisionInput.model_validate(
@@ -94,7 +100,7 @@ def tool_router(runtime):
                 raise DraftError("CHAT_INVALID_REQUEST") from None
             result, status = await runtime._decide_scenario_tool(call_id, value)
         else:
-            result, status = await runtime.decide_tool(call_id, await body(request, DecisionInput))
+            result, status = await runtime.decide_tool(call_id, value)
         return response(result, status)
 
     @router.get("/tool-grants/by-request/{request_id}")

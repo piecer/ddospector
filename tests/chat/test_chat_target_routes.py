@@ -85,16 +85,18 @@ def test_targets_inspection_has_no_queue_and_admission_owns_lease(tmp_path, monk
         product.close()
 
 
-def test_runtime_metadata_publishes_v2(tmp_path):
+def test_runtime_metadata_publishes_v4(tmp_path):
     product = LiveProduct(tmp_path)
     try:
         status, value = product.request("/api/v1/chat/tools/runtime")
-        assert status == 200 and value["schema_version"] == 3
+        assert status == 200 and value["schema_version"] == 4
         assert value["tools"] == [
             "configuration_read",
             "agent_profile_update",
             "target_create",
             "skill_create",
+            "scenario_create",
+            "scenario_append",
         ]
     finally:
         product.close()
