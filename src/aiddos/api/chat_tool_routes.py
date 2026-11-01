@@ -3,9 +3,11 @@
 from fastapi import APIRouter, Request
 from pydantic import TypeAdapter
 
+from . import chat_scenario_models as scenario
 from .chat import body, identifier, query, response
 from .chat_models import EmptyInput
 from .chat_tool_models import DecisionInput, GrantRequest, ReconcileInput, ToolTurnInput
+from .encoding import strict_json
 from .errors import DraftError
 from .validation import Identifier
 
@@ -44,13 +46,29 @@ def tool_router(runtime):
 
     @router.post("/tool-grants")
     async def grant(request: Request):
-        result, status = await runtime.create_grant((await body(request, GrantRequest)).root)
+        query(request)
+        raw = await request.body()
+        try:
+            value = strict_json(raw)
+            if isinstance(value, dict) and value.get("schema_version") == 4:
+                checked = scenario.GrantInputV4.model_validate(
+                    scenario.decode_raw("GrantInputV4", raw)
+                )
+            else:
+                checked = GrantRequest.model_validate(value).root
+        except ValueError:
+            raise DraftError("CHAT_INVALID_REQUEST") from None
+        result, status = await runtime.create_grant(checked)
         return response(result, status)
 
     @router.post("/sessions/{session_id}/tool-turns")
     async def accept(session_id: str, request: Request):
         identifier(session_id)
-        result, status = await runtime.accept_tool(session_id, await body(request, ToolTurnInput))
+        value = await body(request, ToolTurnInput)
+        async with runtime.lock:
+            is_scenario = runtime.ledger.grant(value.grant_id)["schema_version"] == 4
+        accept = runtime._accept_scenario_tool if is_scenario else runtime.accept_tool
+        result, status = await accept(session_id, value)
         return response(result, status)
 
     @router.get("/turns/{turn_id}/tools")
@@ -63,7 +81,20 @@ def tool_router(runtime):
     @router.post("/tool-calls/{call_id}/decision")
     async def decide(call_id: str, request: Request):
         identifier(call_id)
-        result, status = await runtime.decide_tool(call_id, await body(request, DecisionInput))
+        query(request)
+        async with runtime.lock:
+            call = runtime.ledger.call(call_id)
+            is_scenario = runtime.ledger.grant(call["grant_id"])["schema_version"] == 4
+        if is_scenario:
+            try:
+                value = scenario.DecisionInput.model_validate(
+                    scenario.decode_raw("DecisionInput", await request.body())
+                )
+            except ValueError:
+                raise DraftError("CHAT_INVALID_REQUEST") from None
+            result, status = await runtime._decide_scenario_tool(call_id, value)
+        else:
+            result, status = await runtime.decide_tool(call_id, await body(request, DecisionInput))
         return response(result, status)
 
     @router.get("/tool-grants/by-request/{request_id}")
@@ -86,7 +117,21 @@ def tool_router(runtime):
 
     @router.post("/tools/reconcile")
     async def reconcile(request: Request):
-        result, status = await runtime.reconcile_tools(await body(request, ReconcileInput))
+        query(request)
+        raw = await request.body()
+        try:
+            value = strict_json(raw)
+            if isinstance(value, dict) and value.get("schema_version") == 4:
+                checked = scenario.ReconcileInputV4.model_validate(
+                    scenario.decode_raw("ReconcileInputV4", raw)
+                )
+                reconcile = runtime._reconcile_scenario_tools
+            else:
+                checked = ReconcileInput.model_validate(value)
+                reconcile = runtime.reconcile_tools
+        except ValueError:
+            raise DraftError("CHAT_INVALID_REQUEST") from None
+        result, status = await reconcile(checked)
         return response(result, status)
 
     return router

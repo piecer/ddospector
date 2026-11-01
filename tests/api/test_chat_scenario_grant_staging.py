@@ -14,6 +14,7 @@ from test_chat_sessions import start
 from aiddos.api import chat_tool_runtime
 from aiddos.api.chat_models import encoded
 from aiddos.api.chat_scenario_models import GrantInputV4, GrantV4
+from aiddos.api.chat_tool_models import ToolTurnInput
 from aiddos.api.errors import DraftError, error_response
 from aiddos.api.models import AISettingsInput
 from aiddos.api.scenarios import ScenarioInput
@@ -55,24 +56,25 @@ def test_real_operator_issue_replay_lookup(client):
     client.portal.call(runtime.storage.validate)
 
 
-def test_public_v4_issuance_remains_closed(client, monkeypatch):
+def test_public_v4_unknown_controls_remain_closed(client, monkeypatch):
     runtime, body, _ = bootstrap(client)
 
     async def forbidden(*args, **kwargs):
         raise AssertionError("public v4 body reached runtime")
 
     monkeypatch.setattr(runtime, "create_grant", forbidden)
-    response = client.post("/api/v1/chat/tool-grants", json=body)
+    response = client.post("/api/v1/chat/tool-grants", json=body | {"execute": True})
     assert response.status_code == 422, response.text
     assert response.json()["code"] == "CHAT_INVALID_REQUEST"
     view = client.get("/api/v1/chat/tools/runtime").json()
-    assert view["schema_version"] == 3
+    assert view["schema_version"] == 4
     assert view["tools"] == [
-        "configuration_read", "agent_profile_update", "target_create", "skill_create"
+        "configuration_read", "agent_profile_update", "target_create", "skill_create",
+        "scenario_create", "scenario_append",
     ]
 
 
-def test_known_v4_send_denied_before_any_preparation(client, monkeypatch):
+def test_known_v4_default_runtime_send_denied_before_any_preparation(client, monkeypatch):
     runtime, body, _ = bootstrap(client)
     grant, _ = issue(client, runtime, body)
 
@@ -91,13 +93,11 @@ def test_known_v4_send_denied_before_any_preparation(client, monkeypatch):
         (runtime, "produce_tools"), (runtime.ledger, "admit"),
     ):
         monkeypatch.setattr(owner, name, forbidden)
-    response = client.post(
-        f"/api/v1/chat/sessions/{body['session_id']}/tool-turns",
-        json=dict(request_id=body["turn_request_id"], expected_sequence=0,
-                  text=body["text"], grant_id=grant["id"]),
-    )
-    assert response.status_code == 409, response.text
-    assert response.json()["code"] == "CHAT_TOOL_GRANT_INVALID"
+    with pytest.raises(DraftError, match="CHAT_TOOL_GRANT_INVALID"):
+        client.portal.call(runtime.accept_tool, body["session_id"], ToolTurnInput(
+            request_id=body["turn_request_id"], expected_sequence=0,
+            text=body["text"], grant_id=grant["id"],
+        ))
     assert client.portal.call(image) == before
     assert runtime.grant_deadlines == clocks
     assert not runtime.preparing and runtime.active is None and runtime.task is None

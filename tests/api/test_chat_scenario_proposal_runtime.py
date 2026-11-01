@@ -410,7 +410,9 @@ def test_native_read_prepare_retirement_blocks_replacement(client, monkeypatch, 
     client.portal.call(exercise)
 
 
-def test_public_transcript_exposes_wait_but_approval_and_send_stay_closed(client, monkeypatch):
+def test_public_transcript_exposes_wait_but_default_runtime_entries_stay_closed(
+    client, monkeypatch
+):
     runtime, grant, value, transport, _ = setup_path(client, monkeypatch, "scenario_create")
     turn, _ = client.portal.call(runtime._accept_scenario_tool, grant["session_id"], value)
     try:
@@ -419,21 +421,14 @@ def test_public_transcript_exposes_wait_but_approval_and_send_stay_closed(client
         assert response.status_code == 200 and response.json() == expected
         call = expected["calls"][-1]
         before = client.portal.call(lambda: list(runtime.storage.db.iterdump()))
-        response = client.post(
-            f"/api/v1/chat/tool-calls/{call['id']}/decision",
-            json=dict(
+        with pytest.raises(DraftError, match="CHAT_TOOL_APPROVAL_CONFLICT"):
+            client.portal.call(runtime.decide_tool, call["id"], DecisionInput(
                 request_id=str(uuid4()),
                 proposal_digest=call["proposal"]["digest"],
                 decision="approve",
-            ),
-        )
-        assert response.status_code == 409
-        assert response.json()["code"] == "CHAT_TOOL_APPROVAL_CONFLICT"
-        response = client.post(
-            f"/api/v1/chat/sessions/{grant['session_id']}/tool-turns", json=value.model_dump()
-        )
-        assert response.status_code == 409
-        assert response.json()["code"] == "CHAT_TOOL_GRANT_INVALID"
+            ))
+        with pytest.raises(DraftError, match="CHAT_TOOL_GRANT_INVALID"):
+            client.portal.call(runtime.accept_tool, grant["session_id"], value)
         assert client.portal.call(lambda: list(runtime.storage.db.iterdump())) == before
         assert len(transport.requests) == 2
     finally:

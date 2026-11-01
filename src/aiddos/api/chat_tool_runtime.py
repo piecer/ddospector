@@ -158,7 +158,7 @@ class ToolRuntimeMixin:
     async def tools_runtime(self):
         view = runtime_view(await self.metadata_snapshot())
         return {
-            "schema_version": 3,
+            "schema_version": 4,
             "mode": "operator_approved_settings",
             "supported": view["supported"],
             "reason": view["reason"],
@@ -167,6 +167,8 @@ class ToolRuntimeMixin:
                 "agent_profile_update",
                 "target_create",
                 "skill_create",
+                "scenario_create",
+                "scenario_append",
             ],
             "max_calls": 3,
             "max_writes": 1,

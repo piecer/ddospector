@@ -279,13 +279,14 @@ def test_late_validation_cannot_publish_success(client, monkeypatch):
     assert client.get(STATE).status_code == 200
 
 
-def test_native_metadata_and_legacy_authority_remain_v1_to_v3(client):
+def test_native_v4_metadata_preserves_legacy_authority_v1_to_v3(client):
     before = client.get("/api/v1/chat/tools/runtime")
     assert before.status_code == 200
     metadata = before.json()
-    assert metadata["schema_version"] == 3
+    assert metadata["schema_version"] == 4
     assert metadata["tools"] == [
         "configuration_read", "agent_profile_update", "target_create", "skill_create",
+        "scenario_create", "scenario_append",
     ]
     assert client.get(STATE).status_code == 200
     assert client.get("/api/v1/chat/tools/runtime").json() == metadata

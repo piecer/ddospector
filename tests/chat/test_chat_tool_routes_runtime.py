@@ -62,6 +62,8 @@ def test_native_http_read_approve_write_receipt_final_and_restart(tmp_path):
                 "agent_profile_update",
                 "target_create",
                 "skill_create",
+                "scenario_create",
+                "scenario_append",
             ]
             assert view["requires_write_approval"] is True
             # Settings bootstrap is itself an audited write; read actual persisted revision.

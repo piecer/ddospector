@@ -643,13 +643,15 @@ def require_runtime(base, artifacts, *, fixture_case="agent"):
         1: ["configuration_read", "agent_profile_update"],
         2: ["configuration_read", "agent_profile_update", "target_create"],
         3: ["configuration_read", "agent_profile_update", "target_create", "skill_create"],
+        4: ["configuration_read", "agent_profile_update", "target_create", "skill_create",
+            "scenario_create", "scenario_append"],
     }
     assert type(runtime["schema_version"]) is int and runtime["schema_version"] in expected
     assert runtime["tools"] == expected[runtime["schema_version"]]
     if fixture_case == "target":
-        assert runtime["schema_version"] in {2, 3}, "missing CHAT02B1 target runtime"
+        assert runtime["schema_version"] in {2, 3, 4}, "missing CHAT02B1 target runtime"
     if fixture_case == "skill":
-        assert runtime["schema_version"] == 3, "missing CHAT02B2 skill runtime"
+        assert runtime["schema_version"] in {3, 4}, "missing CHAT02B2 skill runtime"
 
 
 def run_browser(mode, directory, result, admission=None, *, fixture_case="agent"):
