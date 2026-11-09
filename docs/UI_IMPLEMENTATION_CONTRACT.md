@@ -1,5 +1,9 @@
 # UI-01: control workspace contract
 
+The default network boundary below now has an explicit unauthenticated development
+LAN exception, documented in `DEVELOPMENT_ACCESS.md`. No LIVE or approval gate is
+removed; static legacy workspace deployment metadata is not a bind-policy probe.
+
 Status: implementation authorized by the user on 2026-10-09; UI/layout/menu-first slice, not the entire v2 live platform. Preserve PLAN.md and both historical plans. No device access, traffic emission, automatic MCP connection, package execution from a Skill, or operational approval in this slice. No commit/push was explicitly requested; leave verified changes unstaged.
 
 ## Product clarification

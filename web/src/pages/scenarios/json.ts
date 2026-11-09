@@ -1,3 +1,5 @@
+import { sha256 as hashSHA256 } from "../../lib/sha256";
+
 const invalid = (): never => {
   throw new Error("Invalid scenario JSON.");
 };
@@ -95,11 +97,5 @@ export function canonical(value: unknown): string {
 export const utf8Length = (text: string): number =>
   new TextEncoder().encode(text).byteLength;
 export async function digest(value: unknown): Promise<string> {
-  const hash = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(canonical(value)),
-  );
-  return Array.from(new Uint8Array(hash), (byte) =>
-    byte.toString(16).padStart(2, "0"),
-  ).join("");
+  return hashSHA256(new TextEncoder().encode(canonical(value)));
 }

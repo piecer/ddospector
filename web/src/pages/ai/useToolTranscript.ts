@@ -1,3 +1,4 @@
+import { randomUUID } from "../../lib/uuid";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toolClient, bindDecision } from "./chat-tool-client";
 import type { ScenarioCallContext, DecisionInput } from "./chat-tool-client";
@@ -178,7 +179,7 @@ export function useToolTranscript(
       token = generation.current;
     decisionOwner.current = owner;
     const input = {
-      request_id: crypto.randomUUID(),
+      request_id: randomUUID(),
       proposal_digest: call.proposal.digest,
       decision,
     };

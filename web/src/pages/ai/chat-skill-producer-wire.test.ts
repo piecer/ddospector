@@ -31,7 +31,7 @@ type Variant = {
   cleanup: { cleanup_verified: boolean; actual_exit: number };
 };
 const bundleBytes = readFileSync(
-  resolve("src/pages/ai/chat-skill-producer-data/producer-compatibility.json"),
+  resolve("src/pages/ai/chat-skill-producer-data/producer-dev-lan.json"),
 );
 const bundle = JSON.parse(bundleBytes.toString("utf8")) as {
   schema_version: number;
@@ -115,7 +115,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 it("requires genuine current native v1/v2/v3 closure and exact live producer hashes/modes", () => {
   expect(sha(bundleBytes)).toBe(
-    "2baa29172cdef232472f78e55f45d1b3e142cd8b430d638724353af7c25739ff",
+    "510fddb9e16a62bb08330b13ed3b637eb06dcaa5a608133c82573bbf3151b7da",
   );
   expect(bundle.schema_version).toBe(1);
   expect(bundle.provenance).toBe(
@@ -134,7 +134,7 @@ it("requires genuine current native v1/v2/v3 closure and exact live producer has
   expect(bundle.source_post).toEqual(bundle.source_pre);
   expect(sha(canonical(bundle.source_pre))).toBe(bundle.capture.source_sha256);
   expect(bundle.capture.source_sha256).toBe(
-    "258140d84717c9280f41269d7ad381dd37eb485bbf951f4fbf4a2d6d5e96f0c7",
+    "735878e172400d0551c9442f8be29d054eef52018d8d42d9c914ffcbeb8d0a71",
   );
   expect(bundle.producer_inputs).toEqual(
     bundle.source_pre.filter(
@@ -143,14 +143,15 @@ it("requires genuine current native v1/v2/v3 closure and exact live producer has
         ["pyproject.toml", "uv.lock"].includes(entry.path),
     ),
   );
-  expect(bundle.producer_inputs).toHaveLength(102);
-  expect(new Set(bundle.producer_inputs.map((p) => p.path)).size).toBe(102);
+  expect(bundle.producer_inputs).toHaveLength(103);
+  expect(new Set(bundle.producer_inputs.map((p) => p.path)).size).toBe(103);
   for (const required of [
     "tests/chat/chat_skill_capture.py",
     "tests/chat/provider_fixture.py",
     "tests/chat/test_chat_skill_integration.py",
     "tools/chat_tools_acceptance.py",
     "src/aiddos/api/chat_tool_runtime.py",
+    "src/aiddos/api/dev_access.py",
     "src/aiddos/api/chat_tool_models.py",
     "src/aiddos/api/store.py",
     "uv.lock",
@@ -164,7 +165,7 @@ it("requires genuine current native v1/v2/v3 closure and exact live producer has
       pin.mode,
     );
   }
-  const counts = { agent: 20, target: 22, skill: 24 };
+  const counts = { agent: 21, target: 22, skill: 23 };
   for (const v of bundle.capture.variants) {
     expect(v.verdict).toBe("ACTUAL_NATIVE_CAPTURE_NOT_REAL_MODEL");
     expect(v.synthetic_provider_requests).toBe(3);

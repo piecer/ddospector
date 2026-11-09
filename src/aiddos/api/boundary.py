@@ -1,4 +1,4 @@
-"""Pre-framework, bounded admission for a loopback-only development service.
+"""Pre-framework bounded admission; loopback by default, explicit LAN opt-in.
 
 Origin/Host checks are browser request hardening, NOT production authentication.
 Non-browser requests without Origin are allowed when Host is loopback.
@@ -11,9 +11,11 @@ import time
 
 from starlette.responses import Response
 
+from .dev_access import DevelopmentAccess
 from .encoding import strict_json
 from .errors import DraftError, error_response
 
+LOCAL_ACCESS = DevelopmentAccess()
 MAX_BODY_BYTES = 256 * 1024
 MAX_BODY_FRAMES = 4096
 BODY_TIMEOUT_SECONDS = 5.0
@@ -47,7 +49,7 @@ DENIAL_PATHS = frozenset(
 )
 
 
-def checked_headers(scope: dict) -> dict[str, str]:
+def checked_headers(scope: dict, access: DevelopmentAccess = LOCAL_ACCESS) -> dict[str, str]:
     headers = {}
     for name, value in scope["headers"]:
         key = name.decode("latin-1").lower()
@@ -55,10 +57,12 @@ def checked_headers(scope: dict) -> dict[str, str]:
             raise DraftError("INVALID_FRAMING")
         headers[key] = value.decode("latin-1")
     host = headers.get("host", "")
-    if not re.fullmatch(r"(?:localhost|127\.0\.0\.1|\[::1\])(?::[0-9]{1,5})?", host):
+    if host != access.authority and not re.fullmatch(
+        r"(?:localhost|127\.0\.0\.1|\[::1\])(?::[0-9]{1,5})?", host
+    ):
         raise DraftError("HOST_NOT_ALLOWED")
     origin = headers.get("origin")
-    if (origin is not None and origin not in ALLOWED_ORIGINS) or (
+    if (origin is not None and origin not in ALLOWED_ORIGINS and origin != access.origin) or (
         origin is None and headers.get("sec-fetch-site") == "cross-site"
     ):
         raise DraftError("ORIGIN_NOT_ALLOWED")
@@ -91,8 +95,9 @@ def body_headers(
 
 
 class DevelopmentBoundary:
-    def __init__(self, app):
+    def __init__(self, app, access: DevelopmentAccess = LOCAL_ACCESS):
         self.app = app
+        self.access = access
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -114,7 +119,7 @@ class DevelopmentBoundary:
             await send(message)
 
         try:
-            headers = checked_headers(scope)
+            headers = checked_headers(scope, self.access)
             origin = headers.get("origin")
             if scope["method"] == "OPTIONS":
                 requested_headers = {

@@ -1,3 +1,4 @@
+import { sha256 as hashSHA256 } from "../../lib/sha256";
 import { canonical } from "../scenarios/json";
 import { exact } from "../scenarios/validation";
 import { uuid } from "../runs/wire";
@@ -232,10 +233,7 @@ export const evidenceAPI = {
   },
 };
 export async function hashBytes(b: Uint8Array): Promise<string> {
-  const hash = await crypto.subtle.digest("SHA-256", new Uint8Array(b));
-  return Array.from(new Uint8Array(hash), (x) =>
-    x.toString(16).padStart(2, "0"),
-  ).join("");
+  return hashSHA256(new Uint8Array(b));
 }
 export async function verifyBytes(
   b: Uint8Array,

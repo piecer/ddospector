@@ -10,11 +10,12 @@ from starlette.exceptions import HTTPException
 from aiddos.runs.lifetime import lifespan
 from aiddos.startup import startup_setting
 
-from .boundary import DevelopmentBoundary
+from .boundary import LOCAL_ACCESS, DevelopmentBoundary
 from .chat import chat_router
 from .chat_runtime import ChatRuntime
 from .chat_tool_routes import tool_router
 from .construction import serialized
+from .dev_access import development_access
 from .errors import DraftError, error_response
 from .evidence import evidence_router
 from .models import (
@@ -41,6 +42,7 @@ from .store import DraftStore
 
 
 def create_app(*, state_path: str | Path | None = None) -> FastAPI:
+    access = development_access()
     store = DraftStore(
         Path(
             state_path or startup_setting("UI_STATE_PATH", ".local/ui-drafts.json")
@@ -49,11 +51,11 @@ def create_app(*, state_path: str | Path | None = None) -> FastAPI:
 
     scenarios = ScenarioStore(store, ticket=startup_setting("SCENARIO_RECOVERY_TICKET"))
     runs = runs_router(store, scenarios=scenarios)
-    return _compose_app(store, scenarios, runs)
+    return _compose_app(store, scenarios, runs, access=access)
 
 
 @serialized
-def _compose_app(store, scenarios, runs) -> FastAPI:
+def _compose_app(store, scenarios, runs, *, access=LOCAL_ACCESS) -> FastAPI:
     chat = ChatRuntime(store, scenarios)
 
     @asynccontextmanager
@@ -69,7 +71,7 @@ def _compose_app(store, scenarios, runs) -> FastAPI:
         lifespan=combined_lifespan
     )
     application.state.chat = chat
-    application.add_middleware(DevelopmentBoundary)
+    application.add_middleware(DevelopmentBoundary, access=access)
 
     @application.exception_handler(Exception)
     async def unexpected_error(request, exc):

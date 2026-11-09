@@ -1,5 +1,9 @@
 # Approved internal configuration tools (CHAT-02A, CHAT-02B1 and CHAT-02B2)
 
+The default browser boundary is loopback-only. The explicit development LAN
+exception in `DEVELOPMENT_ACCESS.md` changes Host/Origin admission only, not this
+tool authority, approval, publication or recovery contract.
+
 The B2 and stage 1–3 sections below retain their checkpoint boundaries. The
 current B3 candidate extends public dispatch as described in **Public scenario
 workflow (stage 4 candidate)**; earlier public-v4-closed statements describe

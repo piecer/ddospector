@@ -56,6 +56,10 @@ make web       # terminal 2: 127.0.0.1:5173
 
 Open `http://127.0.0.1:5173`. From Windows with WSL localhost forwarding enabled, use the same address. The processes bind loopback only. An occupied port is an error; never stop another application's process to make room.
 
+For explicitly enabled, unauthenticated LAN development (including HTTP AI-profile
+creation), see `docs/DEVELOPMENT_ACCESS.md`. The default remains loopback-only;
+the option does not unlock LIVE execution or bypass tool approvals.
+
 ## Layout
 
 - Workspace: Overview, Campaigns, Runs, Findings, Evidence

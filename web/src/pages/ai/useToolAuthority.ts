@@ -1,3 +1,4 @@
+import { randomUUID } from "../../lib/uuid";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toolClient } from "./chat-tool-client";
 import { readChatMetadata } from "./chat-metadata";
@@ -226,7 +227,7 @@ export function useToolAuthority(mutationsEnabled: boolean) {
       review.fence.generation !== known.current?.generation
     )
       return;
-    const request = crypto.randomUUID(),
+    const request = randomUUID(),
       requestOwner = Symbol();
     owner.current = requestOwner;
     const held = { request, fence: review.fence, state: review.state };

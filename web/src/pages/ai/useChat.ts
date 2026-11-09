@@ -1,3 +1,4 @@
+import { randomUUID } from "../../lib/uuid";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Locale } from "../../lib/contracts";
 import type { ChatRuntime, ChatSession, ChatTurn } from "./chat-types";
@@ -214,7 +215,7 @@ export function useChat(
     detachObservation();
     setPhase("starting");
     setErrorCode(null);
-    const request = crypto.randomUUID();
+    const request = randomUUID();
     const creation = { request, runtime, locale };
     pendingSession.current = creation;
     try {
@@ -276,8 +277,8 @@ export function useChat(
     setErrorCode(null);
     const token = generation.current,
       text = input;
-    const request = crypto.randomUUID();
-    const grantRequest = toolMode ? crypto.randomUUID() : undefined;
+    const request = randomUUID();
+    const grantRequest = toolMode ? randomUUID() : undefined;
     // Snapshot all authority-bearing values synchronously, before any client await.
     const captured: ToolAuthority | undefined = !toolMode
       ? undefined

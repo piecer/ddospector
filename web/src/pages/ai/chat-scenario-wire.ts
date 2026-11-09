@@ -1,3 +1,4 @@
+import { sha256 as hashSHA256 } from "../../lib/sha256";
 import { validAddress } from "../lab/validation";
 import { scenarioProfiles } from "../scenarios/catalog";
 import { canonical, digest, parseJSON, utf8Length } from "../scenarios/json";
@@ -1878,16 +1879,8 @@ export async function boundGrant(
     "intent",
   ] as const)
     check(same(g[key], request[key]));
-  const hash = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(request.text),
-  );
-  check(
-    g.text_sha256 ===
-      Array.from(new Uint8Array(hash), (b) =>
-        b.toString(16).padStart(2, "0"),
-      ).join(""),
-  );
+  const hash = await hashSHA256(new TextEncoder().encode(request.text));
+  check(g.text_sha256 === hash);
   check(
     g.settings_revision === captured.settings_revision &&
       g.profile_id === captured.profile_id,

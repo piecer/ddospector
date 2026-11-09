@@ -23,6 +23,8 @@ packages = ["src/ddospector", "src/aiddos"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests/api", "tests/chat", "tests/runs"]
+pythonpath = ["src", ".", "tests/api", "tests/chat"]
+junit_family = "legacy"
 addopts = "-ra -p no:cacheprovider --basetemp=.venv/pytest-tmp"
 filterwarnings = ["error"]
 

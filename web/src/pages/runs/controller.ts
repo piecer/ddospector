@@ -1,3 +1,4 @@
+import { randomUUID } from "../../lib/uuid";
 import { ReceiptStore } from "./storage";
 import type { ScenarioVersion } from "../scenarios/types";
 import type { Detail, Receipt, Summary } from "./types";
@@ -124,7 +125,7 @@ export class RunsController {
       let h: Hold | null = null;
       try {
         const request = {
-          request_id: crypto.randomUUID(),
+          request_id: randomUUID(),
           mode: "OFFLINE" as const,
           scenario_id: scenario.id,
           scenario_version: scenario.version,

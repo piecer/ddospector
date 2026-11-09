@@ -1,5 +1,9 @@
 # CHAT-01: explicit local-model text chat
 
+Development LAN access is an explicit exception to the default loopback browser
+boundary; see `DEVELOPMENT_ACCESS.md`. It does not widen model endpoint support,
+session consent, execution permissions or tool approval authority.
+
 Acceptance is recorded per exact source revision and requires feature tests, independent implementation review and real-model browser verification before promotion. This contract is distinct from historical AI-02 draft/preview acceptance and from later configuration-tool/device stages; the contract itself is not an acceptance receipt.
 
 The separately opted-in CHAT-02A path is documented in [CHAT_TOOLS_CONTRACT.md](CHAT_TOOLS_CONTRACT.md). It preserves these closed v1 text DTOs and ordinary text-only admission while adding companion tool records, explicit configuration-write approval and transactional storage-v2 migration. Its multi-round client lifetime and retained native tool-message context are defined there; an endpoint-consented text conversation alone receives no tool authority.

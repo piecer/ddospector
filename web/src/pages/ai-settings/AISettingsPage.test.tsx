@@ -247,6 +247,32 @@ it("saves explicit bindings, blocks referenced deletion and confirms an unbound 
   });
 });
 
+it("opens and saves a profile without secure-context randomUUID", async () => {
+  vi.stubGlobal("crypto", {
+    getRandomValues: (bytes: Uint8Array) => bytes.fill(0xff),
+  });
+  let current = empty();
+  const writes: AISettingsInput[] = [];
+  vi.stubGlobal("fetch", vi.fn(async (_url: string, init: RequestInit) => {
+    if (init.method === "GET") return response(current);
+    const input = JSON.parse(init.body as string) as AISettingsInput;
+    writes.push(input);
+    current = { ...current, ...input, revision: current.revision + 1 };
+    return response(current);
+  }));
+  render(<AISettingsPage {...props()} />);
+  await screen.findByText("No model profiles yet");
+  fireEvent.click(screen.getByRole("button", { name: "Create profile" }));
+  expect(screen.getByRole("dialog")).toBeVisible();
+  editField("Profile name", "LAN model");
+  editField("Model ID", "local-model");
+  editField("Base URL", "http://127.0.0.1:11434/v1");
+  fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
+  await screen.findByRole("heading", { name: "LAN model" });
+  expect(writes).toHaveLength(1);
+  expect(writes[0].profiles[0].id).toBe("llm-ffffffff-ffff-4fff-bfff-ffffffffffff");
+});
+
 it("caps creation at twenty profiles without preventing editing", async () => {
   vi.stubGlobal(
     "fetch",

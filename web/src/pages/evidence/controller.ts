@@ -1,3 +1,4 @@
+import { randomUUID } from "../../lib/uuid";
 import { canonical, utf8Length } from "../scenarios/json";
 import { exact, sha256 } from "../scenarios/validation";
 import { uuid } from "../runs/wire";
@@ -297,7 +298,7 @@ export class EvidenceController {
       const pair = await prepareFiles(ingress, egress, a.signal);
       a.signal.throwIfAborted();
       if (!this.alive) return;
-      const request_id = crypto.randomUUID();
+      const request_id = randomUUID();
       const pending: Binding = {
         request_id,
         run_id: runId,

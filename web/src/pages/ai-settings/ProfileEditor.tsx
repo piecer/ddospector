@@ -1,3 +1,4 @@
+import { randomUUID } from "../../lib/uuid";
 import { useState } from "react";
 import type { Locale } from "../../lib/contracts";
 import { Button, Field, Notice } from "../../components/ui";
@@ -6,7 +7,7 @@ import { profileIssue } from "./validation";
 import type { AIModelProfile, AIProtocol } from "./types";
 export function newProfile(): AIModelProfile {
   return {
-    id: "llm-" + crypto.randomUUID(),
+    id: "llm-" + randomUUID(),
     name: "",
     format: "openai",
     model: "",
