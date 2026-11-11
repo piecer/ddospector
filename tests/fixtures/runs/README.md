@@ -13,6 +13,10 @@ The suite imports the shipped consumer. These historical fixtures do not replace
 
 - `normal-wire.json` is the unchanged historical ASGI/PG corpus, SHA256
   `e3ee5b76d6a180d3a6d61462174c695989c444adc2f4bdb9c11a94d0aca47922`.
+- `normal-wire-p0a.json` preserves the exact accepted P0-A corpus formerly held at
+  the current path, SHA256
+  `04fa85bd80ea052efb35c1fea781fe8dac01095da36addbc95fc1bca947877d2`.
+  It remains historical evidence, not a current-source acceptance fallback.
 - `normal-wire-current.json` is a separate explicit capture through actual private
   PostgreSQL and a selected separate-process worker. Its 12 positive rows are new
   exact ASGI response bytes; all 39 historical synthetic-negative rows are unchanged.
@@ -27,5 +31,7 @@ The suite imports the shipped consumer. These historical fixtures do not replace
 - Promotion requires source review, exact artifact hashing, Node/Chromium replay
   and the current freshness guard. Do not edit pins alone or regenerate on test start.
 
-See `docs/NORMAL_WIRE_VERIFICATION.md` for scope and limitations. ASGI capture plus
-browser parser replay is not a TCP UI-to-worker workflow, W2 or DUT acceptance.
+See `docs/NORMAL_WIRE_VERIFICATION.md` for historical P0-A scope and
+`docs/P0B1_EXECUTION_AUTHORITY.md` for the subsequent source/capture gates.
+ASGI capture plus browser parser replay is not a TCP UI-to-worker workflow,
+local-authority execution, W2 or DUT acceptance.

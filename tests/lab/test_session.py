@@ -5,10 +5,11 @@ import json
 from pathlib import Path
 
 import pytest
+from authority_support import arguments, document
 
 from aiddos.lab import profile, session
 
-KEYS = {'schema_version', 'profile_sha256', 'state', 'attempts_admitted',
+KEYS = {'schema_version', 'profile_sha256', 'authority_sha256', 'state', 'attempts_admitted',
         'callbacks_started', 'attempts_completed', 'active', 'stop_requested',
         'retired', 'cleanup_uncertain', 'code'}
 
@@ -24,9 +25,12 @@ def configured(**budget):
     return raw, hashlib.sha256(raw).hexdigest()
 
 
-def admit(path, **budget):
+def admit(path, *, authority_inputs=None, **budget):
     assert hasattr(session, 'SessionOwner'), 'explicit admission API is absent'
-    return session.SessionOwner.admit(*configured(**budget), str(path))
+    raw, confirmation = configured(**budget)
+    # Explicit synthetic authority prerequisite, never a product approval issuer.
+    inputs = arguments(document(raw, path)) if authority_inputs is None else authority_inputs
+    return session.SessionOwner.admit(raw, confirmation, str(path), **inputs)
 
 
 def error(code, call):
@@ -39,14 +43,17 @@ def error(code, call):
 
 
 def test_admit_claim_and_idle_retirement(tmp_path):
-    owner = admit(tmp_path)
+    inputs = arguments(document(configured()[0], tmp_path))
+    owner = admit(tmp_path, authority_inputs=inputs)
     value = owner.snapshot()
     assert set(value) == KEYS
-    assert value == dict(schema_version=1, profile_sha256=configured()[1], state='READY',
+    assert value == dict(schema_version=2, profile_sha256=configured()[1], state='READY',
+                        authority_sha256=inputs['confirmed_authority_sha256'],
                         attempts_admitted=0, callbacks_started=0, attempts_completed=0,
                         active=False, stop_requested=False, retired=False,
                         cleanup_uncertain=False, code=None)
-    expected = dict(schema_version=1, kind='BASELINE_SESSION_CLAIM',
+    expected = dict(schema_version=2, kind='BASELINE_SESSION_CLAIM',
+                    authority_sha256=inputs['confirmed_authority_sha256'],
                     profile_sha256=configured()[1], budget=json.loads(configured()[0])['budget'])
     claim = tmp_path / 'baseline-claim.json'
     assert claim.read_bytes() == profile.canonical(expected) + b'\n'
@@ -86,7 +93,8 @@ def clock(monkeypatch):
 
 
 def test_three_attempts_detached_readonly_permit_and_finish(tmp_path, clock):
-    owner = admit(tmp_path)
+    inputs = arguments(document(configured()[0], tmp_path))
+    owner = admit(tmp_path, authority_inputs=inputs)
     assert hasattr(owner, 'run_attempt'), 'bounded callback entry is absent'
     permits = []
 
@@ -123,7 +131,8 @@ def test_three_attempts_detached_readonly_permit_and_finish(tmp_path, clock):
         assert len(raw) <= 4096 and raw == profile.canonical(json.loads(raw)) + b'\n'
         assert b'PRIVATE_SENTINEL' not in raw
     assert json.loads((tmp_path / 'terminal.json').read_bytes()) == dict(
-        schema_version=1, kind='RETIREMENT_INTENT', profile_sha256=configured()[1],
+        schema_version=2, kind='RETIREMENT_INTENT', profile_sha256=configured()[1],
+        authority_sha256=inputs['confirmed_authority_sha256'],
         attempts_admitted=3, callbacks_started=3, attempts_completed=3, code=None)
 
 
@@ -134,7 +143,8 @@ def test_three_attempts_detached_readonly_permit_and_finish(tmp_path, clock):
     ('expired', 'EXPIRED', 'EXPIRED'), ('both', 'CANCELLED', 'CANCELLED'),
 ])
 def test_callback_classification_halts_and_retires(tmp_path, clock, case, code, outcome):
-    owner = admit(tmp_path)
+    inputs = arguments(document(configured()[0], tmp_path))
+    owner = admit(tmp_path, authority_inputs=inputs)
     assert hasattr(owner, 'run_attempt'), 'bounded callback entry is absent'
     permits = []
     original = KeyboardInterrupt('PRIVATE_SENTINEL')
@@ -173,7 +183,8 @@ def test_callback_classification_halts_and_retires(tmp_path, clock, case, code, 
     error('SESSION_CLOSED', lambda: owner.run_attempt(action))
     assert len(permits) == 1
     assert json.loads((tmp_path / 'attempt-1-end.json').read_bytes()) == dict(
-        schema_version=1, kind='ATTEMPT_END', profile_sha256=configured()[1],
+        schema_version=2, kind='ATTEMPT_END', profile_sha256=configured()[1],
+        authority_sha256=inputs['confirmed_authority_sha256'],
         attempt=1, outcome=outcome, callback_started=True)
     assert owner.finish()['code'] == code
     assert owner.snapshot()['retired'] is True

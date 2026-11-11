@@ -1,4 +1,38 @@
-# Current native Agent / Target / Skill producer corpus
+# Native Agent / Target / Skill producer corpora
+
+## Current P0-B1 source refresh
+
+The current strict replay uses `producer-p0b1.json`, emitted unchanged by a
+separately user-approved invocation of `tests/chat/chat_skill_capture.py` on the
+P0-B1 candidate. The prior `producer-dev-lan.json` remains unchanged and pinned
+as historical evidence. All other preceding bundles below are also preserved.
+
+- Bundle SHA-256: `17eec715a415f100c58f77ac53603809fcf66bcb778a546ced6df55f27acce33`.
+- Capture source digest: `af3a8d8b6bee978be059df0c76b36e230f149973b38c5f714cda28cde435c232`.
+- Equal before/after source snapshots: 399 entries; 104 exact live producer
+  hash/mode pins, including the new local authority module.
+- Actual HTTP responses: Agent 20, Target 22, Skill 23, total 65. Every captured
+  row remains intact; counts reflect this execution rather than copied historical
+  polling counts. Client request/approval/persistence/restart and negative
+  assertions are retained.
+- One all-variant batch, three synthetic provider requests per variant, nine
+  total; no real model, DUT, PG, browser or dependency download. Each variant uses
+  its own store and an API restart. This is not real-model or device acceptance.
+- Capture and supervisor exit 0, completion within the original 900-second
+  bound, provider handlers closed, all seven observed process identities absent
+  (capture child plus six API instances). The existing outbound fixture guard
+  permits only the invocation's loopback provider.
+- Raw responses, saved stores, admission, source snapshots, supervisor and
+  readback: `.hermes/artifacts/progress2-p0b1/attempt-5a1b1221c80b/chat-refresh/`.
+  This refresh closes source evidence debt exposed by the changed `session.py`;
+  it does not change chat runtime behavior. The original failed full Web run is
+  retained at the task's `final-gates/web.log`.
+
+Publication of this bundle, README and replay pins follows capture. Their
+consumer-side snapshot entries are not rewritten; live producer pins stay
+mandatory. No recapture or stale-source fallback happens during ordinary tests.
+
+## Historical first native Skill closure
 
 `producer.json` is the byte-identical package emitted by the admitted
 `tests/chat/chat_skill_capture.py` renewal on the final candidate based on
@@ -26,7 +60,7 @@ positive fixture, reconstructed response, browser proof or PostgreSQL proof.
   the unchanged 900-second external supervision bound. Earlier capture receipts
   remain separate historical evidence, not rewritten results of this renewal.
 
-## Strict current and historical gates
+### Gates at that historical checkpoint
 
 `../chat-skill-producer-wire.test.ts` binds the entire bundle hash, equal original
 source pre/post manifests, all 100 current backend/dependency/helper pins and
@@ -54,7 +88,7 @@ byte-for-byte unchanged. That transition requires this exact new bundle and is
 shipped atomically with the current strict replay test. There is no stale-pin
 fallback, skip or automatic recapture.
 
-## Reproduction and retained evidence
+### Replay command and historical retained evidence
 
 Offline replay from `web/` (no server/browser/provider started):
 

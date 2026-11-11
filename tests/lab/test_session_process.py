@@ -8,16 +8,31 @@ import sys
 from pathlib import Path
 
 import pytest
+from authority_support import arguments, canonical, document
+from test_session import configured
 
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def launch(tmp_path, directory, name, mode):
+def approved_input(tmp_path, directory):
+    raw, _ = configured(max_attempts=1)
+    value = json.loads(raw)
+    value['target']['path'] = '/PRIVATE_SENTINEL'  # Preserve the original child profile.
+    inputs = arguments(document(canonical(value), directory))
+    inputs['raw_authority'] = inputs['raw_authority'].decode('utf-8')
+    path = tmp_path / 'authority.json'
+    with path.open('x', encoding='utf-8') as stream:
+        json.dump(inputs, stream)
+    return path, inputs['confirmed_authority_sha256']
+
+
+def launch(tmp_path, directory, name, mode, authority_path=None):
     receipt = tmp_path / (name + '.json')
     env = dict(PATH=os.environ['PATH'], HOME=str(tmp_path), TMPDIR=str(tmp_path),
                PYTHONNOUSERSITE='1', PYTHONDONTWRITEBYTECODE='1', PYTHONPATH=str(ROOT / 'src'))
     child = subprocess.Popen([sys.executable, str(ROOT / 'tests/lab/session_probe.py'),
-        str(ROOT), str(directory), str(receipt), mode], cwd=ROOT, env=env,
+        str(ROOT), str(directory), str(receipt), mode,
+        '-' if authority_path is None else str(authority_path)], cwd=ROOT, env=env,
         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     try:
         with selectors.DefaultSelector() as selector:
@@ -58,11 +73,15 @@ def cleanup(items):
         assert not Path(f'/proc/{child.pid}').exists()
 
 
-def no_effects(result):
+def no_effects(result, expected_authority):
     assert result['counts'] == dict(socket=0, dns=0, connect=0, child=0)
     assert result['events'] == []
     assert result['observer_installed_before_product_import'] is True
-    assert len(result['origins']) == 2
+    assert set(result['origins']) == {
+        'aiddos.lab.authority', 'aiddos.lab.profile', 'aiddos.lab.session'}
+    assert result['authority_sha256'] == expected_authority
+    if 'result' in result:
+        assert result['result']['authority_sha256'] == expected_authority
     for origin in result['origins'].values():
         path = Path(origin['path'])
         assert path.is_relative_to(ROOT / 'src')
@@ -72,11 +91,12 @@ def no_effects(result):
 def test_two_fresh_process_claim_race_and_success_reopen(tmp_path, record_property):
     directory = tmp_path / 'state'
     directory.mkdir(mode=0o700)
+    approval, digest = approved_input(tmp_path, directory)
     items = []
     results = []
     try:
         for name in ('one', 'two'):
-            items.append(launch(tmp_path, directory, name, 'race'))
+            items.append(launch(tmp_path, directory, name, 'race', approval))
         # Both imported observers and reached stdin before either admission begins.
         for child, _, _ in items:
             child.stdin.write('GO\n')
@@ -88,7 +108,7 @@ def test_two_fresh_process_claim_race_and_success_reopen(tmp_path, record_proper
         winner = next(r for r in results if 'result' in r)
         assert winner['result']['state'] == 'COMPLETED'
         before = {p.name: p.read_bytes() for p in directory.iterdir()}
-        reopened = launch(tmp_path, directory, 'reopen', 'reopen')
+        reopened = launch(tmp_path, directory, 'reopen', 'reopen', approval)
         items.append(reopened)
         reopened[0].stdin.write('GO\n')
         reopened[0].stdin.flush()
@@ -97,7 +117,7 @@ def test_two_fresh_process_claim_race_and_success_reopen(tmp_path, record_proper
         assert results[-1]['callbacks'] == 0
         assert before == {p.name: p.read_bytes() for p in directory.iterdir()}
         for result in results:
-            no_effects(result)
+            no_effects(result, digest)
     finally:
         cleanup(items)
         record_property('owned_processes', json.dumps(results, sort_keys=True))
@@ -106,10 +126,11 @@ def test_two_fresh_process_claim_race_and_success_reopen(tmp_path, record_proper
 def test_fresh_process_error_claim_still_spent(tmp_path, record_property):
     directory = tmp_path / 'state'
     directory.mkdir(mode=0o700)
+    approval, digest = approved_input(tmp_path, directory)
     items, results = [], []
     try:
         for name, mode in (('failed', 'error'), ('reopen', 'reopen')):
-            item = launch(tmp_path, directory, name, mode)
+            item = launch(tmp_path, directory, name, mode, approval)
             items.append(item)
             item[0].stdin.write('GO\n')
             item[0].stdin.flush()
@@ -119,7 +140,7 @@ def test_fresh_process_error_claim_still_spent(tmp_path, record_property):
         assert len((directory / 'baseline-claim.json').read_bytes()) == 13
         assert all(r['callbacks'] == 0 for r in results)
         for result in results:
-            no_effects(result)
+            no_effects(result, digest)
     finally:
         cleanup(items)
         record_property('owned_processes', json.dumps(results, sort_keys=True))
@@ -138,6 +159,24 @@ def test_product_audit_veto_positive_controls(tmp_path, record_property, categor
         assert sum(result['counts'].values()) == 1
         assert len(result['events']) == 1
         assert result['control_blocked'] is True and result['origins'] == {}
+    finally:
+        cleanup([item])
+        record_property('owned_processes', json.dumps(results, sort_keys=True))
+
+
+def test_fresh_process_missing_authority_has_no_claim_or_callback(tmp_path, record_property):
+    directory = tmp_path / 'state'
+    directory.mkdir(mode=0o700)
+    item = launch(tmp_path, directory, 'refused', 'missing-authority')
+    results = []
+    try:
+        item[0].stdin.write('GO\n')
+        item[0].stdin.flush()
+        result = complete(item)
+        results.append(result)
+        assert result['code'] == 'AUTHORITY_REQUIRED' and result['callbacks'] == 0
+        assert list(directory.iterdir()) == []
+        no_effects(result, None)
     finally:
         cleanup([item])
         record_property('owned_processes', json.dumps(results, sort_keys=True))

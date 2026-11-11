@@ -16,8 +16,9 @@ from os import open as _open
 from os import stat as _stat
 from os import write as _write
 from time import monotonic as _clock
+from time import time_ns as _time_ns
 
-from aiddos.lab import profile
+from aiddos.lab import authority, profile
 
 _CODES = frozenset({
     'INVALID_PROFILE', 'PROFILE_TOO_LARGE', 'SITE_CONFIGURATION_REQUIRED',
@@ -25,6 +26,8 @@ _CODES = frozenset({
     'UNSUPPORTED_PLATFORM', 'SESSION_ALREADY_USED', 'OWNERSHIP_LOST', 'RECORD_IO_ERROR',
     'RETIREMENT_UNCERTAIN', 'SESSION_BUSY', 'RATE_LIMITED', 'BUDGET_EXHAUSTED',
     'SESSION_CLOSED', 'CANCELLED', 'EXPIRED', 'ACTION_FAILED', 'PERMIT_RETIRED',
+    'AUTHORITY_REQUIRED', 'INVALID_AUTHORITY', 'AUTHORITY_TOO_LARGE',
+    'AUTHORITY_MISMATCH', 'AUTHORITY_NOT_YET_VALID',
 })
 
 
@@ -41,6 +44,10 @@ class SessionError(Exception):
 
     def __repr__(self):
         return str(self)
+
+
+def _wall_ms():
+    return _time_ns() // 1_000_000
 
 
 def _directory_input(path):
@@ -104,8 +111,10 @@ class SessionOwner:
     """Use admit(), then explicitly finish()/close(); no implicit FD finalizer."""
 
     @classmethod
-    def admit(cls, raw_profile: bytes, confirmed_profile_sha256: str, state_directory: str):
+    def admit(cls, raw_profile: bytes, confirmed_profile_sha256: str, state_directory: str,
+              *, raw_authority=None, confirmed_authority_sha256=None, site_binding=None):
         start = _clock()
+        wall_start = _wall_ms()
         if type(raw_profile) is not bytes:
             raise SessionError('INVALID_PROFILE')
         evaluation = profile.evaluate(raw_profile)
@@ -116,13 +125,30 @@ class SessionOwner:
                 or confirmed_profile_sha256 != evaluation['profile_sha256']):
             raise SessionError('APPROVAL_REQUIRED')
         _directory_input(state_directory)
+        if (raw_authority is None or confirmed_authority_sha256 is None
+                or site_binding is None):
+            raise SessionError('AUTHORITY_REQUIRED')
+        parsed_profile = json.loads(raw_profile)
+        try:
+            grant = authority.parse(raw_authority)
+            authority.bind(grant, confirmed_authority_sha256, evaluation['profile_sha256'],
+                           parsed_profile['budget'], state_directory, site_binding)
+        except authority.AuthorityError as failure:
+            raise SessionError(failure.code) from None
+        if wall_start < grant.not_before_ms:
+            raise SessionError('AUTHORITY_NOT_YET_VALID')
+        deadline = min(start + parsed_profile['budget']['overall_timeout_ms'] / 1000,
+                       start + (grant.expires_ms - wall_start) / 1000)
+        if _clock() >= deadline or _wall_ms() >= grant.expires_ms:
+            raise SessionError('EXPIRED')
         _platform()
         owner = cls()
         owner._lock = threading.Lock()
-        owner._profile = json.loads(raw_profile)
+        owner._profile = parsed_profile
         owner._sha = evaluation['profile_sha256']
+        owner._authority = grant
         owner._budget = owner._profile['budget']
-        owner._deadline = start + owner._budget['overall_timeout_ms'] / 1000
+        owner._deadline = deadline
         owner._path = state_directory
         owner._fd = None
         owner._identity = None
@@ -130,6 +156,7 @@ class SessionOwner:
         owner._code = None
         owner._uncertain = False
         owner._stop = False
+        owner._expired = False
         owner._active = False
         owner._retired = False
         owner._settled = False
@@ -139,10 +166,14 @@ class SessionOwner:
         owner._last_entry = None
         try:
             owner._acquire_root()
+            if owner._identity != (grant.device, grant.inode):
+                raise SessionError('AUTHORITY_MISMATCH')
+            if _clock() >= owner._deadline or _wall_ms() >= grant.expires_ms:
+                raise SessionError('EXPIRED')
             owner._record('baseline-claim.json', 'BASELINE_SESSION_CLAIM',
                           budget=owner._budget)
             owner._identity_check()
-            if _clock() >= owner._deadline:
+            if _clock() >= owner._deadline or _wall_ms() >= grant.expires_ms:
                 raise SessionError('EXPIRED')
         except SessionError as failure:
             owner._retire_root()
@@ -185,7 +216,8 @@ class SessionOwner:
             raise SessionError('OWNERSHIP_LOST')
 
     def _record(self, leaf, kind, **fields):
-        data = profile.canonical(dict(schema_version=1, kind=kind,
+        data = profile.canonical(dict(schema_version=2, kind=kind,
+                                      authority_sha256=self._authority.sha256,
                                       profile_sha256=self._sha, **fields)) + b'\n'
         assert len(data) <= 4096
         fd = None
@@ -243,7 +275,8 @@ class SessionOwner:
                        'RETIREMENT_UNCERTAIN': 'UNCERTAIN'}.get(self._code, 'FAILED')
 
     def _view(self):
-        return dict(schema_version=1, profile_sha256=self._sha, state=self._state,
+        return dict(schema_version=2, profile_sha256=self._sha,
+                    authority_sha256=self._authority.sha256, state=self._state,
                     attempts_admitted=self._admitted, callbacks_started=self._started,
                     attempts_completed=self._completed, active=self._active,
                     stop_requested=self._stop, retired=self._retired,
@@ -263,7 +296,11 @@ class SessionOwner:
     def _control(self, deadline, now=None):
         if self._stop:
             return 'CANCELLED'
-        if (now if now is not None else _clock()) >= deadline:
+        if (self._expired or (now if now is not None else _clock()) >= deadline
+                or _wall_ms() >= self._authority.expires_ms):
+            # A caught checkpoint and subsequent wall rollback cannot renew an
+            # observed expiry. Keep stop/primary-error arbitration separate.
+            self._expired = True
             return 'EXPIRED'
         return None
 
@@ -375,10 +412,9 @@ class SessionOwner:
 
     def _finalize(self):
         with self._lock:
-            if self._stop:
-                self._fail('CANCELLED')
-            elif _clock() >= self._deadline:
-                self._fail('EXPIRED')
+            control = self._control(self._deadline)
+            if control:
+                self._fail(control)
             fields = dict(attempts_admitted=self._admitted, callbacks_started=self._started,
                           attempts_completed=self._completed, code=self._code)
         try:
@@ -390,10 +426,9 @@ class SessionOwner:
                 self._fail(failure.code, failure.cleanup_uncertain)
         self._retire_root()
         with self._lock:
-            if self._stop:
-                self._fail('CANCELLED')
-            elif _clock() >= self._deadline:
-                self._fail('EXPIRED')
+            control = self._control(self._deadline)
+            if control:
+                self._fail(control)
             if self._code:
                 self._fail(self._code)
             else:

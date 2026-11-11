@@ -1,5 +1,14 @@
 # 기능 1–12 순차 구현 정본
 
+## PLAN_PROGRESS2 후속 P0-B1 — 별도 로컬 callback 실행 승인
+
+SessionOwner의 기존 admit 진입점에 profile 확인과 별개의 bounded authority를
+필수화한다. profile 전체·선언 site·private root의 실제 dev/inode·동일 예산·유효창에
+결합하며, 기존 세 인자만의 호출은 거절한다. local record/snapshot은 v2다.
+현재 계약·검증/수용 기록은 `docs/P0B1_EXECUTION_AUTHORITY.md`를 따른다.
+이는 신뢰된 동기 callback의 admission이며 Guardian/실제 송신·물리 중단/현장 수용은
+아니다. 아래 P3-01a v1의 과거 수용이나 원래 P0-B 전체 완료와 구분한다.
+
 ## PLAN_PROGRESS2 후속 P0-A — normal-wire 검증 정리
 
 2026-11-10의 진행 점검 후 첫 후속 범위는 현재 소스의 normal-only
@@ -33,7 +42,7 @@ closed 오류·FD 종료·무통신 계약을 수용했다. 기존 evidence 238�
 67개도 확인했으며, 통합 gate와 commit readback은 `.hermes/artifacts/phase3/`에
 기록한다. tooling의 소유 loopback fixture는 실제 DUT 시험이 아니다.
 
-**P3-01a: 로컬 소유권 구현 · 독립 구현 검토 통과.** 별도 명시 승인 profile hash와
+**과거 P3-01a v1: 로컬 소유권 구현 · 독립 구현 검토 통과.** 당시 별도 profile hash와
 private directory의 단일 사용 claim, 최대 3회 동기 attempt, cooperative stop 및
 single-finalizer retirement library를 추가했다. 계약은
 `docs/PHASE3_SESSION_OWNER.md`다. 기존 CLI/API 자동 activation, HTTP/capture,

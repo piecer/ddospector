@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 def main():
-    root, directory, receipt, mode = sys.argv[1:]
+    root, directory, receipt, mode, authority_path = sys.argv[1:]
     root = Path(root)
     counts = dict.fromkeys(('socket', 'dns', 'connect', 'child'), 0)
     events = []
@@ -46,9 +46,9 @@ def main():
             output['control_blocked'] = True
         assert output.get('control_blocked') is True
     else:
-        from aiddos.lab import profile, session
+        from aiddos.lab import authority, profile, session
 
-        for module in (profile, session):
+        for module in (authority, profile, session):
             path = Path(module.__file__).resolve()
             assert path.is_relative_to(root / 'src')
             output['origins'][module.__name__] = dict(
@@ -60,6 +60,13 @@ def main():
         value['expected']['http_status'] = 200
         value['budget']['max_attempts'] = 1
         raw = profile.canonical(value)
+        # The parent supplies identical synthetic approval bytes for each peer.
+        # A child never issues its own authority or copies profile validation.
+        inputs = {}
+        if authority_path != '-':
+            inputs = json.loads(Path(authority_path).read_bytes())
+            inputs['raw_authority'] = inputs['raw_authority'].encode('utf-8')
+        output['authority_sha256'] = inputs.get('confirmed_authority_sha256')
         if mode == 'error':
             real = session._write
 
@@ -75,7 +82,8 @@ def main():
             permit.checkpoint()
 
         try:
-            owner = session.SessionOwner.admit(raw, hashlib.sha256(raw).hexdigest(), directory)
+            owner = session.SessionOwner.admit(raw, hashlib.sha256(raw).hexdigest(),
+                                               directory, **inputs)
         except session.SessionError as failure:
             output['code'] = failure.code
         else:

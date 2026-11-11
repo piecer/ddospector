@@ -6,6 +6,7 @@ import threading
 from types import SimpleNamespace
 
 import pytest
+from authority_support import arguments, document
 from test_session import admit, configured, error
 from test_session import clock as clock
 
@@ -157,7 +158,8 @@ def test_partial_success_durable_exact_records_and_no_fs_under_lock(tmp_path, cl
     monkeypatch.setattr(session, '_write', write)
     monkeypatch.setattr(session, '_fsync', fsync)
     monkeypatch.setattr(session, '_close', close)
-    owner = admit(tmp_path, max_attempts=1)
+    inputs = arguments(document(configured(max_attempts=1)[0], tmp_path))
+    owner = admit(tmp_path, max_attempts=1, authority_inputs=inputs)
     owner_ref.append(owner)
     assert owner.run_attempt(lambda permit: None) == 1
     result = owner.finish()
@@ -170,9 +172,11 @@ def test_partial_success_durable_exact_records_and_no_fs_under_lock(tmp_path, cl
     assert len(writes) > 4 and all(n <= 4096 for n in writes)
     digest = configured(max_attempts=1)[1]
     assert json.loads((tmp_path / 'attempt-1-start.json').read_bytes()) == dict(
-        schema_version=1, kind='ATTEMPT_START', profile_sha256=digest, attempt=1)
+        schema_version=2, kind='ATTEMPT_START', profile_sha256=digest, attempt=1,
+        authority_sha256=inputs['confirmed_authority_sha256'])
     assert json.loads((tmp_path / 'attempt-1-end.json').read_bytes()) == dict(
-        schema_version=1, kind='ATTEMPT_END', profile_sha256=digest, attempt=1,
+        schema_version=2, kind='ATTEMPT_END', profile_sha256=digest, attempt=1,
+        authority_sha256=inputs['confirmed_authority_sha256'],
         outcome='RETURNED', callback_started=True)
 
 

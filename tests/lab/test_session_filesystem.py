@@ -5,6 +5,7 @@ import stat
 import sys
 
 import pytest
+from authority_support import arguments, document
 from test_session import admit, configured, error
 from test_session import clock as clock
 
@@ -48,12 +49,13 @@ def test_character_cap_precedes_encoding_with_positive_control(tmp_path, monkeyp
 
     monkeypatch.setattr(session, '_open', refused_open)
     monkeypatch.setattr(session, '_stat', absent_stat)
+    inputs = arguments(document(configured()[0], bounded, identity=(0, 0)))
     sys.setprofile(observer)
     try:
         error('STATE_DIRECTORY_INVALID', lambda: session.SessionOwner.admit(*configured(), huge))
         assert encoded == [] and opened == []
         error('STATE_DIRECTORY_IO_ERROR',
-              lambda: session.SessionOwner.admit(*configured(), bounded))
+              lambda: session.SessionOwner.admit(*configured(), bounded, **inputs))
     finally:
         sys.setprofile(previous)
     assert encoded == [4096] and opened == [bounded]
@@ -131,8 +133,9 @@ def test_actual_directory_checks_and_single_retirement(tmp_path, monkeypatch, ca
         assert path.is_symlink()
 
 
-@pytest.mark.parametrize('kind', ['file', 'directory', 'symlink', 'identical'])
+@pytest.mark.parametrize('kind', ['file', 'directory', 'symlink', 'identical', 'legacy-v1'])
 def test_claim_collision_never_inspects_or_changes_entry(tmp_path, kind):
+    inputs = arguments(document(configured()[0], tmp_path))
     leaf = tmp_path / 'baseline-claim.json'
     target = tmp_path / 'caller'
     target.write_bytes(b'PRIVATE_SENTINEL')
@@ -141,16 +144,20 @@ def test_claim_collision_never_inspects_or_changes_entry(tmp_path, kind):
     elif kind == 'symlink':
         leaf.symlink_to(target)
     else:
-        data = (profile.canonical(dict(schema_version=1, kind='BASELINE_SESSION_CLAIM',
-            profile_sha256=configured()[1], budget=json.loads(configured()[0])['budget'])) + b'\n'
-            if kind == 'identical' else b'caller')
+        value = dict(schema_version=1 if kind == 'legacy-v1' else 2,
+                     kind='BASELINE_SESSION_CLAIM', profile_sha256=configured()[1],
+                     budget=json.loads(configured()[0])['budget'])
+        if kind == 'identical':
+            value['authority_sha256'] = inputs['confirmed_authority_sha256']
+        data = (profile.canonical(value) + b'\n'
+                if kind in ('identical', 'legacy-v1') else b'caller')
         leaf.write_bytes(data)
     before = leaf.lstat()
-    error('SESSION_ALREADY_USED', lambda: admit(tmp_path))
+    error('SESSION_ALREADY_USED', lambda: admit(tmp_path, authority_inputs=inputs))
     after = leaf.lstat()
     assert (before.st_ino, before.st_mode, before.st_size, before.st_mtime_ns) == (
         after.st_ino, after.st_mode, after.st_size, after.st_mtime_ns)
-    if kind in ('file', 'identical'):
+    if kind in ('file', 'identical', 'legacy-v1'):
         assert leaf.read_bytes() == data
     assert target.read_bytes() == b'PRIVATE_SENTINEL'
 

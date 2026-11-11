@@ -1,30 +1,35 @@
-# P0-A normal-wire provenance and verification
+# Historical P0-A normal-wire provenance and verification
 
 ## Scope
 
 This is the first follow-up to `PLAN_PROGRESS2.md`, based on product revision
-`0530b0729403edd8985b3d1f4fa322d066356668`. Runtime code under `src/` is unchanged.
+`0530b0729403edd8985b3d1f4fa322d066356668`. In that slice, runtime `src/` was unchanged.
 The change repairs a stale verification input, not a demonstrated DUT or Runs
 runtime failure. The original progress report remains a historical audit.
+
+The subsequent P0-B1 local-authority change has its own source and acceptance gates
+in `P0B1_EXECUTION_AUTHORITY.md`. The P0-A accepted corpus is retained exactly as
+`tests/fixtures/runs/normal-wire-p0a.json`; it is not a fallback for the latest
+`normal-wire-current.json` source gate. The observations below belong to P0-A.
 
 Implementation, actual normal capture and Node/Chromium replay are recorded below.
 The independent R1/R2 correction review accepted the implementation and saved
 capture bindings. Final scoped canonical results and integration are separate
 closeout gates; this document does not infer them from a generated file alone.
 
-## Historical and current corpora
+## Corpora at the P0-A checkpoint
 
 - Preserve `tests/fixtures/runs/normal-wire.json` byte-for-byte. Its SHA256 is
   `e3ee5b76d6a180d3a6d61462174c695989c444adc2f4bdb9c11a94d0aca47922`.
-- Add `tests/fixtures/runs/normal-wire-current.json`, SHA256
+- The P0-A accepted corpus, now `tests/fixtures/runs/normal-wire-p0a.json`, has SHA256
   `04fa85bd80ea052efb35c1fea781fe8dac01095da36addbc95fc1bca947877d2`.
-- The current corpus contains 12 newly captured positive ASGI responses and all
+- The P0-A corpus contains 12 newly captured positive ASGI responses and all
   39 unchanged historical synthetic consumer-negative rows. It is not 51 real
   experiments, a network TCP capture, or a UI-to-worker browser workflow.
 - Schema 2 retains the exact raw capture/report strings and hashes, completed
   probe/process report, four worker starts/exits, actual module origins, native
   process retirement, and PostgreSQL creation/cleanup journal.
-  The exact 93-path source inventory covers all current `src` Python/SQL files,
+  Its exact 93-path inventory covered all `src` Python/SQL files at that checkpoint,
   `pyproject.toml`, `uv.lock`, the input producer, probe and capture/ownership helpers.
 - Ordinary consumers independently enumerate source paths, verify hashes and
   the linked completion/origin/cleanup graph, preserve all row identities and

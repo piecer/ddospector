@@ -84,6 +84,17 @@ A Skill explains how an agent should work. It cannot grant approval, override sa
 
 AI settings manage multiple model configuration drafts without activating a provider. Profiles remain `not_tested`; API-key values, model discovery, connection tests and failover execution are unavailable. Existing version-1 draft files are validated and migrated in memory on read, then persisted as version 2 on the next authorized mutation. The previous drafts and audit history are preserved; corrupt files are not repaired silently.
 
+## Local callback execution authority
+
+The opt-in `ddospector.lab.session.SessionOwner` now requires a separately
+confirmed local-callback authority document, not just profile confirmation or
+scenario registration. It binds the exact profile/budget, declared site context,
+private state-directory identity and a finite validity window. The former
+three-argument call is refused; local records/snapshots are schema 2.
+See `docs/P0B1_EXECUTION_AUTHORITY.md` and `docs/PHASE3_SESSION_OWNER.md`.
+This does not add HTTP/capture, an independent Guardian, physical-stop proof,
+an execution API/CLI, or authenticated remote approval. LIVE stays unavailable.
+
 ## Deliberate boundaries
 
 The separate CHAT-01 text-chat contract is documented in `docs/CHAT_CONTRACT.md`.
