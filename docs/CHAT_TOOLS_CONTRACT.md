@@ -263,13 +263,22 @@ the earlier `producer-current.json` and `producer.json` remain historical eviden
 Raw bodies, source pins,
 approval, audit and restart assertions are retained rather than hash-only repinned.
 
-For this closeout the operator explicitly deferred actual-model and PostgreSQL
+For that public-workflow closeout the operator explicitly deferred actual-model and PostgreSQL
 execution. Consequently the normal-wire corpus, whose origin requires real
 PostgreSQL and a separate worker, is unchanged and its current-source freshness
 gate remains open. Neither SQLite nor mocked data substitutes for that evidence.
 Unfiltered Web failure at that gate must remain visible; passing other checks
 does not establish full-suite, model, PG or caller-deployment acceptance. No
 historical model allowance is reset and no existing service is restarted.
+
+The subsequent PLAN_PROGRESS2 P0-A normal-only verification is separate from that
+historical deferral. `normal-wire.json` stays unchanged; `normal-wire-current.json`
+contains new actual private-PG/separate-worker ASGI responses, their linked
+completion/source/cleanup observations, and the unchanged 39 consumer negatives.
+The mandatory consumer gate validates the complete current source inventory and
+the new proof graph, not repinned historical bodies. See `NORMAL_WIRE_VERIFICATION.md`
+for exact execution and remaining acceptance. This does not reopen real-model
+allowances, full S02/W2, device testing, or caller deployment.
 
 ## Actual publication, conflict and recovery
 

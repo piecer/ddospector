@@ -1,37 +1,29 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
-import type { Context } from "./client";
+import { validateNormalWire, type NormalWireFixture } from "./normalWireProof";
 
 export const normalWireRoot = resolve(import.meta.dirname, "../../../..");
-const bytes = readFileSync(resolve(normalWireRoot, "tests/fixtures/runs/normal-wire.json"));
-assert.equal(createHash("sha256").update(bytes).digest("hex"),
+const historical = readFileSync(resolve(normalWireRoot, "tests/fixtures/runs/normal-wire.json"));
+assert.equal(createHash("sha256").update(historical).digest("hex"),
   "e3ee5b76d6a180d3a6d61462174c695989c444adc2f4bdb9c11a94d0aca47922");
-type Row = {
-  label: string;
-  raw: string;
-  sha256: string;
-  context: Context;
-  expected: "ACCEPT" | "REJECT";
-  provenance: "RECORDED_ASGI_HTTP" | "SYNTHETIC_CONSUMER_NEGATIVE";
-};
-const fixture = JSON.parse(bytes.toString("utf8")) as {
-  schema_version: number;
-  producer_source_sha256: Record<string, string>;
-  cases: Row[];
-};
-assert.equal(fixture.schema_version, 1);
-for (const [path, hash] of Object.entries(fixture.producer_source_sha256)) {
-  assert(!path.split("/").includes("..") &&
-    (path.startsWith("src/") || ["pyproject.toml", "uv.lock"].includes(path)));
-  assert.equal(createHash("sha256").update(readFileSync(resolve(normalWireRoot, path))).digest("hex"),
-    hash, `Producer source changed: ${path}; do not silently regenerate this recorded corpus.`);
+const bytes = readFileSync(resolve(normalWireRoot, "tests/fixtures/runs/normal-wire-current.json"));
+assert.equal(createHash("sha256").update(bytes).digest("hex"),
+  "04fa85bd80ea052efb35c1fea781fe8dac01095da36addbc95fc1bca947877d2");
+const paths = ["pyproject.toml", "uv.lock", "tests/api/scenario_producer.py",
+  "tests/runs/phase1_probe.py", "tools/s02_harness.py", "tools/s02_web_probe.py",
+  "tools/normal_wire.py", "tools/normal_wire_observer/sitecustomize.py"];
+function enumerate(directory: string) {
+  for (const entry of readdirSync(resolve(normalWireRoot, directory), { withFileTypes: true })) {
+    const path = `${directory}/${entry.name}`;
+    if (entry.isDirectory()) enumerate(path);
+    else if (entry.isFile() && /\.(py|sql)$/.test(path)) paths.push(path);
+  }
 }
-assert.equal(fixture.cases.length, 51);
-assert.equal(fixture.cases.filter(r => r.provenance === "RECORDED_ASGI_HTTP").length, 12);
-assert.equal(new Set(fixture.cases.map(r => r.label)).size, fixture.cases.length);
-for (const row of fixture.cases) {
-  assert.equal(createHash("sha256").update(Buffer.from(row.raw, "utf8")).digest("hex"), row.sha256);
-}
-export const normalWireCases = fixture.cases;
+enumerate("src");
+const sources = Object.fromEntries(paths.sort().map(path => [path,
+  createHash("sha256").update(readFileSync(resolve(normalWireRoot, path))).digest("hex"),
+]));
+export const normalWireCases = validateNormalWire(JSON.parse(bytes.toString("utf8")) as
+  NormalWireFixture, JSON.parse(historical.toString("utf8")), sources);

@@ -7,4 +7,25 @@ These are exact copies of the existing reviewed candidate's input bytes, not fre
 - Bodies and manifest order/expected verdicts are unchanged. Only the Web test loader paths moved from private campaign directories to these tracked directories.
 - Malformed encoding, whitespace and unusual byte sequences are deliberate negative fixtures. Do not autoformat or normalize `.body` files.
 
-The suite imports the shipped consumer. These fixtures do not replace final backend, real browser, worker, device or end-to-end acceptance.
+The suite imports the shipped consumer. These historical fixtures do not replace final backend, real browser, worker, device or end-to-end acceptance.
+
+## Current normal-only corpus
+
+- `normal-wire.json` is the unchanged historical ASGI/PG corpus, SHA256
+  `e3ee5b76d6a180d3a6d61462174c695989c444adc2f4bdb9c11a94d0aca47922`.
+- `normal-wire-current.json` is a separate explicit capture through actual private
+  PostgreSQL and a selected separate-process worker. Its 12 positive rows are new
+  exact ASGI response bytes; all 39 historical synthetic-negative rows are unchanged.
+- Schema 2 embeds the final report, worker exits, actual import origins, native
+  retirement and PG ownership/cleanup journal. It binds the complete src Python/SQL
+  inventory, manifests and capture helpers. Hashes establish consistency, not
+  authentication against a malicious local writer.
+- `tools/normal_wire.py --output /absolute/new-directory` is an explicit capture
+  operation, never run by fixture loading or ordinary Web tests. It does not
+  overwrite this directory. Missing prerequisites and incomplete cleanup are
+  failures, not permission to substitute old or synthetic positive responses.
+- Promotion requires source review, exact artifact hashing, Node/Chromium replay
+  and the current freshness guard. Do not edit pins alone or regenerate on test start.
+
+See `docs/NORMAL_WIRE_VERIFICATION.md` for scope and limitations. ASGI capture plus
+browser parser replay is not a TCP UI-to-worker workflow, W2 or DUT acceptance.

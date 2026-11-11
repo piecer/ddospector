@@ -113,12 +113,14 @@ floor, not independent confirmation of its audit. Reloaded ID-only links inspect
 the current record, not a lost historical receipt. Explicit GET retry, cancellation
 and close preserve dirty forms and never replay a mutation.
 Provider settings, MCP assignments and execution are not writable by these tools.
-Chat-driven scenario/version saves remain CHAT-02B3; multi-step planning is CHAT-03.
+CHAT-02B3 now includes the public scenario create/version-append workflow with
+separate exact approval; actual-model acceptance remains separate. Multi-step
+planning remains CHAT-03.
 No target or Skill update/delete is exposed. None of these permissions can be
 inferred from model or Skill text. A saved tool result is separate from final
 model-text success.
 
-CHAT-02B2 at checkpoint `4412cc9` is implementation work in progress, not an
+Historical status: CHAT-02B2 at checkpoint `4412cc9` was implementation work in progress, not an
 accepted full feature or MVP. Component reviews are closed, but fresh current-source
 all-variant producer capture/replay, normal PostgreSQL/separate-worker parity,
 browser/resource acceptance and final canonical gates remain open. Historical B1
@@ -126,6 +128,12 @@ raw evidence remains frozen; it cannot be relabeled as current producer evidence
 New capture and mandatory freshness checks must be promoted together. CHAT-02A
 final-explanation acceptance (A-FINAL) and selected-model B1 acceptance remain open;
 synthetic Agent/Target/Skill fixtures do not close them or expand model budgets.
+
+The later `72f7d36` checkpoint closed B2 controlled-provider fixture acceptance,
+not selected-model or DUT acceptance. The P0-A normal-wire refresh preserves the
+historical corpus and adds a separate actual PG/worker capture with source and
+cleanup receipts. Current verification scope and the remaining model/deployment
+gates are recorded in `docs/NORMAL_WIRE_VERIFICATION.md`.
 
 LIVE run admission, MCP connection/handshake, traffic generation, instrument control, operational approvals, full defense verdicts and live evidence capture remain unavailable. The legacy LIVE execution endpoint remains denied. The OFFLINE Runs route reads actual run storage; it shows an unavailable state when storage is absent, not fabricated empty history. The supervised Phase-1 path is accepted; full original S02 integration remains unaccepted.
 

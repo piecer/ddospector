@@ -22,8 +22,10 @@ CLOSED; round-2 was a legitimate mock correction, not weakened assertions. See
 actual-producer Evidence fixtures are not fresh current-backend runs. Conservative
 failed-POST pending (N1) remains unchanged: GET-only resolution, no automatic
 retry or silent receipt clearing. Actual P2-03 browser → API → PostgreSQL →
-explicit CLI evaluator → exports → ordinary-open acceptance remains PENDING.
-No full Phase-2 or DUT acceptance is claimed; a commit does not close that gate.
+explicit CLI evaluator → exports → ordinary-open acceptance was PENDING at this
+transport checkpoint. The later FILES ONLY acceptance on 2026-10-17 is recorded
+in [PHASE2_ACCEPTANCE.md](PHASE2_ACCEPTANCE.md). This does not establish actual DUT
+acceptance or completion of the original full S03/S04 roadmap.
 
 ## Deliberately small upload budget
 

@@ -12,6 +12,7 @@ from uuid import uuid4
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests/api"))
+sys.path.insert(0, str(ROOT / "src"))
 
 from tools import s02_harness as h  # noqa: E402
 
@@ -24,6 +25,12 @@ def invoke(data, run_id, label):
     output = Path(data["output"])
     env = h.child_environment(output)
     env["DDOSPECTOR_RUN_DB_SOCKET"] = data["socket"]
+    env["PYTHONPATH"] = str(ROOT / "src")
+    if data.get("observe_origins") is True:
+        env["PYTHONPATH"] = os.pathsep.join(
+            (str(ROOT / "tools/normal_wire_observer"), env["PYTHONPATH"]))
+        env["NORMAL_WIRE_ROOT"] = str(ROOT)
+        env["NORMAL_WIRE_ORIGIN"] = str(output / f"{label}-origins.json")
     argv = [sys.executable, "-m", "ddospector.runs.worker", "--run-id", run_id]
     with (
         (output / f"{label}.stdout").open("wb") as stdout,

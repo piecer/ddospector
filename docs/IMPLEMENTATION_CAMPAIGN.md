@@ -1,5 +1,13 @@
 # 기능 1–12 순차 구현 정본
 
+## PLAN_PROGRESS2 후속 P0-A — normal-wire 검증 정리
+
+2026-11-10의 진행 점검 후 첫 후속 범위는 현재 소스의 normal-only
+ASGI/PG/별도 worker 응답과 Node/Chromium 소비 검증이다. 과거 corpus는 보존하고
+새 자료와 실제 완료·출처·소유 자원 정리 기록을 분리한다. 상세 결과와 gate 범위는
+`docs/NORMAL_WIRE_VERIFICATION.md`를 따른다. 기존 모델·W2·실장비 시험 한도를
+초기화하지 않으며, 아래 장기 단계나 실제 모델 수용을 완료로 바꾸지 않는다.
+
 ## 제품 AI Agent 작업 지침 보강
 
 사용자의 자율 계획·실행·검증 지침 요청에 따라, 별도 버전의 EN/KO 기본 작업 흐름을
