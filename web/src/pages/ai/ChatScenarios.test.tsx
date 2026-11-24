@@ -185,28 +185,65 @@ it("Pending captures complete authority before await and retains it through GET 
 });
 
 import { useToolAuthority } from "./useToolAuthority";
-import { readFileSync } from "node:fs";
 import { parseTranscriptV4 } from "./chat-scenario-wire";
-const captures =
-  "/home/piecer/dev/src/ddospector/.hermes/artifacts/chat-agent/chat02b3/implementation/integration/p-client/review/producer-bytes/";
+import { scenarioProducerValue } from "./chat-scenario-producer-fixture";
+async function uncertaintyFixtures() {
+  const transcript = scenarioProducerValue("uncertain-transcript"),
+    turn = scenarioProducerValue("uncertain-turn"),
+    runtime = scenarioProducerValue("runtime"),
+    uncertainFence = scenarioProducerValue("fence-uncertain"),
+    actualState = scenarioProducerValue("reconcile-state"),
+    reconcile = scenarioProducerValue("reconcile"),
+    record = await recordFixture(2);
+  // These state-only derivatives exercise quarantine UI branches. The transcript,
+  // fence, reconciliation receipt and scenario record remain captured/validated data.
+  const quarantinedState = {
+      ...actualState,
+      registry_write_status: "quarantined",
+    },
+    clearedFence = {
+      ...uncertainFence,
+      generation: reconcile.generation,
+      fenced: false,
+      call_ids: [],
+    },
+    page = {
+      revision: record.version,
+      total: 1,
+      offset: 0,
+      limit: 50,
+      items: [record],
+      execution_enabled: false,
+    };
+  return {
+    transcript,
+    turn,
+    runtime,
+    uncertainFence,
+    quarantinedState,
+    reconcile,
+    clearedFence,
+    page,
+  };
+}
 it("uncertainty inspection uses two fences and acknowledgement never clears scenario quarantine", async () => {
-  const v = (n: string) =>
-    JSON.parse(readFileSync(captures + n + ".bin", "utf8"));
-  const wire = v("uncertain-transcript"),
-    transcript = await parseTranscriptV4(wire, wire.turn_id);
+  const fixtures = await uncertaintyFixtures(),
+    transcript = await parseTranscriptV4(
+      fixtures.transcript,
+      fixtures.transcript.turn_id,
+    );
   let cleared = false;
   const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
-    if (url.endsWith("/runtime")) return response(v("runtime"));
+    if (url.endsWith("/runtime")) return response(fixtures.runtime);
     if (url.endsWith("/fence"))
-      return response(v(cleared ? "fence-cleared" : "fence-uncertain"));
-    if (url.endsWith("/state")) return response(v("state-quarantined"));
-    if (url.includes("/api/v1/scenarios?"))
-      return response(v("quarantined-page"));
+      return response(cleared ? fixtures.clearedFence : fixtures.uncertainFence);
+    if (url.endsWith("/state")) return response(fixtures.quarantinedState);
+    if (url.includes("/api/v1/scenarios?")) return response(fixtures.page);
     if (url.endsWith("/reconcile")) {
       cleared = true;
       return response(
         {
-          ...v("reconcile"),
+          ...fixtures.reconcile,
           request_id: JSON.parse(init!.body as string).request_id,
         },
         201,
@@ -245,18 +282,17 @@ it("uncertainty inspection uses two fences and acknowledgement never clears scen
   );
   expect(sent).toMatchObject({
     schema_version: 4,
-    expected_scenario_revision: v("state-quarantined").scenario_revision,
+    expected_scenario_revision: fixtures.quarantinedState.scenario_revision,
   });
 });
 
 import { chatClient } from "./chat-client";
 import { parseTurn } from "./chat-wire";
 it("cold uncertain UI offers bounded explicit page inspection and never a Saved link", async () => {
-  const v = (n: string) =>
-    JSON.parse(readFileSync(captures + n + ".bin", "utf8"));
-  const wire = v("uncertain-transcript"),
+  const fixtures = await uncertaintyFixtures(),
+    wire = fixtures.transcript,
     t = parseTurn({
-      ...v("uncertain-turn"),
+      ...fixtures.turn,
       status: "cancelled",
       error_code: "CHAT_CANCELLED",
       revision: 2,
@@ -276,17 +312,17 @@ it("cold uncertain UI offers bounded explicit page inspection and never a Saved 
     turns: [t],
     next_before_sequence: null,
   } as never);
-  const page = v("quarantined-page");
+  const page = fixtures.page;
   const fetcher = vi.fn(async (u: string) =>
     response(
       u.endsWith("/tools")
         ? wire
         : u.endsWith("/runtime")
-          ? v("runtime")
+          ? fixtures.runtime
           : u.endsWith("/fence")
-            ? v("fence-uncertain")
+            ? fixtures.uncertainFence
             : u.endsWith("/state")
-              ? v("state-quarantined")
+              ? fixtures.quarantinedState
               : page,
     ),
   );

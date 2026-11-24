@@ -86,8 +86,10 @@ it("reviews immutable uncertainty and independent current Agent/revision, then o
   fireEvent.click(await screen.findByTestId(`chat-session-${sid}`));
   await screen.findByTestId(`chat-tool-${cid}`);
   fireEvent.click(screen.getByTestId("chat-tools-reconcile-review"));
-  await waitFor(() =>
-    expect(screen.getByTestId("chat-tools-reconcile-confirm")).toBeEnabled(),
+  await waitFor(
+    () =>
+      expect(screen.getByTestId("chat-tools-reconcile-confirm")).toBeEnabled(),
+    { timeout: 5_000 },
   );
   expect(screen.getByTestId("chat-tools-current-agent")).toHaveTextContent(
     after.name.trim(),

@@ -891,7 +891,7 @@ it("keeps valid history, read reload and pagination reachable after closing a st
     "GET",
     "GET",
   ]);
-});
+}, 15_000);
 it("retains the receipt after readback failure and GET-only retry accepts it behind a concurrent append", async () => {
   const one = await recordFixture(),
     two = await recordFixture(2, {

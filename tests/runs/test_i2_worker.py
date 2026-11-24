@@ -17,7 +17,8 @@ def probe(owner, case, timeout=60):
     handoff = {
         'root': str(ROOT), 'prefix': str(ROOT / '.venv'),
         'python': str(ROOT / '.venv/bin/python'), 'owner': owner.owner_process,
-        'socket': str(owner.socket), 'output': str(output), 'case': case,
+        'socket': str(owner.socket), 'socket_root': str(owner.socket.parent.parent),
+        'output': str(output), 'case': case,
         'source': {
             str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
             for folder in ('src', 'tests/runs')

@@ -29,7 +29,6 @@ def source_check(data):
 def child(data, label, argv, *, env=None, pass_fds=()):
     output = Path(data['output'])
     environment = h.child_environment(output)
-    environment['TMPDIR'] = '/home/piecer/.hermes/cache/scratch/i3w-lecrmpg5'
     if env:
         environment.update(env)
     p = subprocess.Popen(argv, cwd=ROOT, env=environment, stdin=subprocess.DEVNULL,
@@ -106,7 +105,7 @@ def server(data):
         finally:
             conn.close()
         sequence += 1
-        corpus = ROOT / 'i2-evidence/producer-corpus' / Path(data['output']).parent.name
+        corpus = Path(data['output']) / 'producer-corpus'
         corpus.mkdir(parents=True, exist_ok=True)
         name = f'{sequence:04d}'
         (corpus / (name + '.body')).write_bytes(content)
@@ -139,7 +138,7 @@ def execute(data):
     assert Path(psycopg.__file__).is_relative_to(ROOT / '.venv')
     output = Path(data['output'])
     assert output.is_relative_to(ROOT / 'implementation-evidence')
-    assert Path(data['socket']).is_relative_to('/home/piecer/.hermes/cache/scratch/i3w-lecrmpg5')
+    assert Path(data['socket']).is_relative_to(Path(data['socket_root']))
     data = {**data, 'state': str(output / 'draft.json')}
     with child(data, 'migration', [data['python'], '-m', 'aiddos.runs.migrate'],
                env={'AIDDOS_RUN_DB_SOCKET': data['socket']}) as migration:

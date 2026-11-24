@@ -222,7 +222,7 @@ def execute(handoff):
     output = Path(handoff["output"])
     endpoint = Path(handoff["socket"])
     assert output.is_relative_to(ROOT / "implementation-evidence")
-    assert endpoint.is_relative_to(Path("/home/piecer/.hermes/cache/scratch/i3w-lecrmpg5"))
+    assert endpoint.is_relative_to(Path(handoff["socket_root"]))
     os.environ["AIDDOS_RUN_DB_SOCKET"] = str(endpoint)
     os.environ["AIDDOS_UI_STATE_PATH"] = str(output / "draft.json")
     native_async = psycopg.AsyncConnection.connect

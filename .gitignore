@@ -9,4 +9,7 @@ web/dist/
 web/.cache/
 web/test-results/
 web/playwright-report/
+web/*.tsbuildinfo
+.hermes/
+implementation-evidence/
 .env

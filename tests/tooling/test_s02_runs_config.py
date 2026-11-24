@@ -82,3 +82,8 @@ def test_repository_relative_full_collection_without_resources(tmp_path):
     assert "Total: 2 tests in 1 file" in result.stdout
     assert "real EN/KO" in result.stdout and "exact-byte" in result.stdout
     assert "owned ephemeral-origin" not in result.stdout
+
+
+def test_default_browser_config_excludes_the_owned_runs_harness():
+    config = (ROOT / "web/playwright.config.ts").read_text()
+    assert 'testIgnore: "runs.spec.ts"' in config

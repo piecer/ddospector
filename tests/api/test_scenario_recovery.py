@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -18,7 +19,7 @@ def child(monkeypatch, args, *, data=None, ticket=None):
     env = {
         "PATH": os.defpath,
         "HOME": str(ROOT / "implementation-evidence"),
-        "TMPDIR": "/home/piecer/.hermes/cache/scratch",
+        "TMPDIR": str(Path(tempfile.gettempdir()).resolve()),
         "PYTHONPATH": str(ROOT / "src"),
         "PYTHONDONTWRITEBYTECODE": "1",
     }

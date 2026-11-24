@@ -24,5 +24,5 @@ export default defineConfig({
   use: { baseURL: state.origin, locale: "en-US", timezoneId: "Asia/Seoul",
     trace: "on", screenshot: "only-on-failure", video: "off", serviceWorkers: "block" },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"],
-    viewport: { width: 1440, height: 1000 } } }],
+    channel: "chromium", viewport: { width: 1440, height: 1000 } } }],
 });

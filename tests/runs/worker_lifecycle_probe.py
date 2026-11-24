@@ -13,16 +13,17 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT / "cohort-evidence"))
-from supervise import environment, save  # noqa: E402
-
 from tools import s02_harness as h  # noqa: E402
+
+
+def save(path, value):
+    path.write_text(json.dumps(value, indent=2) + "\n")
 
 
 @contextmanager
 def child(data, label, argv, *, extra=None):
     output = Path(data["output"])
-    env = environment()
+    env = h.child_environment(output)
     env["AIDDOS_RUN_DB_SOCKET"] = data["socket"]
     if extra:
         env.update(extra)
@@ -348,7 +349,7 @@ def worker_child(data, mode):
         offline.ScenarioVersion.model_validate = classmethod(
             lambda cls, *args, **kwargs: checked_model(*args, **kwargs)
         )
-    raise SystemExit(worker.main())
+    raise SystemExit(asyncio.run(worker.run()))
 
 
 def seed(data, count=1, age=0):

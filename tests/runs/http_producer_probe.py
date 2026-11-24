@@ -17,8 +17,6 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 from tools import s02_harness as h  # noqa: E402
 
-ENV = json.loads((ROOT / "cohort-evidence/environment.json").read_text())
-
 
 def source_check(data):
     assert data["root"] == str(ROOT) and sys.prefix == data["prefix"]
@@ -32,7 +30,8 @@ def source_check(data):
 @contextmanager
 def child(data, label, argv, *, extra=None, pass_fds=()):
     output = Path(data["output"])
-    env = {**ENV, **(extra or {})}
+    env = {**data["environment"], **(extra or {})}
+    assert env == {**h.child_environment(output), **(extra or {})}
     with (
         (output / (label + "-stdout.log")).open("wb") as stdout,
         (output / (label + "-stderr.log")).open("wb") as stderr,
@@ -132,9 +131,7 @@ def server(data, label="api"):
     handoff = output / (label + "-handoff.json")
     handoff.write_text(json.dumps(data, indent=2) + "\n")
     sequence = 0
-    corpus = (
-        ROOT / "cohort-evidence/producer-corpus" / output.parent.name / (data["case"] + "-" + label)
-    )
+    corpus = output / "producer-corpus" / (data["case"] + "-" + label)
     corpus.mkdir(parents=True)
 
     def request(method, path, body=None, *, provenance="NATURAL_HTTP_S01_PG"):
@@ -697,7 +694,7 @@ def execute(data):
 
     assert Path(psycopg.__file__).is_relative_to(ROOT / ".venv")
     output = Path(data["output"])
-    assert Path(data["socket"]).is_relative_to("/home/piecer/.hermes/cache/scratch/i3w-lecrmpg5")
+    assert Path(data["socket"]).is_relative_to(Path(data["socket_root"]))
     data = {**data, "state": str(output / "draft.json")}
     with child(
         data,

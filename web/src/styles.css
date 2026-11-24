@@ -1488,6 +1488,9 @@ textarea:disabled {
   }
 }
 @media (max-width: 760px) {
+  .skip-link:focus {
+    top: 68px;
+  }
   .sidebar {
     display: none;
     width: 258px;
