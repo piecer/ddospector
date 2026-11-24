@@ -7,6 +7,7 @@ help:
 setup:
 	uv sync --frozen
 	npm --prefix web ci
+	npm --prefix web exec -- playwright install --no-shell chromium
 runs-migrate:
 	.venv/bin/python -m ddospector.runs.migrate
 .PHONY: runs-migrate worker worker-once test-phase1

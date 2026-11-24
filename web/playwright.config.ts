@@ -19,6 +19,7 @@ const artifacts = join(
 );
 export default defineConfig({
   testDir: "./e2e",
+  testIgnore: "runs.spec.ts",
   fullyParallel: false,
   workers: 1,
   retries: 0,
@@ -43,6 +44,7 @@ export default defineConfig({
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
+        channel: "chromium",
         viewport: { width: 1440, height: 1000 },
       },
     },

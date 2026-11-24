@@ -33,3 +33,20 @@ def test_public_make_commands_use_ddospector_entrypoints():
     assert "DDoSpector · local UI workspace" in makefile
     assert ".venv/bin/python -m uvicorn ddospector.api.app:app" in makefile
     assert ".venv/bin/python -m ddospector.runs.migrate" in makefile
+
+
+def test_setup_installs_the_browser_used_by_playwright():
+    makefile = (ROOT / "Makefile").read_text()
+    assert "npm --prefix web exec -- playwright install --no-shell chromium" in makefile
+    for name in (
+        "playwright.config.ts",
+        "playwright.chat.config.ts",
+        "playwright.chat-tools.config.ts",
+        "playwright.phase1.config.ts",
+        "playwright.runs.config.ts",
+    ):
+        assert 'channel: "chromium"' in (ROOT / "web" / name).read_text(), name
+    focus = (ROOT / "web/playwright.runs-focus.config.ts").read_text()
+    parity = (ROOT / "web/playwright.runs-parity.config.ts").read_text()
+    assert "executablePath: process.env.FOCUS_CHROMIUM" in focus
+    assert 'from "./playwright.runs-focus.config"' in parity

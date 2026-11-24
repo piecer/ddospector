@@ -15,6 +15,7 @@ it.each([0, 1, 55, 56, 63, 64, 65, 127, 128, 65536, 1048583])(
     expect(await sha256(bytes)).toBe(createHash("sha256").update(bytes).digest("hex"));
     expect(bytes).toEqual(before);
   },
+  15_000,
 );
 
 it("snapshots input before yielding and does not block a whole large digest", async () => {

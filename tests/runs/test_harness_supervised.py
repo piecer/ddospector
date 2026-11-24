@@ -1352,27 +1352,26 @@ def test_control_retains_first_failure_classification(tmp_path, monkeypatch, pha
         assert owner.attempt.failure == code
 
 
-def test_preserved_native_warning_bytes_use_product_parser_only(tmp_path):
-    path = (
-        Path(__file__).resolve().parents[2]
-        / "inputs/stopped-author/implementation-evidence/diagnostic-boundary.json"
-    )
-    archived = json.loads(path.read_text())
-    assert archived["raw_authority_RED"] == {
-        "expected": 78,
-        "actual": 0,
-        "assertion": "test_harness_supervised.py:33",
-    }
-    for row in archived["rows"]:
-        raw = row["stderr"].encode()
-        assert len(raw) == row["stderr_bytes"] and h.diagnostic(raw) is False
+def test_normative_warning_grammar_is_not_w01_historical_replay(tmp_path):
+    # W01's historical receipt is not distributed and remains OPEN. This test
+    # covers only the committed W grammar; it is not a replay of that receipt.
+    root = Path(__file__).resolve().parents[2]
+    contract = root / "docs/stages/S02_I0_STDERR_AMENDMENT.md"
+    text = contract.read_text()
+    warning = b'WARNING: password file "/dev/null" is not a plain file\n'
+    assert len(warning) == 55
+    assert "contain respectively 4/11/2 copies of the warning below" in text
+    assert '    WARNING: password file "/dev/null" is not a plain file\\n' in text
+    for label, count in (("setup", 4), ("write", 11), ("raw-read", 2)):
+        raw = warning * count
+        assert len(raw) == 55 * count and h.diagnostic(raw) is False, label
     save(
         tmp_path,
-        "saved-warning-replay",
+        "normative-warning-replay",
         {
-            "source": str(path),
-            "classification": "saved-native-bytes-through-current-product-parser-not-new-SQL",
-            "raw_authority_defect_still_historical_RED": True,
+            "source": str(contract),
+            "classification": "committed-normative-bytes-through-current-product-parser",
+            "historical_receipt_replayed": False,
         },
     )
 

@@ -1,30 +1,53 @@
-// Immutable actual ASGI positive bytes from the accepted P-client review.
+// Immutable current public ASGI bytes from the controlled native-provider capture.
 // These are replayed in JSDOM, not a new backend or browser acceptance run.
-import { readFileSync } from "node:fs";
-import { createHash } from "node:crypto";
 import { afterEach, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ToolRecords } from "./ToolRecords";
 import { parseTurn } from "./chat-wire";
 import type { ScenarioExpectation } from "./chat-scenario-types";
-const root =
-  "/home/piecer/dev/src/ddospector/.hermes/artifacts/chat-agent/chat02b3/implementation/integration/p-client/review/";
-const manifest = JSON.parse(
-  readFileSync(root + "producer-byte-manifest.json", "utf8"),
-);
-function bytes(name: string) {
-  const entry = manifest.bodies[name];
-  const b = readFileSync(root + entry.path);
-  expect(createHash("sha256").update(b).digest("hex")).toBe(entry.sha256);
-  return b.toString("utf8");
-}
-function value(name: string) {
-  return JSON.parse(bytes(name));
-}
-function response(name: string) {
+import {
+  scenarioProducerBundleSha256,
+  scenarioProducerBytes as bytes,
+  scenarioProducerValue as value,
+  type ScenarioProducerName,
+} from "./chat-scenario-producer-fixture";
+function response(name: ScenarioProducerName) {
   return new Response(bytes(name), {
     headers: { "content-type": "application/json" },
   });
+}
+function admissionContext() {
+  // Test-only reconstruction from separately captured grant, turn and session
+  // responses. This is not a captured admission-context or binding receipt.
+  const grant = value("create-grant"),
+    turn = parseTurn(value("create-turn")),
+    sessions = value("create-sessions").sessions,
+    selected = sessions.find((entry: { id: string }) => entry.id === grant.session_id),
+    match = /^(.*?)(?:\.(\d{1,6}))?\+00:00$/.exec(turn.created_at);
+  if (!selected || !match) throw new Error("Invalid captured scenario admission context.");
+  const deadlineSecond = new Date(Date.parse(match[1] + "Z") + 120_000)
+      .toISOString()
+      .slice(0, 19),
+    fraction = (match[2] ?? "").padEnd(6, "0"),
+    deadlineAt =
+      deadlineSecond + (fraction === "000000" ? "" : "." + fraction) + "+00:00";
+  return {
+    session: selected,
+    commitment: {
+      request: {
+        schema_version: 4,
+        scope: "scenario_write",
+        request_id: grant.request_id,
+        session_id: grant.session_id,
+        turn_request_id: grant.turn_request_id,
+        expected_sequence: grant.expected_sequence,
+        text: turn.user_text,
+        intent: grant.intent,
+      },
+      resolved_inputs: grant.resolved_inputs,
+    },
+    deadlineAt,
+  };
 }
 afterEach(() => {
   vi.restoreAllMocks();
@@ -33,6 +56,9 @@ afterEach(() => {
 it.each(["en", "ko"] as const)(
   "actual create proposal shows full source/snapshots and only durable receipt enables Saved (%s)",
   async (locale) => {
+    expect(scenarioProducerBundleSha256).toBe(
+      "549a32546a30c36af88f09021e27534e8f92e4f1c416afde2c9ea095bf546c6f",
+    );
     const t = parseTurn(value("create-turn")),
       proposal = value("create-proposal"),
       saved = value("create-saved"),
@@ -46,7 +72,7 @@ it.each(["en", "ko"] as const)(
       () => anchor + performance.now() - clock,
     );
     vi.spyOn(crypto, "randomUUID").mockReturnValue(decision.request_id);
-    let current = "create-proposal";
+    let current: ScenarioProducerName = "create-proposal";
     const fetcher = vi.fn(async (url: string) =>
       url.endsWith("/decision")
         ? response("create-decision")
@@ -144,10 +170,8 @@ import { chatClient } from "./chat-client";
 import { toolClient } from "./chat-tool-client";
 import { runtimeFixture } from "./chat-test-fixtures";
 import type { GrantV4 } from "./chat-scenario-types";
-it("actual admission timestamp retains all microseconds in the captured live binding deadline", async () => {
-  const context = JSON.parse(
-    readFileSync(root + "producer-bytes/create-context.json", "utf8"),
-  );
+it("reconstructed admission deadline preserves all microseconds from the captured turn timestamp", async () => {
+  const context = admissionContext();
   const g = value("create-grant"),
     t = parseTurn(value("create-turn"));
   vi.spyOn(chatClient, "runtime").mockResolvedValue(runtimeFixture as never);
@@ -179,9 +203,7 @@ it("actual admission timestamp retains all microseconds in the captured live bin
 });
 it("live transcript rejects a self-consistent receipt that does not match captured grant", async () => {
   const t = parseTurn(value("create-turn")),
-    context = JSON.parse(
-      readFileSync(root + "producer-bytes/create-context.json", "utf8"),
-    );
+    context = admissionContext();
   const g: GrantV4 = value("create-grant");
   g.intent.expected_draft_revision++;
   vi.stubGlobal(
@@ -213,9 +235,7 @@ import { workspaceFixture } from "../../test/fixtures";
 it("actual AgentPage supplies current targets and routes only a validated Saved receipt", async () => {
   const wire = value("create-saved"),
     rawTurn = value("create-turn"),
-    context = JSON.parse(
-      readFileSync(root + "producer-bytes/create-context.json", "utf8"),
-    );
+    context = admissionContext();
   const t = parseTurn({
     ...rawTurn,
     status: "cancelled",
@@ -264,7 +284,10 @@ it("actual AgentPage supplies current targets and routes only a validated Saved 
   expect(navigate).toHaveBeenCalledWith("profiles", {
     id: record.id,
     version: record.version,
-    expectation: { scenario: record, after_scenario_revision: 1 },
+    expectation: {
+      scenario: record,
+      after_scenario_revision: call.result.after_scenario_revision,
+    },
   });
   fireEvent.click(
     screen.getByRole("button", { name: "Read tool availability / fence" }),

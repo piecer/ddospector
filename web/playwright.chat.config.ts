@@ -35,6 +35,7 @@ export default defineConfig({
       name: "chat-chromium",
       use: {
         ...devices["Desktop Chrome"],
+        channel: "chromium",
         viewport: { width: 900, height: 1000 },
       },
     },

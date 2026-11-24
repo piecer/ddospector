@@ -22,6 +22,7 @@ def application_probe(owner, case):
         "python": str(ROOT / ".venv/bin/python"),
         "owner": owner.owner_process,
         "socket": str(owner.socket),
+        "socket_root": str(owner.socket.parent.parent),
         "output": str(output),
         "case": case,
         "source": {

@@ -38,6 +38,7 @@ export default defineConfig({
     serviceWorkers: "block",
   },
   projects: [{ name: "chromium", use: {
-    ...devices["Desktop Chrome"], viewport: { width: 1440, height: 1000 },
+    ...devices["Desktop Chrome"], channel: "chromium",
+    viewport: { width: 1440, height: 1000 },
   } }],
 });

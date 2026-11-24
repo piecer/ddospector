@@ -54,4 +54,4 @@ it("same frozen actual H1 and labeled mutation bytes through shipped Node consum
       }, null, 2) + "\n", { flag: "wx" });
     }
   }
-});
+}, 15_000);

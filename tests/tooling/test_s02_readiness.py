@@ -1,11 +1,22 @@
 """Kernel-listener and real strictPort controls, not application acceptance."""
 
+import shutil
 import subprocess
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def node_executable() -> str:
+    node = shutil.which("node")
+    if node is None:
+        raise RuntimeError("Node.js is required for the real Vite readiness control")
+    return str(Path(node).resolve())
+
+
+NODE = node_executable()
 
 
 @pytest.mark.parametrize("collision", [False, True])
@@ -24,7 +35,7 @@ with socket.socket() as sock:
     try:
         if collision:
             # This invocation owns the sentinel; no accepting thread exists.
-            argv=['/usr/bin/node',str(probe.ROOT/'web/node_modules/vite/bin/vite.js'),
+            argv=[os.environ['DDOSPECTOR_TEST_NODE'],str(probe.ROOT/'web/node_modules/vite/bin/vite.js'),
                   str(probe.ROOT/'web'),'--host','127.0.0.1','--port',str(port),'--strictPort']
             with socket.socket() as api:
                 api.bind(('127.0.0.1',0))
@@ -66,6 +77,7 @@ assert owner.clean
         "TMPDIR": str(tmp_path),
         "PYTHONNOUSERSITE": "1",
         "PYTHONDONTWRITEBYTECODE": "1",
+        "DDOSPECTOR_TEST_NODE": str(Path(NODE).resolve()),
     }
     with subprocess.Popen(
         [str(ROOT / ".venv/bin/python"), "-c", script, str(tmp_path), str(collision)],
