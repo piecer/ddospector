@@ -13,7 +13,7 @@ assert.equal(createHash("sha256").update(p0a).digest("hex"),
   "04fa85bd80ea052efb35c1fea781fe8dac01095da36addbc95fc1bca947877d2");
 const bytes = readFileSync(resolve(normalWireRoot, "tests/fixtures/runs/normal-wire-current.json"));
 assert.equal(createHash("sha256").update(bytes).digest("hex"),
-  "e6653191b3753224e091414787bd70c07fc2bf735a77c1a01d8e857d7bfbb31b");
+  "3b51502ae23d7a4df061f81a81c2c6fa7dc9fa81aeac9e16e708ff631443a631");
 const paths = ["pyproject.toml", "uv.lock", "tests/api/scenario_producer.py",
   "tests/runs/phase1_probe.py", "tools/s02_harness.py", "tools/s02_web_probe.py",
   "tools/normal_wire.py", "tools/normal_wire_observer/sitecustomize.py"];

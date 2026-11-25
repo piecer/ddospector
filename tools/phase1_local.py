@@ -21,7 +21,14 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from tools import s02_harness as h  # noqa: E402
-from tools.s02_web_probe import NativeChildren, durable, identity, ready  # noqa: E402
+from tools.s02_web_probe import (  # noqa: E402
+    NativeChildren,
+    durable,
+    identity,
+    node_executable,
+    ready,
+    vite_argv,
+)
 
 
 def check_location(path):
@@ -242,7 +249,7 @@ class PersistentPG(h.Harness):
         )
 
 
-def launch_servers(workspace, output, native, reservation):
+def launch_servers(workspace, output, native, reservation, node):
     endpoint = str(workspace / "d/s")
     with reserve_port(0) as listener:
         port = listener.getsockname()[1]
@@ -278,16 +285,7 @@ def launch_servers(workspace, output, native, reservation):
     reservation.close()
     web = native.launch(
         "web",
-        [
-            "/usr/bin/node",
-            str(ROOT / "web/node_modules/vite/bin/vite.js"),
-            str(ROOT / "web"),
-            "--host",
-            "127.0.0.1",
-            "--port",
-            str(web_port),
-            "--strictPort",
-        ],
+        vite_argv(node, web_port),
         {"VITE_API_PROXY_TARGET": api_origin},
     )
     ready(
@@ -375,7 +373,9 @@ def serve(args, stopping):
                     owner.call("start", owner.cid)
                     started = True
                     wait_database(owner)
-                children, origin = launch_servers(workspace, output, native, reservation)
+                children, origin = launch_servers(
+                    workspace, output, native, reservation, args.node
+                )
                 state.update(phase="RUNNING", origin=origin)
                 save_state(workspace, state)
                 initialized = True
@@ -500,6 +500,7 @@ def main():
         ):
             raise h.Blocked("EXACT_LOWERCASE_UUID4_REQUIRED")
         check_location(args.workspace)
+        args.node = node_executable() if args.command in {"create", "open"} else None
         environment = clean_environment(args.workspace)
         os.environ.clear()
         os.environ.update(environment)

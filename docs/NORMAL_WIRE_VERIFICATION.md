@@ -71,6 +71,27 @@ The original OFFLINE result remains preparation-only: `NOT_EVALUATED`, null
 measurements and null defense verdict. No application model, DUT or traffic engine
 was called. The normal capture does not resume full S02/W2 or reset prior limits.
 
+## Portable Node refresh
+
+The current fixture was refreshed after removing the product harness dependency
+on `/usr/bin/node`. A fresh private-PostgreSQL/separate-worker capture retained
+12 recorded positive HTTP rows plus the unchanged 39 synthetic consumer-negative
+rows. The selected stored Run report had `state=SUCCEEDED`; the individual corpus
+rows do not carry Run state. Every owned native child was reaped and the
+retirement receipt reported `clean=true`, no remaining resources and no errors.
+The only changed source commitment in the normal-wire manifest is
+`tools/s02_web_probe.py`; the promoted fixture SHA-256 is
+`3b51502ae23d7a4df061f81a81c2c6fa7dc9fa81aeac9e16e708ff631443a631`.
+
+A separate local smoke probe, retained outside the promoted normal-wire fixture
+and not claimed as source-bound Phase-1 acceptance, resolved Node before
+environment sanitization, launched Vite with that absolute executable, returned
+HTTP 200 for the UI root, retained a direct API health receipt, and recorded
+Vite's configured API proxy target. It stopped with `phase=STOPPED`,
+`failure=null`, clean native retirement and a retained exited PostgreSQL
+container. This is local harness portability evidence only; it does not add DUT
+traffic, LIVE authority or W2 acceptance.
+
 ## Reproduction
 
 Explicit capture, from the repository root with the installed project environment:

@@ -200,6 +200,66 @@ def test_lock_exclusion_and_shared_worker_shutdown_gate(tmp_path):
         fcntl.flock(fd, fcntl.LOCK_UN)
 
 
+def test_phase1_node_preflight_precedes_sanitization_and_workspace(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    module = local()
+    args = SimpleNamespace(command="create", workspace=tmp_path / "owned", web_port=5175)
+    monkeypatch.setattr(module, "parser", lambda: SimpleNamespace(parse_args=lambda: args))
+    monkeypatch.setattr(module, "check_location", lambda path: None)
+    monkeypatch.setattr(module.signal, "signal", lambda *args: None)
+    touched = []
+
+    def missing():
+        raise RuntimeError("Node.js executable not found on PATH")
+
+    def forbidden(*args, **kwargs):
+        touched.append("resource")
+        raise AssertionError("resource acquisition preceded Node preflight")
+
+    monkeypatch.setattr(module, "node_executable", missing)
+    monkeypatch.setattr(module, "clean_environment", forbidden)
+    monkeypatch.setattr(module, "new_workspace", forbidden)
+    monkeypatch.setattr(module, "serve", forbidden)
+    assert module.main() == 78
+    assert touched == [] and not args.workspace.exists()
+
+
+def test_launch_servers_uses_exact_preflighted_node_path(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    module = local()
+    output = tmp_path / "output"
+    workspace = tmp_path / "workspace"
+    output.mkdir()
+    workspace.mkdir()
+    launches = []
+
+    class Native:
+        def __init__(self):
+            self.known = {}
+
+        def launch(self, name, argv, extra=None, pass_fds=()):
+            child = SimpleNamespace(pid=1000 + len(launches))
+            self.known[child.pid] = {"start_ticks": str(child.pid)}
+            launches.append((name, argv, extra, pass_fds))
+            return child
+
+    class Reservation:
+        def getsockname(self):
+            return ("127.0.0.1", 5175)
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(module, "ready", lambda *args, **kwargs: None)
+    native = Native()
+    module.launch_servers(workspace, output, native, Reservation(), "/owned/node")
+    assert launches[1][0] == "web"
+    assert launches[1][1] == module.vite_argv("/owned/node", 5175)
+    assert launches[1][1][0] == "/owned/node"
+
+
 def test_serve_normal_stop_keeps_draft_and_runs_no_worker(tmp_path, monkeypatch):
     from types import SimpleNamespace
 
@@ -235,7 +295,7 @@ def test_serve_normal_stop_keeps_draft_and_runs_no_worker(tmp_path, monkeypatch)
 
     monkeypatch.setattr(module, "NativeChildren", Native)
     monkeypatch.setattr(module, "launch_servers", lambda *a: ([], "http://127.0.0.1:5175"))
-    args = SimpleNamespace(workspace=workspace, command="create", web_port=0)
+    args = SimpleNamespace(workspace=workspace, command="create", web_port=0, node="/owned/node")
     assert module.serve(args, lambda: True) == 0
     assert draft.read_text() == '{"retained":true}'
     assert json.loads((workspace / "workspace.json").read_text())["phase"] == "STOPPED"
@@ -329,6 +389,7 @@ def test_cli_removes_ambient_proxy_and_loader_settings_before_readiness(tmp_path
     args = SimpleNamespace(command="open", workspace=tmp_path)
     monkeypatch.setattr(module, "parser", lambda: SimpleNamespace(parse_args=lambda: args))
     monkeypatch.setattr(module, "check_location", lambda path: None)
+    monkeypatch.setattr(module, "node_executable", lambda: "/owned/node")
     monkeypatch.setattr(module.signal, "signal", lambda *args: None)
     monkeypatch.setattr(module.os, "umask", lambda *args: None)
     observed = []
@@ -338,3 +399,4 @@ def test_cli_removes_ambient_proxy_and_loader_settings_before_readiness(tmp_path
     assert module.main() == 0
     assert "HTTP_PROXY" not in observed[0] and "NODE_OPTIONS" not in observed[0]
     assert observed[0]["HOME"] == str(tmp_path / "home")
+    assert args.node == "/owned/node"

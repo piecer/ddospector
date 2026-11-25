@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import select
+import shutil
 import signal
 import socket
 import subprocess
@@ -25,6 +26,43 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+
+
+def node_executable():
+    candidate = shutil.which("node")
+    if candidate is None:
+        raise RuntimeError("Node.js executable not found on PATH")
+    path = Path(candidate).resolve(strict=True)
+    if not path.is_file() or not os.access(path, os.X_OK):
+        raise RuntimeError("Node.js executable is not an executable file")
+    return str(path)
+
+
+def vite_argv(node, port):
+    return [
+        node,
+        str(ROOT / "web/node_modules/vite/bin/vite.js"),
+        str(ROOT / "web"),
+        "--host",
+        "127.0.0.1",
+        "--port",
+        str(port),
+        "--strictPort",
+    ]
+
+
+def playwright_argv(node, mode):
+    return [
+        node,
+        str(ROOT / "web/node_modules/playwright/cli.js"),
+        "test",
+        "--config",
+        str(ROOT / "web/playwright.runs.config.ts"),
+        "--grep",
+        "owned ephemeral-origin|exact-byte"
+        if mode == "scoped"
+        else "real EN/KO|exact-byte",
+    ]
 
 
 def durable(path, value):
@@ -376,12 +414,13 @@ def main():
     assert env["HOME"] == str(runtime / "home")
     assert not any(k.startswith("PG") for k in env)
     assert Path(sys.prefix) == ROOT / ".venv"
+    node = node_executable()
     with socket.socket() as reservation:
         reservation.bind(("127.0.0.1", port if mode == "full" else 0))
-        return exercise(config, mode, reservation)
+        return exercise(config, mode, reservation, node)
 
 
-def exercise(config, mode, reservation):
+def exercise(config, mode, reservation, node):
     from tools import s02_harness as h
 
     env = config["env"]
@@ -475,16 +514,7 @@ def exercise(config, mode, reservation):
             reservation.close()  # strictPort + kernel ownership closes the bind-race gate.
             vite = launch(
                 "vite",
-                [
-                    "/usr/bin/node",
-                    str(ROOT / "web/node_modules/vite/bin/vite.js"),
-                    str(ROOT / "web"),
-                    "--host",
-                    "127.0.0.1",
-                    "--port",
-                    str(web_port),
-                    "--strictPort",
-                ],
+                vite_argv(node, web_port),
                 {"VITE_API_PROXY_TARGET": f"http://127.0.0.1:{port}"},
             )
             assert native.processes[-1][3]["environment"]["VITE_API_PROXY_TARGET"] == f"http://127.0.0.1:{port}"
@@ -505,17 +535,7 @@ def exercise(config, mode, reservation):
                 assert response.status == 200 and json.load(response)["total"] == 0
             test = launch(
                 "chromium",
-                [
-                    "/usr/bin/node",
-                    str(ROOT / "web/node_modules/playwright/cli.js"),
-                    "test",
-                    "--config",
-                    str(ROOT / "web/playwright.runs.config.ts"),
-                    "--grep",
-                    "owned ephemeral-origin|exact-byte"
-                    if mode == "scoped"
-                    else "real EN/KO|exact-byte",
-                ],
+                playwright_argv(node, mode),
                 {"I3_WEB_ORIGIN": web_origin, "I3_WEB_OUTPUT": str(output)},
             )
             deadline = time.monotonic() + 90
