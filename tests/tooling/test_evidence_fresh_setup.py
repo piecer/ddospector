@@ -49,7 +49,9 @@ def test_fresh_provisioning_order_and_failure_preservation(tmp_path, monkeypatch
         calls.append("serve")
         return [], "http://127.0.0.1:5175"
     monkeypatch.setattr(module, "launch_servers", servers)
-    args = SimpleNamespace(workspace=workspace, command="create", web_port=0, evidence=True)
+    args = SimpleNamespace(
+        workspace=workspace, command="create", web_port=0, evidence=True, node="/owned/node"
+    )
     if failure:
         with pytest.raises(module.h.Blocked, match="EVIDENCE_MIGRATION_FAILED_DATA_RETAINED"):
             module.serve(args, lambda: True)

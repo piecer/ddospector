@@ -40,6 +40,12 @@ From the checkout root, terminal A:
 .venv/bin/python tools/phase1_local.py create --workspace "$HOME/p1-local" --web-port 5175
 ```
 
+The launcher resolves `node` from the invoking operator's `PATH` before it
+sanitizes child environments. The resolved executable is canonicalized, checked
+for executability, passed as an absolute argv entry to Vite, and retained in the
+native launch receipt. A missing or invalid Node executable is refused before
+workspace or PostgreSQL provisioning.
+
 Wait for `"phase": "RUNNING"`, then open the printed loopback URL. Only 5175 or
 5182 is accepted for the UI because those are already allowed by the unchanged
 API origin boundary. An occupied port is a refusal, not permission to kill/adopt
