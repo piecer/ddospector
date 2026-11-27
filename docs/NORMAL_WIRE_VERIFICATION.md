@@ -92,6 +92,24 @@ Vite's configured API proxy target. It stopped with `phase=STOPPED`,
 container. This is local harness portability evidence only; it does not add DUT
 traffic, LIVE authority or W2 acceptance.
 
+## Independent Guardian source refresh
+
+P0-B2 added `src/aiddos/lab/guardian.py` and the public
+`src/ddospector/lab/guardian.py` entry point. The current normal-wire fixture was
+captured once more against the exact new source using a new private PostgreSQL
+owner and separate one-shot workers. It retained 12 recorded positive HTTP rows
+and the unchanged 39 synthetic consumer-negative rows; the stored Run report was
+`SUCCEEDED`, native retirement was clean, and no process/resource remained.
+
+Relative to the retained portable-Node v2 capture, the only source-inventory
+changes are the two new Guardian modules. The normal-wire path does not invoke or
+claim acceptance of the Guardian process; this refresh proves only that the
+existing OFFLINE ASGI/PG/worker path remains source-bound and unchanged in scope.
+The promoted fixture is byte-identical to
+`/home1/piecer/ddospector-evidence/normal-wire-guardian-v4/normal-wire-current.json`
+and has SHA-256
+`27789f8065abd94b34c27ae7262cc997ff99950e767b1af353d698452a71e568`.
+
 ## Reproduction
 
 Explicit capture, from the repository root with the installed project environment:

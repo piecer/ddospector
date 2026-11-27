@@ -1,5 +1,15 @@
 # 기능 1–12 순차 구현 정본
 
+## PLAN_PROGRESS2 후속 P0-B2 — 독립 로컬 Guardian process
+
+운영자가 소유한 단일 local child를 별도 process가 pidfd+control pipe로 감시하고,
+controller 상실·명시 stop·invalid control·bounded deadline에 TERM→KILL을 수행한다.
+claim/profile/authority, private root dev/inode, pid/start/boot를 검증한 뒤 READY를 보내고
+exact GO+EOF 뒤 Guardian이 SIGCONT하므로 caller policy상 READY 이전 release를 막는다.
+동일 UID의 별도 signal sender 격리는 아직 trusted-local 가정이며, 계약과 OPEN 범위는
+`docs/P0B2_GUARDIAN_CONTRACT.md`를 따른다. 이는 target spawn/adapter, Guardian 자체
+재시작, packet/device readback, LIVE 권한 또는 S07/full-S02 완료가 아니다.
+
 ## PLAN_PROGRESS2 후속 P0-B1 — 별도 로컬 callback 실행 승인
 
 SessionOwner의 기존 admit 진입점에 profile 확인과 별개의 bounded authority를
